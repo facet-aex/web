@@ -1,6 +1,7 @@
 # FACET Web instructions
 
 - This is a standalone repository. It must install, build, test and deploy without a parent folder or sibling checkout.
+- Use npm only. Commit this repository's `package-lock.json`; do not join a parent workspace.
 - Current scope is Phase 1 Provider Console and public Store only. Do not build Playground, wallet, MCP or payment UI.
 - Follow `docs/ui-brand-direction.md`; accessibility and reduced-motion support are acceptance criteria.
 - Keep browser code free of provider secrets, database credentials and direct provider API calls.
