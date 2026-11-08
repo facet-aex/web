@@ -20,8 +20,9 @@ FACET uses an original visual system inspired by the contrast and editorial/tech
 }
 ```
 
-- Display/body: Inter Tight with system sans fallback.
-- Navigation, labels, IDs and status: IBM Plex Mono.
+- Display/body: self-hosted Inter Tight with system sans fallback.
+- Navigation, labels, IDs and status: self-hosted IBM Plex Mono.
+- Both font packages use the SIL Open Font License 1.1.
 - Use lime for actions/selection, not every surface.
 - Prefer hard rectangles, visible 1px dividers and editorial grids over rounded-card mosaics.
 
