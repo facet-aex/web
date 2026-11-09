@@ -46,4 +46,6 @@ curl --request POST http://localhost:4000/v1/providers \
 
 The Provider Console supports isolated HTTPS URL import, paste, and local text-file upload. Upload currently reads a maximum 5 MiB JSON/YAML file in the browser and sends the Control API's JSON-content fallback; multipart/streaming upload is not implemented.
 
+The Next.js BFF applies a bounded streaming read to the import command before forwarding it. The Control API independently enforces both its JSON transport limit and the decoded 5 MiB document limit.
+
 The public Store still uses records labeled local demo data until the Control API catalog endpoint lands. Run `npm run verify` before committing.

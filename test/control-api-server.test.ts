@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { POST as createImport } from "@/app/api/facet/openapi-imports/route";
 import { GET as getImportJob } from "@/app/api/facet/openapi-imports/[jobId]/route";
-import { proxyControlApi, validateJobId } from "@/lib/control-api-server";
+import {
+  proxyControlApi,
+  readBoundedRequestBody,
+  validateJobId,
+} from "@/lib/control-api-server";
 
 const validJobId = "019a69b8-1f36-7a12-9ea4-777f09a777ef";
 
@@ -104,5 +109,38 @@ describe("Control API server adapter", () => {
       error: { code: "INPUT_INVALID" },
     });
     expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized import command before forwarding it", async () => {
+    const upstream = vi.fn();
+    vi.stubGlobal("fetch", upstream);
+
+    const response = await createImport(
+      new Request("http://localhost:3000/api/facet/openapi-imports", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "content-length": "11000000",
+        },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "IMPORT_TOO_LARGE" },
+    });
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it("stops reading a chunked request once the byte budget is exceeded", async () => {
+    const request = new Request(
+      "http://localhost:3000/api/facet/openapi-imports",
+      { method: "POST", body: "123456789" },
+    );
+
+    await expect(readBoundedRequestBody(request, 8)).rejects.toMatchObject({
+      code: "IMPORT_TOO_LARGE",
+    });
   });
 });
