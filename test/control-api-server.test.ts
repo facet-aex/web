@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET as getImportJob } from "@/app/api/facet/openapi-imports/[jobId]/route";
-import {
-  proxyControlApi,
-  validateJobId,
-} from "@/lib/control-api-server";
+import { proxyControlApi, validateJobId } from "@/lib/control-api-server";
 
 const validJobId = "019a69b8-1f36-7a12-9ea4-777f09a777ef";
 
@@ -35,11 +32,10 @@ describe("Control API server adapter", () => {
         body: JSON.stringify({ providerId: "provider-1" }),
       },
     );
-    const response = await proxyControlApi(
-      request,
-      "/v1/openapi-imports",
-      { method: "POST", body: await request.text() },
-    );
+    const response = await proxyControlApi(request, "/v1/openapi-imports", {
+      method: "POST",
+      body: await request.text(),
+    });
 
     expect(response.status).toBe(422);
     await expect(response.json()).resolves.toEqual({

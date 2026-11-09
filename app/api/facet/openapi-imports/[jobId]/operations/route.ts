@@ -15,8 +15,5 @@ export async function GET(
   const { jobId } = await context.params;
   if (!validateJobId(jobId)) return invalidJobIdResponse();
 
-  return proxyControlApi(
-    request,
-    `/v1/openapi-imports/${jobId}/operations`,
-  );
+  return proxyControlApi(request, `/v1/openapi-imports/${jobId}/operations`);
 }
