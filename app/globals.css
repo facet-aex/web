@@ -564,8 +564,8 @@ footer {
 }
 
 .console-steps li[data-active="true"] {
-  border-left: 4px solid var(--facet-lime);
   background: var(--facet-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--facet-lime);
   color: var(--facet-text);
 }
 
@@ -735,7 +735,6 @@ footer {
 .error-banner {
   padding: 1rem;
   border: 1px solid var(--facet-danger);
-  border-left-width: 6px;
   background: color-mix(in srgb, var(--facet-danger) 10%, transparent);
 }
 
@@ -1063,11 +1062,6 @@ footer {
     border-right: 1px solid var(--facet-line);
     border-bottom: 0;
     font-size: 0.62rem;
-  }
-
-  .console-steps li[data-active="true"] {
-    border-left: 0;
-    border-top: 4px solid var(--facet-lime);
   }
 
   .import-form,
