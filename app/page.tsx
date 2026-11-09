@@ -1,5 +1,6 @@
 import { FacetRow } from "@/components/facet-row";
 import { PublishPreviewDialog } from "@/components/publish-preview-dialog";
+import { ProviderImportWorkspace } from "@/components/provider-import-workspace";
 import { demoFacets } from "@/lib/demo-facets";
 
 export default function HomePage() {
@@ -13,7 +14,7 @@ export default function HomePage() {
           <a className="nav-active" href="#store">
             Store
           </a>
-          <a href="#providers">Providers</a>
+          <a href="#provider-console">Providers</a>
           <a href="#docs">Docs</a>
         </nav>
         <span className="environment">Local</span>
@@ -118,30 +119,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section
-        className="foundation"
-        id="import-foundation"
-        aria-labelledby="foundation-title"
-      >
-        <div>
-          <p className="eyebrow">Implementation checkpoint</p>
-          <h2 id="foundation-title">
-            Import safely before publishing quickly.
-          </h2>
-        </div>
-        <div className="warning" role="status">
-          <span aria-hidden="true">!</span>
-          <div>
-            <strong>Remote fetching is not enabled yet.</strong>
-            <p>
-              Phase 1 starts with paste/upload parsing. URL fetch requires
-              isolated egress and redirect controls.
-            </p>
-          </div>
-        </div>
-      </section>
+      <ProviderImportWorkspace />
 
-      <footer>
+      <footer id="docs">
         <span>FACET / MVP v0.1</span>
         <span>Discover. Verify. Execute. Transact.</span>
       </footer>

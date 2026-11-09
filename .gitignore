@@ -6,6 +6,7 @@ coverage/
 .vercel/
 .turbo/
 .cache/
+.playwright-cli/
 .env
 .env.*
 !.env.example

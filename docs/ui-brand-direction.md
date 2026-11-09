@@ -40,6 +40,12 @@ FACET uses an original visual system inspired by the contrast and editorial/tech
 - Warnings include exact operation/path context.
 - Publication actions are visually distinct and require explicit confirmation.
 
+### Implemented Slice 2 workspace
+
+The OpenAPI import workspace uses a persistent step rail, a three-way source switcher, a bounded form column and a separate live-job/operation column. Electric lime marks the selected source and active steps; job state always includes text. On narrow screens the step rail becomes a horizontal four-cell strip and form/status columns stack without changing DOM order.
+
+URL copy must identify the isolated HTTPS fetcher. Upload copy must identify the current JSON-content fallback and state that multipart upload is not implemented. Operation selection is labeled as a local preview until Slice 3 persists Facet drafts.
+
 ## Accessibility gate
 
 - WCAG 2.2 AA contrast.
