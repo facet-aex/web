@@ -2,6 +2,10 @@
 
 FACET uses an original visual system inspired by the contrast and editorial/technical rhythm of NUSX. Do not copy NUSX logos, text, imagery, proprietary assets or exact page compositions.
 
+## Logo
+
+The selected mark is Open Gateway. `public/facet-logo.svg` is the transparent square asset for the interface, and `app/icon.svg` uses the same mark for the browser icon. Pair the symbol with FACET in the header. The canonical source is documented in the FACET design baseline.
+
 ## Tokens
 
 ```css

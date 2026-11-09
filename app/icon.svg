@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" fill="#050505"/>
-  <path fill="#f4f4ef" d="M11 11h30v10H21v8h17v10H21v14H11z"/>
-  <path fill="#dfff4f" d="M44 11h10L40 53H30z"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="FACET logo option 3"><title>FACET — Open gateway</title><path fill="#F4F4EF" d="M188 188h648v156H344v336h492v156H188z"/><path fill="#DFFF4F" d="M468 434h368v156H468z"/></svg>

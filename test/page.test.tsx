@@ -8,6 +8,7 @@ describe("HomePage Provider Console integration", () => {
     const markup = renderToStaticMarkup(<HomePage />);
 
     expect(markup).toContain('href="#provider-console"');
+    expect(markup).toContain('src="/facet-logo.svg"');
     expect(markup).toContain('id="provider-console"');
     expect(markup).toContain("Fetched by FACET&#x27;s isolated HTTPS fetcher.");
     expect(markup).not.toContain("Remote fetching is not enabled yet.");

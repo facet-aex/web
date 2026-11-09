@@ -73,14 +73,16 @@ textarea {
 .wordmark {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
   padding-inline: var(--page-padding);
   font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: -0.05em;
 }
 
-.wordmark span {
-  color: var(--facet-lime);
+.wordmark img {
+  display: block;
+  flex: none;
 }
 
 .site-header nav {

@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { FacetRow } from "@/components/facet-row";
 import { PublishPreviewDialog } from "@/components/publish-preview-dialog";
 import { ProviderImportWorkspace } from "@/components/provider-import-workspace";
@@ -8,7 +10,8 @@ export default function HomePage() {
     <main>
       <header className="site-header">
         <a className="wordmark" href="#top" aria-label="FACET home">
-          FACET<span aria-hidden="true">/</span>
+          <Image src="/facet-logo.svg" alt="" width={32} height={32} />
+          FACET
         </a>
         <nav aria-label="Primary navigation">
           <a className="nav-active" href="#store">
