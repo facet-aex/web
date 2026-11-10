@@ -70,6 +70,7 @@ describe("ProviderImportWorkspace", () => {
     expect(markup).toContain('for="draft-name-');
     expect(markup).toContain("Upstream endpoint");
     expect(markup).toContain("Validate Facet");
+    expect(markup).toContain("publish");
     expect(markup).toContain("Secret values are sent once");
     expect(markup).not.toContain("secretRefId");
   });

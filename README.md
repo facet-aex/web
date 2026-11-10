@@ -46,10 +46,10 @@ curl --request POST http://localhost:4000/v1/providers \
 
 The Provider Console supports isolated HTTPS URL import, paste, and local text-file upload. Upload currently reads a maximum 5 MiB JSON/YAML file in the browser and sends the Control API's JSON-content fallback; multipart/streaming upload is not implemented.
 
-After import, a provider can select operations, edit their public metadata, create an atomic private draft batch, configure a protected HTTPS endpoint with no auth, API-key auth, or Bearer auth, and validate each draft. If validation returns warnings, the provider must explicitly acknowledge the exact current warning IDs before the version can become `VALID`. Operation selection locks after draft creation to prevent duplicate batches.
+After import, a provider can select operations, edit their public metadata, create an atomic private draft batch, configure a protected HTTPS endpoint with no auth, API-key auth, or Bearer auth, validate each draft, then publish a valid immutable version as `PUBLIC` or `UNLISTED`. If validation returns warnings, the provider must explicitly acknowledge the exact current warning IDs before the version can become `VALID`. Operation selection locks after draft creation to prevent duplicate batches.
 
 Secret values are submitted once through a fixed server-side BFF route and cleared from the client state after the Control API creates a SecretRef. The local filesystem secret adapter is development-only and is not an encryption or production-security claim.
 
 The Next.js BFF applies a bounded streaming read to the import command before forwarding it. The Control API independently enforces both its JSON transport limit and the decoded 5 MiB document limit.
 
-The public Store still uses records labeled local demo data until the Control API catalog endpoint lands. Publishing, version history/diff and the public catalog are not implemented yet. Run `npm run verify` before committing.
+The public Store still uses records labeled local demo data until the Control API catalog endpoint lands. Version history/diff, disable/deprecate and the public catalog are not implemented yet. Run `npm run verify` before committing.

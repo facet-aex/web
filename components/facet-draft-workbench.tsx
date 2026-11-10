@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import {
   buildDraftSelections,
   readFacetDraftsResponse,
+  readFacetPublicationResponse,
   readFacetValidationResponse,
   requiresManualAuthReview,
   SIDE_EFFECT_CLASSES,
@@ -12,6 +13,7 @@ import {
   type DraftSelection,
   type EndpointAuthKind,
   type FacetDraft,
+  type FacetPublicationResult,
   type FacetValidationResult,
 } from "@/lib/facet-draft-workflow";
 import {
@@ -39,8 +41,17 @@ interface WorkbenchItem {
   draft: FacetDraft | null;
   version: number | null;
   validation: FacetValidationResult | null;
+  publication: FacetPublicationResult | null;
+  publicationVisibility: "PUBLIC" | "UNLISTED";
   stage:
-    "EDITING" | "DRAFT" | "CONFIGURING" | "CONFIGURED" | "VALIDATING" | "VALID";
+    | "EDITING"
+    | "DRAFT"
+    | "CONFIGURING"
+    | "CONFIGURED"
+    | "VALIDATING"
+    | "VALID"
+    | "PUBLISHING"
+    | "PUBLISHED";
   error: string | null;
 }
 
@@ -61,6 +72,8 @@ function createItems(operations: OperationCandidate[]): WorkbenchItem[] {
       draft: null,
       version: null,
       validation: null,
+      publication: null,
+      publicationVisibility: "PUBLIC",
       stage: "EDITING",
       error: null,
     };
@@ -292,6 +305,48 @@ export function FacetDraftWorkbench({
     }
   }
 
+  async function publish(index: number) {
+    const item = items[index];
+    if (!item?.draft || item.version === null || item.stage !== "VALID") return;
+    updateItem(index, { stage: "PUBLISHING", error: null });
+
+    try {
+      const response = await fetch(
+        `/api/facet/facet-versions/${encodeURIComponent(item.draft.draftVersion.id)}/publish`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            version: item.version,
+            visibility: item.publicationVisibility,
+          }),
+        },
+      );
+      const body = await readJson(response);
+      if (!response.ok) throw new Error(readErrorEnvelope(body));
+      const publication = readFacetPublicationResponse(body);
+      if (!publication) {
+        throw new Error(
+          "The Control API returned invalid publication metadata.",
+        );
+      }
+      updateItem(index, {
+        publication,
+        version: publication.version,
+        stage: "PUBLISHED",
+        error: null,
+      });
+    } catch (error) {
+      updateItem(index, {
+        stage: "VALID",
+        error:
+          error instanceof Error
+            ? error.message
+            : "The Facet Version could not be published.",
+      });
+    }
+  }
+
   const draftsCreated = items.length > 0 && items.every((item) => item.draft);
 
   return (
@@ -303,15 +358,19 @@ export function FacetDraftWorkbench({
         </div>
         <p>
           Review public metadata first. Then bind each private upstream endpoint
-          and use Validate Facet to check its immutable draft. Secret values are
-          sent once and never returned to this page.
+          and use Validate Facet before publishing its immutable version. Secret
+          values are sent once and never returned to this page.
         </p>
       </header>
 
       <ol className="draft-progress" aria-label="Facet draft progress">
         <li data-complete="true">Import</li>
         <li data-complete={draftsCreated}>Draft</li>
-        <li data-complete={items.every((item) => item.stage === "VALID")}>
+        <li
+          data-complete={items.every((item) =>
+            ["VALID", "PUBLISHING", "PUBLISHED"].includes(item.stage),
+          )}
+        >
           Valid
         </li>
       </ol>
@@ -405,7 +464,10 @@ export function FacetDraftWorkbench({
 
               <fieldset
                 className="endpoint-fields"
-                disabled={!item.draft || item.stage === "VALID"}
+                disabled={
+                  !item.draft ||
+                  ["VALID", "PUBLISHING", "PUBLISHED"].includes(item.stage)
+                }
               >
                 <legend>Upstream endpoint</legend>
                 <div className="form-field endpoint-url">
@@ -578,7 +640,42 @@ export function FacetDraftWorkbench({
                     </span>
                   ) : null}
                   {item.stage === "VALID" ? (
-                    <span className="draft-ready">Ready for publishing</span>
+                    <div className="publish-control">
+                      <label htmlFor={`publish-visibility-${prefix}`}>
+                        Catalog visibility
+                      </label>
+                      <select
+                        id={`publish-visibility-${prefix}`}
+                        value={item.publicationVisibility}
+                        onChange={(event) =>
+                          updateItem(index, {
+                            publicationVisibility: event.target.value as
+                              "PUBLIC" | "UNLISTED",
+                          })
+                        }
+                      >
+                        <option value="PUBLIC">Public</option>
+                        <option value="UNLISTED">Unlisted</option>
+                      </select>
+                      <button
+                        className="button button-primary"
+                        type="button"
+                        onClick={() => void publish(index)}
+                      >
+                        Publish Facet
+                      </button>
+                    </div>
+                  ) : null}
+                  {item.stage === "PUBLISHING" ? (
+                    <span role="status" className="draft-busy">
+                      Publishing…
+                    </span>
+                  ) : null}
+                  {item.stage === "PUBLISHED" && item.publication ? (
+                    <span className="draft-ready">
+                      Published {item.publication.displayVersion} /{" "}
+                      {item.publication.visibility.toLowerCase()}
+                    </span>
                   ) : null}
                 </div>
               ) : null}

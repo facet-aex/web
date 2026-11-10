@@ -4,6 +4,7 @@ import {
   buildDraftSelections,
   readFacetDraftsResponse,
   readFacetValidationResponse,
+  readFacetPublicationResponse,
   requiresManualAuthReview,
   suggestEndpoint,
 } from "@/lib/facet-draft-workflow";
@@ -121,5 +122,37 @@ describe("Facet draft workflow helpers", () => {
       version: 3,
       warnings: [{ code: "MISSING_SCHEMA", acknowledged: false }],
     });
+  });
+
+  it("reads publication metadata without private endpoint data", () => {
+    const versionId = "019a69b8-1f36-7a12-9ea4-777f09a777eb";
+    const publication = readFacetPublicationResponse({
+      facet: {
+        id: "019a69b8-1f36-7a12-9ea4-777f09a777ea",
+        status: "PUBLISHED",
+        visibility: "PUBLIC",
+        currentPublishedVersionId: versionId,
+        version: 2,
+      },
+      facetVersion: {
+        id: versionId,
+        facetId: "019a69b8-1f36-7a12-9ea4-777f09a777ea",
+        displayVersion: "0.1.0",
+        status: "PUBLISHED",
+        visibility: "PUBLIC",
+        contentHash: `sha256:${"a".repeat(64)}`,
+        publishedAt: "2026-11-10T00:00:00.000Z",
+        version: 4,
+      },
+    });
+
+    expect(publication).toMatchObject({
+      versionId,
+      visibility: "PUBLIC",
+      version: 4,
+    });
+    expect(
+      readFacetPublicationResponse({ facet: {}, facetVersion: {} }),
+    ).toBeNull();
   });
 });

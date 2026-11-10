@@ -4,6 +4,7 @@ import { POST as createImport } from "@/app/api/facet/openapi-imports/route";
 import { POST as createFacets } from "@/app/api/facet/facets/route";
 import { PUT as configureEndpoint } from "@/app/api/facet/facet-versions/[versionId]/endpoint-config/route";
 import { POST as validateFacetVersion } from "@/app/api/facet/facet-versions/[versionId]/validate/route";
+import { POST as publishFacetVersion } from "@/app/api/facet/facet-versions/[versionId]/publish/route";
 import { POST as createSecret } from "@/app/api/facet/providers/[providerId]/secrets/route";
 import { GET as getImportJob } from "@/app/api/facet/openapi-imports/[jobId]/route";
 import {
@@ -221,13 +222,24 @@ describe("Control API server adapter", () => {
       ),
       { params: Promise.resolve({ versionId }) },
     );
+    const publicationResponse = await publishFacetVersion(
+      new Request(
+        `http://localhost:3000/api/facet/facet-versions/${versionId}/publish`,
+        {
+          method: "POST",
+          body: "{}",
+        },
+      ),
+      { params: Promise.resolve({ versionId }) },
+    );
 
     expect([
       facetResponse.status,
       secretResponse.status,
       endpointResponse.status,
       validationResponse.status,
-    ]).toEqual([200, 200, 200, 200]);
+      publicationResponse.status,
+    ]).toEqual([200, 200, 200, 200, 200]);
     expect(
       upstream.mock.calls.map(([url, init]) => [String(url), init?.method]),
     ).toEqual([
@@ -238,6 +250,7 @@ describe("Control API server adapter", () => {
         "PUT",
       ],
       [`http://localhost:4000/v1/facet-versions/${versionId}/validate`, "POST"],
+      [`http://localhost:4000/v1/facet-versions/${versionId}/publish`, "POST"],
     ]);
   });
 

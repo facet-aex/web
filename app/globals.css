@@ -1101,6 +1101,26 @@ footer {
   color: var(--facet-lime);
 }
 
+.publish-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.publish-control label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+}
+
+.publish-control select {
+  min-height: 44px;
+  padding: 0.65rem 2.25rem 0.65rem 0.75rem;
+  border: 1px solid var(--facet-line);
+  border-radius: 0;
+  background: var(--facet-surface);
+  color: var(--facet-text);
+}
+
 .draft-create-bar {
   padding: 1.25rem clamp(1.25rem, 3vw, 2.5rem);
   border-top: 1px solid var(--facet-line);
@@ -1300,7 +1320,8 @@ footer {
   }
 
   .draft-actions,
-  .draft-create-bar {
+  .draft-create-bar,
+  .publish-control {
     align-items: stretch;
     flex-direction: column;
   }

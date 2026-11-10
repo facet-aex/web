@@ -51,6 +51,16 @@ export interface FacetValidationResult {
   warnings: ValidationWarning[];
 }
 
+export interface FacetPublicationResult {
+  facetId: string;
+  versionId: string;
+  visibility: "UNLISTED" | "PUBLIC";
+  displayVersion: string;
+  contentHash: string;
+  publishedAt: string;
+  version: number;
+}
+
 export interface EndpointSuggestion {
   baseUrl: string;
   authKind: EndpointAuthKind;
@@ -294,5 +304,48 @@ export function readFacetValidationResponse(
     validationStatus: version.validation.status,
     errors: errors as ValidationIssue[],
     warnings: warnings as ValidationWarning[],
+  };
+}
+
+export function readFacetPublicationResponse(
+  value: unknown,
+): FacetPublicationResult | null {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.facet) ||
+    !isRecord(value.facetVersion)
+  ) {
+    return null;
+  }
+  const facet = value.facet;
+  const version = value.facetVersion;
+  if (
+    typeof facet.id !== "string" ||
+    facet.status !== "PUBLISHED" ||
+    (facet.visibility !== "UNLISTED" && facet.visibility !== "PUBLIC") ||
+    typeof facet.currentPublishedVersionId !== "string" ||
+    typeof facet.version !== "number" ||
+    typeof version.id !== "string" ||
+    typeof version.facetId !== "string" ||
+    version.facetId !== facet.id ||
+    version.id !== facet.currentPublishedVersionId ||
+    typeof version.displayVersion !== "string" ||
+    version.status !== "PUBLISHED" ||
+    version.visibility !== facet.visibility ||
+    typeof version.contentHash !== "string" ||
+    !/^sha256:[a-f0-9]{64}$/u.test(version.contentHash) ||
+    typeof version.publishedAt !== "string" ||
+    typeof version.version !== "number"
+  ) {
+    return null;
+  }
+  return {
+    facetId: facet.id,
+    versionId: version.id,
+    visibility: facet.visibility,
+    displayVersion: version.displayVersion,
+    contentHash: version.contentHash,
+    publishedAt: version.publishedAt,
+    version: version.version,
   };
 }
