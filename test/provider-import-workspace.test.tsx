@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProviderImportWorkspace } from "@/components/provider-import-workspace";
+import { FacetDraftWorkbench } from "@/components/facet-draft-workbench";
 import { PublishPreviewDialog } from "@/components/publish-preview-dialog";
 import {
   pollImportJob,
@@ -38,6 +39,39 @@ describe("ProviderImportWorkspace", () => {
     expect(markup).toContain("Multipart upload is not implemented");
     expect(markup).toContain('role="status"');
     expect(markup).toContain('aria-live="polite"');
+  });
+
+  it("renders the draft, endpoint and validation workflow without exposing secrets", () => {
+    const markup = renderToStaticMarkup(
+      <FacetDraftWorkbench
+        providerId="019a69b8-1f36-7a12-9ea4-777f09a777ea"
+        importJobId="019a69b8-1f36-7a12-9ea4-777f09a777ef"
+        operations={[
+          {
+            id: "019a69b8-1f36-7a12-9ea4-777f09a777ec",
+            jsonPointer: "#/paths/~1repos/get",
+            operationId: "listRepos",
+            method: "GET",
+            path: "/repos",
+            summary: "List repositories",
+            normalizedCandidate: {
+              normalized: {
+                servers: [{ url: "https://api.example.com" }],
+                authAlternatives: [],
+              },
+            },
+            warnings: [],
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain("Draft selected operations");
+    expect(markup).toContain('for="draft-name-');
+    expect(markup).toContain("Upstream endpoint");
+    expect(markup).toContain("Validate Facet");
+    expect(markup).toContain("Secret values are sent once");
+    expect(markup).not.toContain("secretRefId");
   });
 
   it("links the publish call to the live Provider Console", () => {

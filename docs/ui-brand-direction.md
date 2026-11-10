@@ -48,7 +48,7 @@ The selected mark is Open Gateway. `public/facet-logo.svg` is the transparent sq
 
 The OpenAPI import workspace uses a persistent step rail, a three-way source switcher, a bounded form column and a separate live-job/operation column. Electric lime marks the selected source and active steps; job state always includes text. On narrow screens the step rail becomes a horizontal four-cell strip and form/status columns stack without changing DOM order.
 
-URL copy must identify the isolated HTTPS fetcher. Upload copy must identify the current JSON-content fallback and state that multipart upload is not implemented. Operation selection is labeled as a local preview until Slice 3 persists Facet drafts.
+URL copy must identify the isolated HTTPS fetcher. Upload copy must identify the current JSON-content fallback and state that multipart upload is not implemented. Operation selection creates a provider-private draft batch and locks after creation. Endpoint/auth configuration and validation stay in the same vertical workbench; secret values are described as write-only and never rendered after submission.
 
 ## Accessibility gate
 

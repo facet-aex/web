@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST as createImport } from "@/app/api/facet/openapi-imports/route";
+import { POST as createFacets } from "@/app/api/facet/facets/route";
+import { PUT as configureEndpoint } from "@/app/api/facet/facet-versions/[versionId]/endpoint-config/route";
+import { POST as validateFacetVersion } from "@/app/api/facet/facet-versions/[versionId]/validate/route";
+import { POST as createSecret } from "@/app/api/facet/providers/[providerId]/secrets/route";
 import { GET as getImportJob } from "@/app/api/facet/openapi-imports/[jobId]/route";
 import {
   proxyControlApi,
@@ -133,6 +137,32 @@ describe("Control API server adapter", () => {
     expect(upstream).not.toHaveBeenCalled();
   });
 
+  it("uses a generic bounded-request error for endpoint commands", async () => {
+    const upstream = vi.fn();
+    vi.stubGlobal("fetch", upstream);
+
+    const response = await configureEndpoint(
+      new Request(
+        `http://localhost:3000/api/facet/facet-versions/${validJobId}/endpoint-config`,
+        {
+          method: "PUT",
+          headers: { "content-length": "40000" },
+          body: "{}",
+        },
+      ),
+      { params: Promise.resolve({ versionId: validJobId }) },
+    );
+
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "REQUEST_TOO_LARGE",
+        message: "The endpoint configuration request is too large.",
+      },
+    });
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
   it("stops reading a chunked request once the byte budget is exceeded", async () => {
     const request = new Request(
       "http://localhost:3000/api/facet/openapi-imports",
@@ -142,5 +172,98 @@ describe("Control API server adapter", () => {
     await expect(readBoundedRequestBody(request, 8)).rejects.toMatchObject({
       code: "IMPORT_TOO_LARGE",
     });
+  });
+
+  it("forwards fixed Facet draft, secret, endpoint, and validation commands", async () => {
+    vi.stubEnv("FACET_ENV", "local");
+    vi.stubEnv("FACET_CONTROL_API_URL", "http://localhost:4000");
+    vi.stubEnv("FACET_LOCAL_DEV_USER", "demo-owner");
+    const upstream = vi.fn<typeof fetch>(async () =>
+      Response.json({ ok: true }),
+    );
+    vi.stubGlobal("fetch", upstream);
+    const providerId = "019a69b8-1f36-7a12-9ea4-777f09a777ea";
+    const versionId = "019a69b8-1f36-7a12-9ea4-777f09a777eb";
+
+    const facetResponse = await createFacets(
+      new Request("http://localhost:3000/api/facet/facets", {
+        method: "POST",
+        body: "{}",
+      }),
+    );
+    const secretResponse = await createSecret(
+      new Request(
+        `http://localhost:3000/api/facet/providers/${providerId}/secrets`,
+        {
+          method: "POST",
+          body: "{}",
+        },
+      ),
+      { params: Promise.resolve({ providerId }) },
+    );
+    const endpointResponse = await configureEndpoint(
+      new Request(
+        `http://localhost:3000/api/facet/facet-versions/${versionId}/endpoint-config`,
+        {
+          method: "PUT",
+          body: "{}",
+        },
+      ),
+      { params: Promise.resolve({ versionId }) },
+    );
+    const validationResponse = await validateFacetVersion(
+      new Request(
+        `http://localhost:3000/api/facet/facet-versions/${versionId}/validate`,
+        {
+          method: "POST",
+          body: "{}",
+        },
+      ),
+      { params: Promise.resolve({ versionId }) },
+    );
+
+    expect([
+      facetResponse.status,
+      secretResponse.status,
+      endpointResponse.status,
+      validationResponse.status,
+    ]).toEqual([200, 200, 200, 200]);
+    expect(
+      upstream.mock.calls.map(([url, init]) => [String(url), init?.method]),
+    ).toEqual([
+      ["http://localhost:4000/v1/facets", "POST"],
+      [`http://localhost:4000/v1/providers/${providerId}/secrets`, "POST"],
+      [
+        `http://localhost:4000/v1/facet-versions/${versionId}/endpoint-config`,
+        "PUT",
+      ],
+      [`http://localhost:4000/v1/facet-versions/${versionId}/validate`, "POST"],
+    ]);
+  });
+
+  it("rejects invalid provider and version IDs before proxying", async () => {
+    const upstream = vi.fn();
+    vi.stubGlobal("fetch", upstream);
+    const invalidProvider = await createSecret(
+      new Request("http://localhost:3000/api/facet/providers/nope/secrets", {
+        method: "POST",
+        body: "{}",
+      }),
+      { params: Promise.resolve({ providerId: "nope" }) },
+    );
+    const invalidVersion = await configureEndpoint(
+      new Request(
+        "http://localhost:3000/api/facet/facet-versions/nope/endpoint-config",
+        {
+          method: "PUT",
+          body: "{}",
+        },
+      ),
+      { params: Promise.resolve({ versionId: "nope" }) },
+    );
+
+    expect(invalidProvider.status).toBe(400);
+    expect(invalidVersion.status).toBe(400);
+    expect(upstream).not.toHaveBeenCalled();
   });
 });

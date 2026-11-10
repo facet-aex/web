@@ -3,7 +3,7 @@ const uuidPattern =
 export const MAX_IMPORT_COMMAND_BYTES = 2 * 5 * 1024 * 1024 + 64 * 1024;
 
 export interface ControlApiProxyInit {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: string;
 }
 
@@ -13,6 +13,20 @@ class RequestBodyLimitError extends Error {
 
 export function validateJobId(value: string): boolean {
   return uuidPattern.test(value);
+}
+
+export const validateResourceId = validateJobId;
+
+export function invalidResourceIdResponse(resource: string): Response {
+  return Response.json(
+    {
+      error: {
+        code: "INPUT_INVALID",
+        message: `The ${resource} identifier is invalid.`,
+      },
+    },
+    { status: 400 },
+  );
 }
 
 export function invalidJobIdResponse(): Response {
@@ -33,6 +47,18 @@ export function importTooLargeResponse(): Response {
       error: {
         code: "IMPORT_TOO_LARGE",
         message: "The OpenAPI import command exceeds the transport limit.",
+      },
+    },
+    { status: 413 },
+  );
+}
+
+export function requestTooLargeResponse(resource: string): Response {
+  return Response.json(
+    {
+      error: {
+        code: "REQUEST_TOO_LARGE",
+        message: `The ${resource} request is too large.`,
       },
     },
     { status: 413 },

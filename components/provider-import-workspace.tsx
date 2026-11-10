@@ -22,6 +22,7 @@ import {
   type ImportWorkspaceState,
   type OperationCandidate,
 } from "@/lib/openapi-import";
+import { FacetDraftWorkbench } from "@/components/facet-draft-workbench";
 
 interface ProviderMembership {
   provider: {
@@ -129,6 +130,7 @@ export function ProviderImportWorkspace() {
   const [selectedOperations, setSelectedOperations] = useState<Set<string>>(
     new Set(),
   );
+  const [selectionLocked, setSelectionLocked] = useState(false);
   const importAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -240,6 +242,7 @@ export function ProviderImportWorkspace() {
     importAbort.current = controller;
     setOperations([]);
     setSelectedOperations(new Set());
+    setSelectionLocked(false);
     setWorkspace({ phase: "submitting", job: null, error: null });
 
     const sourceValue =
@@ -310,6 +313,7 @@ export function ProviderImportWorkspace() {
   }
 
   function toggleOperation(operationId: string) {
+    if (selectionLocked) return;
     setSelectedOperations((current) => {
       const next = new Set(current);
       if (next.has(operationId)) next.delete(operationId);
@@ -323,6 +327,9 @@ export function ProviderImportWorkspace() {
   const jobWarnings = workspace.job
     ? readWarningMessages(workspace.job.warnings)
     : [];
+  const selectedOperationCandidates = operations.filter((operation) =>
+    selectedOperations.has(operation.id),
+  );
 
   return (
     <section
@@ -337,8 +344,8 @@ export function ProviderImportWorkspace() {
           <h2 id="provider-console-title">Provider Console</h2>
         </div>
         <p>
-          Import one OpenAPI source, inspect the normalized operations, then
-          carry the selection into Facet drafting in the next slice.
+          Import one OpenAPI source, select normalized operations, then create,
+          configure and validate private Facet drafts.
         </p>
       </header>
 
@@ -355,6 +362,9 @@ export function ProviderImportWorkspace() {
           </li>
           <li data-active={workspace.phase === "ready"}>
             <span>04</span> Operations
+          </li>
+          <li data-active={selectionLocked}>
+            <span>05</span> Drafts
           </li>
         </ol>
 
@@ -542,8 +552,8 @@ export function ProviderImportWorkspace() {
                 </span>
               </div>
               <p className="operation-note">
-                Selection is a local preview only. Facet creation begins in
-                Slice 3.
+                Each selected operation becomes one independently configured
+                Facet. Selection locks after the draft batch is created.
               </p>
               {operations.length ? (
                 <ul>
@@ -556,6 +566,7 @@ export function ProviderImportWorkspace() {
                             type="checkbox"
                             checked={selectedOperations.has(operation.id)}
                             onChange={() => toggleOperation(operation.id)}
+                            disabled={selectionLocked}
                           />
                           <span className="operation-method">
                             {operation.method.toUpperCase()}
@@ -583,6 +594,19 @@ export function ProviderImportWorkspace() {
           ) : null}
         </aside>
       </div>
+      {workspace.phase === "ready" &&
+      workspace.job &&
+      selectedOperationCandidates.length ? (
+        <FacetDraftWorkbench
+          key={selectedOperationCandidates
+            .map((operation) => operation.id)
+            .join(":")}
+          providerId={providerId}
+          importJobId={workspace.job.id}
+          operations={selectedOperationCandidates}
+          onDraftsCreated={() => setSelectionLocked(true)}
+        />
+      ) : null}
     </section>
   );
 }
