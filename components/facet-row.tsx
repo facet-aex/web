@@ -1,6 +1,6 @@
-import type { DemoFacet } from "@/lib/demo-facets";
+import type { PublicFacet } from "@/lib/public-catalog";
 
-export function FacetRow({ facet }: { facet: DemoFacet }) {
+export function FacetRow({ facet }: { facet: PublicFacet }) {
   return (
     <article className="facet-row" aria-labelledby={`${facet.id}-title`}>
       <div className="facet-index" aria-hidden="true">
@@ -17,26 +17,22 @@ export function FacetRow({ facet }: { facet: DemoFacet }) {
       <dl className="facet-meta">
         <div>
           <dt>Provider</dt>
-          <dd>{facet.provider}</dd>
+          <dd>{facet.provider.name}</dd>
         </div>
         <div>
           <dt>Interface</dt>
-          <dd>
-            v{facet.version} · {facet.auth}
-          </dd>
+          <dd>v{facet.displayVersion}</dd>
         </div>
         <div>
           <dt>Status</dt>
           <dd>
-            <span className={`status status-${facet.status.toLowerCase()}`}>
-              {facet.status}
-            </span>
+            <span className="status status-published">Published</span>
           </dd>
         </div>
       </dl>
       <a
         className="row-action"
-        href={`#${facet.id}`}
+        href={`/facets/${facet.id}`}
         aria-label={`Inspect ${facet.name}`}
       >
         Inspect <span aria-hidden="true">↗</span>

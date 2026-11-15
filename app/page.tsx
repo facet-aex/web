@@ -3,9 +3,15 @@ import Image from "next/image";
 import { FacetRow } from "@/components/facet-row";
 import { PublishPreviewDialog } from "@/components/publish-preview-dialog";
 import { ProviderImportWorkspace } from "@/components/provider-import-workspace";
-import { demoFacets } from "@/lib/demo-facets";
+import { getPublicFacets } from "@/lib/public-catalog";
 
-export default function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q = "" } = await searchParams;
+  const facets = await getPublicFacets(q.slice(0, 120));
   return (
     <main>
       <header className="site-header">
@@ -65,10 +71,7 @@ export default function HomePage() {
             <p className="eyebrow">Public catalog / local demo</p>
             <h2 id="store-title">Facet Store</h2>
           </div>
-          <p>
-            Seed records are clearly marked demo data until the Control API
-            catalog endpoint lands.
-          </p>
+          <p>Published APIs available to agents through FACET.</p>
         </div>
 
         <form className="search" role="search">
@@ -80,7 +83,7 @@ export default function HomePage() {
               id="facet-search"
               name="q"
               type="search"
-              placeholder="e.g. inspect an Avalanche token"
+              placeholder="e.g. Bitcoin historical price"
             />
             <button type="submit" aria-label="Search Facets">
               Search <span aria-hidden="true">↗</span>
@@ -89,35 +92,24 @@ export default function HomePage() {
         </form>
 
         <div className="catalog-layout">
-          <aside className="filter-rail" aria-label="Catalog filters">
-            <p>Filter / 02</p>
-            <fieldset>
-              <legend>Lifecycle</legend>
-              <label>
-                <input type="checkbox" defaultChecked /> Published
-              </label>
-              <label>
-                <input type="checkbox" defaultChecked /> Draft
-              </label>
-            </fieldset>
-            <fieldset>
-              <legend>Authentication</legend>
-              <label>
-                <input type="checkbox" /> API key
-              </label>
-              <label>
-                <input type="checkbox" /> Bearer
-              </label>
-            </fieldset>
+          <aside className="filter-rail" aria-label="How agents use FACET">
+            <p>For agents</p>
+            <ol>
+              <li>Search for a capability.</li>
+              <li>Read its input contract.</li>
+              <li>Call through FACET MCP.</li>
+            </ol>
+            <small>Only published public Facets appear here.</small>
           </aside>
           <div className="results" aria-live="polite">
             <div className="results-header">
-              <span>02 demo Facets</span>
-              <span>Sorted / recently updated</span>
+              <span>{facets.length} published Facets</span>
+              <span>Sorted / recently published</span>
             </div>
-            {demoFacets.map((facet) => (
+            {facets.map((facet) => (
               <FacetRow facet={facet} key={facet.id} />
             ))}
+            {facets.length === 0 && <p>No published Facets found.</p>}
           </div>
         </div>
       </section>

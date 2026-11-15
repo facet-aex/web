@@ -30,11 +30,13 @@ describe("ProviderImportWorkspace", () => {
     expect(markup).toContain('aria-labelledby="provider-console-title"');
     expect(markup).toContain("Provider Console");
     expect(markup).toContain('for="import-provider"');
+    expect(markup).toContain('for="new-provider-name"');
+    expect(markup).toContain("Create provider");
     expect(markup).toContain('for="import-name"');
     expect(markup).toContain('value="url"');
     expect(markup).toContain('value="paste"');
     expect(markup).toContain('value="upload"');
-    expect(markup).toContain("isolated HTTPS fetcher");
+    expect(markup).toContain("URL of an OpenAPI JSON/YAML document");
     expect(markup).toContain("JSON-content fallback");
     expect(markup).toContain("Multipart upload is not implemented");
     expect(markup).toContain('role="status"');
@@ -68,10 +70,10 @@ describe("ProviderImportWorkspace", () => {
 
     expect(markup).toContain("Draft selected operations");
     expect(markup).toContain('for="draft-name-');
-    expect(markup).toContain("Upstream endpoint");
-    expect(markup).toContain("Validate Facet");
+    expect(markup).toContain("Where FACET calls your API");
+    expect(markup).toContain("validate, and publish");
     expect(markup).toContain("publish");
-    expect(markup).toContain("Secret values are sent once");
+    expect(markup).toContain("Give it a clear name and description");
     expect(markup).not.toContain("secretRefId");
   });
 

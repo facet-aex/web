@@ -107,7 +107,7 @@ export function buildDraftSelections(
       slug: slugify(operation.operationId?.trim() || name),
       name,
       summary: operation.summary?.trim() || name,
-      description: "",
+      description: operation.summary?.trim() || name,
       category: "api",
       tags: [],
       sideEffectClass:

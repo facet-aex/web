@@ -357,9 +357,9 @@ export function FacetDraftWorkbench({
           <h3>Draft selected operations</h3>
         </div>
         <p>
-          Review public metadata first. Then bind each private upstream endpoint
-          and use Validate Facet before publishing its immutable version. Secret
-          values are sent once and never returned to this page.
+          FACET generated one agent tool contract per selected operation. Give
+          it a clear name and description so agents can find it. Then confirm
+          the private API endpoint and optional key, validate, and publish.
         </p>
       </header>
 
@@ -439,6 +439,41 @@ export function FacetDraftWorkbench({
                   />
                 </div>
                 <div className="form-field">
+                  <label htmlFor={`draft-description-${prefix}`}>
+                    When should an agent use this?
+                  </label>
+                  <input
+                    id={`draft-description-${prefix}`}
+                    value={item.selection.description}
+                    onChange={(event) =>
+                      updateSelection(index, {
+                        description: event.target.value,
+                      })
+                    }
+                    disabled={draftsCreated}
+                    placeholder="Get historical Bitcoin prices for short-term analysis"
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor={`draft-tags-${prefix}`}>
+                    Search terms (comma-separated)
+                  </label>
+                  <input
+                    id={`draft-tags-${prefix}`}
+                    value={item.selection.tags.join(", ")}
+                    onChange={(event) =>
+                      updateSelection(index, {
+                        tags: event.target.value
+                          .split(",")
+                          .map((tag) => tag.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    disabled={draftsCreated}
+                    placeholder="bitcoin, btc, historical prices"
+                  />
+                </div>
+                <div className="form-field">
                   <label htmlFor={`draft-side-effect-${prefix}`}>
                     Side effects
                   </label>
@@ -469,7 +504,7 @@ export function FacetDraftWorkbench({
                   ["VALID", "PUBLISHING", "PUBLISHED"].includes(item.stage)
                 }
               >
-                <legend>Upstream endpoint</legend>
+                <legend>Where FACET calls your API</legend>
                 <div className="form-field endpoint-url">
                   <label htmlFor={`endpoint-url-${prefix}`}>
                     HTTPS base URL
@@ -499,7 +534,7 @@ export function FacetDraftWorkbench({
                       })
                     }
                   >
-                    <option value="NONE">None</option>
+                    <option value="NONE">No API key</option>
                     <option value="API_KEY_HEADER">API key / header</option>
                     <option value="API_KEY_QUERY">API key / query</option>
                     <option value="BEARER">Bearer token</option>
@@ -562,8 +597,8 @@ export function FacetDraftWorkbench({
                         }
                       />
                       <small>
-                        Secret values are sent once, then cleared from this
-                        form.
+                        Paste the provider API key here. FACET stores it
+                        privately and clears this field after saving.
                       </small>
                     </div>
                   </>

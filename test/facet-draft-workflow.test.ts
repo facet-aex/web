@@ -48,7 +48,7 @@ describe("Facet draft workflow helpers", () => {
         slug: "get-repo",
         name: "Get a repository",
         summary: "Get a repository",
-        description: "",
+        description: "Get a repository",
         category: "api",
         tags: [],
         sideEffectClass: "READ_ONLY",

@@ -35,7 +35,7 @@ Run each standalone repository from its own clone/configuration. The required st
 3. Start the Control API worker in a second `control-api` terminal with `npm run worker:dev`.
 4. Start this repository with `npm run dev`, then open `http://localhost:3000/#provider-console`.
 
-The configured local user needs a provider membership. If the database does not yet contain one, create it against the Control API using the same development identity:
+The configured local user needs a provider membership. Create a provider profile in the Provider Console if there is none. The equivalent Control API command is:
 
 ```bash
 curl --request POST http://localhost:4000/v1/providers \
@@ -44,7 +44,7 @@ curl --request POST http://localhost:4000/v1/providers \
   --data '{"slug":"facet-demo","name":"FACET Demo Provider","description":"Local Phase 1 provider"}'
 ```
 
-The Provider Console supports isolated HTTPS URL import, paste, and local text-file upload. Upload currently reads a maximum 5 MiB JSON/YAML file in the browser and sends the Control API's JSON-content fallback; multipart/streaming upload is not implemented.
+The Provider Console supports isolated HTTPS OpenAPI URL import, paste, and local text-file upload. For a provider with only a public GET JSON endpoint, **I only have an API endpoint** generates an editable OpenAPI 3.1 description, which then follows the same import path. This form asks for the endpoint, short agent-facing description, required query names and optional API-key header name; the key value is entered later during endpoint configuration. Upload currently reads a maximum 5 MiB JSON/YAML file in the browser and sends the Control API's JSON-content fallback; multipart/streaming upload is not implemented.
 
 After import, a provider can select operations, edit their public metadata, create an atomic private draft batch, configure a protected HTTPS endpoint with no auth, API-key auth, or Bearer auth, validate each draft, then publish a valid immutable version as `PUBLIC` or `UNLISTED`. If validation returns warnings, the provider must explicitly acknowledge the exact current warning IDs before the version can become `VALID`. Operation selection locks after draft creation to prevent duplicate batches.
 
@@ -52,4 +52,4 @@ Secret values are submitted once through a fixed server-side BFF route and clear
 
 The Next.js BFF applies a bounded streaming read to the import command before forwarding it. The Control API independently enforces both its JSON transport limit and the decoded 5 MiB document limit.
 
-The public Store still uses records labeled local demo data until the Control API catalog endpoint lands. Version history/diff, disable/deprecate and the public catalog are not implemented yet. Run `npm run verify` before committing.
+The public Store reads published Facets from the Control API catalog. Version history/diff and disable/deprecate remain unfinished. Run `npm run verify` before committing.

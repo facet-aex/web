@@ -23,6 +23,7 @@ import {
   type OperationCandidate,
 } from "@/lib/openapi-import";
 import { FacetDraftWorkbench } from "@/components/facet-draft-workbench";
+import { makeManualOpenApi } from "@/lib/manual-openapi";
 
 interface ProviderMembership {
   provider: {
@@ -115,8 +116,18 @@ function jobFailureMessage(job: ImportJob): string {
 export function ProviderImportWorkspace() {
   const [memberships, setMemberships] = useState<ProviderMembership[]>([]);
   const [providerId, setProviderId] = useState("");
+  const [newProviderName, setNewProviderName] = useState("");
+  const [newProviderSlug, setNewProviderSlug] = useState("");
+  const [providerCreating, setProviderCreating] = useState(false);
+  const [providerError, setProviderError] = useState<string | null>(null);
   const [membershipsLoading, setMembershipsLoading] = useState(true);
   const [sourceKind, setSourceKind] = useState<ImportSourceKind>("url");
+  const [showManual, setShowManual] = useState(false);
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualEndpoint, setManualEndpoint] = useState("");
+  const [manualSummary, setManualSummary] = useState("");
+  const [manualQuery, setManualQuery] = useState("");
+  const [manualKeyHeader, setManualKeyHeader] = useState("");
   const [sourceName, setSourceName] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [pastedContent, setPastedContent] = useState("");
@@ -322,6 +333,74 @@ export function ProviderImportWorkspace() {
     });
   }
 
+  function generateManualSource() {
+    try {
+      const content = makeManualOpenApi({
+        title: manualTitle,
+        endpointUrl: manualEndpoint,
+        summary: manualSummary,
+        queryNames: manualQuery,
+        apiKeyHeader: manualKeyHeader,
+      });
+      setSourceKind("paste");
+      setSourceName(manualTitle.trim());
+      setPastedContent(content);
+      setWorkspace(initialWorkspaceState);
+    } catch (error) {
+      setWorkspace({
+        phase: "failed",
+        job: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Could not create an API description.",
+      });
+    }
+  }
+
+  async function createProvider() {
+    setProviderCreating(true);
+    setProviderError(null);
+    try {
+      const response = await fetch("/api/facet/providers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: newProviderName.trim(),
+          slug: newProviderSlug.trim(),
+        }),
+      });
+      const body = await readJson(response);
+      if (!response.ok) throw new Error(readErrorEnvelope(body));
+      if (
+        !isRecord(body) ||
+        !isRecord(body.provider) ||
+        typeof body.provider.id !== "string" ||
+        typeof body.provider.name !== "string" ||
+        typeof body.provider.slug !== "string"
+      )
+        throw new Error("The Control API returned invalid provider details.");
+      const created = {
+        provider: {
+          id: body.provider.id,
+          name: body.provider.name,
+          slug: body.provider.slug,
+        },
+        role: "owner",
+      };
+      setMemberships((current) => [...current, created]);
+      setProviderId(created.provider.id);
+      setNewProviderName("");
+      setNewProviderSlug("");
+    } catch (error) {
+      setProviderError(
+        error instanceof Error ? error.message : "Could not create provider.",
+      );
+    } finally {
+      setProviderCreating(false);
+    }
+  }
+
   const isBusy =
     workspace.phase === "submitting" || workspace.phase === "polling";
   const jobWarnings = workspace.job
@@ -340,35 +419,124 @@ export function ProviderImportWorkspace() {
     >
       <header className="console-heading">
         <div>
-          <p className="eyebrow">Phase 1 / Provider flow</p>
+          <p className="eyebrow">Publish an API / local demo</p>
           <h2 id="provider-console-title">Provider Console</h2>
         </div>
         <p>
-          Import one OpenAPI source, select normalized operations, then create,
-          configure and validate private Facet drafts.
+          Bring an OpenAPI document or describe one GET endpoint. FACET turns
+          each selected API operation into an agent-ready Facet; you review its
+          name, inputs and access before publishing.
         </p>
       </header>
 
       <div className="console-grid">
         <ol className="console-steps" aria-label="OpenAPI import steps">
           <li data-active="true">
-            <span>01</span> Provider
+            <span>01</span> Your provider
           </li>
           <li data-active={workspace.phase !== "idle"}>
-            <span>02</span> Source
+            <span>02</span> Describe API
           </li>
           <li data-active={workspace.job !== null}>
-            <span>03</span> Import
+            <span>03</span> Read API
           </li>
           <li data-active={workspace.phase === "ready"}>
-            <span>04</span> Operations
+            <span>04</span> Choose operations
           </li>
           <li data-active={selectionLocked}>
-            <span>05</span> Drafts
+            <span>05</span> Publish
           </li>
         </ol>
 
         <form className="import-form" onSubmit={handleSubmit} noValidate>
+          <div className="provider-intro">
+            <strong>What you need</strong>
+            <p>
+              1. An OpenAPI URL/file, or a GET endpoint URL. 2. An API key only
+              if your API requires one. 3. A short description of what the
+              endpoint does. FACET generates the tool contract from this
+              information.
+            </p>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => setShowManual((current) => !current)}
+              aria-expanded={showManual}
+            >
+              {showManual
+                ? "Hide endpoint form"
+                : "I only have an API endpoint"}
+            </button>
+          </div>
+          {showManual ? (
+            <fieldset className="endpoint-fields manual-api-fields">
+              <legend>Describe one GET endpoint</legend>
+              <div className="form-field">
+                <label htmlFor="manual-title">API name</label>
+                <input
+                  id="manual-title"
+                  value={manualTitle}
+                  onChange={(event) => setManualTitle(event.target.value)}
+                  placeholder="Bitcoin price history"
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="manual-endpoint">HTTPS endpoint URL</label>
+                <input
+                  id="manual-endpoint"
+                  type="url"
+                  value={manualEndpoint}
+                  onChange={(event) => setManualEndpoint(event.target.value)}
+                  placeholder="https://api.coingecko.com/api/v3/coins/{id}/market_chart"
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="manual-summary">
+                  What can an agent do with this API?
+                </label>
+                <input
+                  id="manual-summary"
+                  value={manualSummary}
+                  onChange={(event) => setManualSummary(event.target.value)}
+                  placeholder="Get historical cryptocurrency prices for short-term analysis"
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="manual-query">
+                  Required query parameters (comma-separated)
+                </label>
+                <input
+                  id="manual-query"
+                  value={manualQuery}
+                  onChange={(event) => setManualQuery(event.target.value)}
+                  placeholder="vs_currency, days"
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="manual-key-header">
+                  API key header name (optional)
+                </label>
+                <input
+                  id="manual-key-header"
+                  value={manualKeyHeader}
+                  onChange={(event) => setManualKeyHeader(event.target.value)}
+                  placeholder="x-cg-demo-api-key"
+                />
+              </div>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={generateManualSource}
+              >
+                Create API description
+              </button>
+              <small>
+                FACET prepares the OpenAPI description. Review it below, then
+                import, select the operation, add the key if needed, validate
+                and publish.
+              </small>
+            </fieldset>
+          ) : null}
           <div className="form-field">
             <label htmlFor="import-provider">Provider</label>
             <select
@@ -395,6 +563,43 @@ export function ProviderImportWorkspace() {
               ))}
             </select>
           </div>
+          <fieldset className="endpoint-fields provider-create-fields">
+            <legend>New provider? Create your profile</legend>
+            <div className="form-field">
+              <label htmlFor="new-provider-name">Provider name</label>
+              <input
+                id="new-provider-name"
+                value={newProviderName}
+                onChange={(event) => setNewProviderName(event.target.value)}
+                placeholder="My data service"
+                maxLength={120}
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="new-provider-slug">Public handle</label>
+              <input
+                id="new-provider-slug"
+                value={newProviderSlug}
+                onChange={(event) => setNewProviderSlug(event.target.value)}
+                placeholder="my-data-service"
+                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                maxLength={63}
+              />
+            </div>
+            <button
+              type="button"
+              className="button button-secondary"
+              disabled={
+                providerCreating ||
+                !newProviderName.trim() ||
+                !newProviderSlug.trim()
+              }
+              onClick={() => void createProvider()}
+            >
+              {providerCreating ? "Creating provider…" : "Create provider"}
+            </button>
+            {providerError ? <p role="alert">{providerError}</p> : null}
+          </fieldset>
 
           <fieldset className="source-switcher" disabled={isBusy}>
             <legend>OpenAPI source</legend>
@@ -403,7 +608,7 @@ export function ProviderImportWorkspace() {
                 [
                   "url",
                   "HTTPS URL",
-                  "Fetched by FACET's isolated HTTPS fetcher.",
+                  "URL of an OpenAPI JSON/YAML document, not the API endpoint itself.",
                 ],
                 ["paste", "Paste", "Paste bounded OpenAPI JSON or YAML."],
                 [
@@ -430,7 +635,7 @@ export function ProviderImportWorkspace() {
           </fieldset>
 
           <div className="form-field">
-            <label htmlFor="import-name">Source name</label>
+            <label htmlFor="import-name">API description name</label>
             <input
               id="import-name"
               value={sourceName}
