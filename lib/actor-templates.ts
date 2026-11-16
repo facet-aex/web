@@ -1,0 +1,138 @@
+export interface ActorTemplatePreset {
+  id: string;
+  label: string;
+  name: string;
+  slug: string;
+  category: string;
+  tags: string[];
+  description: string;
+  pricingModel: "PAY_PER_RUN" | "PAY_PER_RESULT";
+  priceAtomic: string;
+  inputSchema: Record<string, unknown>;
+  code: string;
+}
+
+export const ACTOR_TEMPLATE_PRESETS: ActorTemplatePreset[] = [
+  {
+    id: "vn-gold-fx-actor",
+    label: "VN Gold & FX Scraper (Actor)",
+    name: "VN Gold & FX Scraper",
+    slug: "vn-gold-fx-actor",
+    category: "vietnamese-data",
+    tags: ["vietnam", "gold", "fx", "actor"],
+    description:
+      "Thu thập và chuẩn hóa bảng giá vàng SJC/DOJI/PNJ cùng tỷ giá VND thành Dataset có cấu trúc.",
+    pricingModel: "PAY_PER_RUN",
+    priceAtomic: "1000",
+    inputSchema: {
+      type: "object",
+      properties: {
+        brand: {
+          type: "string",
+          enum: ["ALL", "SJC", "DOJI", "PNJ"],
+          default: "ALL",
+          description: "Thương hiệu vàng cần lấy dữ liệu",
+        },
+        currency: {
+          type: "string",
+          enum: ["VND", "USD"],
+          default: "VND",
+          description: "Đơn vị tiền tệ hiển thị",
+        },
+      },
+    },
+    code: `export default async function run(input) {
+  const brand = String(input?.brand ?? "ALL").toUpperCase();
+  const currency = String(input?.currency ?? "VND").toUpperCase();
+  const rows = [
+    { brand: "SJC", region: "TP.HCM", buyVnd: 88500000, sellVnd: 91000000, fxUsdVnd: 25420, unit: "lượng" },
+    { brand: "DOJI", region: "Hà Nội", buyVnd: 88600000, sellVnd: 90900000, fxUsdVnd: 25420, unit: "lượng" },
+    { brand: "PNJ", region: "Toàn quốc", buyVnd: 88400000, sellVnd: 90800000, fxUsdVnd: 25420, unit: "lượng" }
+  ];
+  const filtered = brand === "ALL" ? rows : rows.filter((r) => r.brand === brand);
+  return filtered.map((r) => ({
+    ...r,
+    currency,
+    buyPrice: currency === "USD" ? Number((r.buyVnd / r.fxUsdVnd).toFixed(2)) : r.buyVnd,
+    sellPrice: currency === "USD" ? Number((r.sellVnd / r.fxUsdVnd).toFixed(2)) : r.sellVnd,
+    capturedAt: new Date().toISOString()
+  }));
+}`,
+  },
+  {
+    id: "vn-tech-news-actor",
+    label: "VN Tech & Macro News Extractor (Actor)",
+    name: "VN Tech & Macro News Extractor",
+    slug: "vn-tech-news-actor",
+    category: "vietnamese-data",
+    tags: ["vietnam", "news", "nlp", "actor"],
+    description:
+      "Bóc tách thực thể, từ khóa và đánh giá sắc thái tin tức công nghệ/tài chính tiếng Việt thành Dataset.",
+    pricingModel: "PAY_PER_RESULT",
+    priceAtomic: "500",
+    inputSchema: {
+      type: "object",
+      properties: {
+        topic: {
+          type: "string",
+          enum: ["ALL", "AI", "BLOCKCHAIN", "FINTECH"],
+          default: "ALL",
+          description: "Chủ đề tin tức Việt Nam",
+        },
+        limit: {
+          type: "integer",
+          default: 3,
+          minimum: 1,
+          maximum: 10,
+          description: "Số lượng bản ghi tối đa",
+        },
+      },
+    },
+    code: `export default async function run(input) {
+  const topic = String(input?.topic ?? "ALL").toUpperCase();
+  const limit = Math.min(Math.max(Number(input?.limit ?? 3), 1), 10);
+  const articles = [
+    { topic: "BLOCKCHAIN", title: "Hệ sinh thái thanh toán x402 mở rộng ứng dụng AI Agent tại Việt Nam", source: "VnEconomy", sentiment: "POSITIVE", entities: ["x402", "Avalanche", "Việt Nam"] },
+    { topic: "AI", title: "Startup Việt đẩy mạnh tự động hóa thu thập dữ liệu tiếng Việt chuẩn hóa", source: "VnExpress", sentiment: "POSITIVE", entities: ["AI Agent", "Dataset", "SaaS"] },
+    { topic: "FINTECH", title: "Ngân hàng số thử nghiệm thanh toán vi mô tức thì bằng stablecoin", source: "CafeF", sentiment: "NEUTRAL", entities: ["Fintech", "Stablecoin", "API"] }
+  ];
+  const filtered = topic === "ALL" ? articles : articles.filter((a) => a.topic === topic);
+  return filtered.slice(0, limit).map((item, idx) => ({
+    rank: idx + 1,
+    ...item,
+    analyzedAt: new Date().toISOString()
+  }));
+}`,
+  },
+];
+
+export const AGENT_TEMPLATE_PRESET = {
+  name: "VN Market & Macro Analyst Agent",
+  slug: "vn-market-analyst-agent",
+  category: "a2a-agents",
+  tags: ["vietnam", "a2a", "erc8004", "agent"],
+  description:
+    "Autonomous A2A Agent định danh ERC-8004 trên Fuji, tự động tổng hợp dữ liệu vàng, tỷ giá và tin tức Việt Nam thành báo cáo phân tích.",
+  erc8004TokenId: "1",
+  erc8004Registry: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  taskKind: "vn-market-analysis",
+  pricingModel: "PAY_PER_RUN" as const,
+  priceAtomic: "1000",
+  inputSchema: {
+    type: "object",
+    required: ["question"],
+    properties: {
+      question: {
+        type: "string",
+        default: "Phân tích xu hướng giá vàng SJC và fintech Việt Nam hôm nay",
+        description: "Câu hỏi hoặc nhiệm vụ giao cho A2A Agent",
+      },
+      focus: {
+        type: "string",
+        enum: ["COMPREHENSIVE", "GOLD_FX", "TECH_NEWS"],
+        default: "COMPREHENSIVE",
+        description: "Trọng tâm phân tích",
+      },
+    },
+  },
+};

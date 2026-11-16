@@ -1401,3 +1401,310 @@ footer {
     animation: none;
   }
 }
+
+/* Wave 1: ActorBazaar Studio, Type Filters, Input-Schema Playground & Dataset/Receipt UI */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+  color: var(--facet-text-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+.filter-chip:hover,
+.filter-chip-active {
+  border-color: var(--facet-lime);
+  background: var(--facet-lime);
+  color: var(--facet-ink);
+}
+
+.badge-type,
+.badge-trust,
+.badge-digest {
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--facet-line);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+}
+
+.badge-type {
+  border-color: var(--facet-lime);
+  color: var(--facet-lime);
+}
+
+.badge-trust {
+  border-color: var(--facet-success);
+  color: var(--facet-success);
+}
+
+.actor-studio-section {
+  padding: clamp(2rem, 5vw, 4rem) var(--page-padding);
+  border-bottom: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+}
+
+.studio-panel {
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+}
+
+.studio-header,
+.playground-header,
+.run-output-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--facet-line);
+}
+
+.studio-header h3,
+.playground-header h2,
+.run-output-header h3 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.studio-tabs {
+  display: flex;
+  border: 1px solid var(--facet-line);
+}
+
+.tab-button {
+  min-height: 40px;
+  padding: 0.5rem 1rem;
+  border: 0;
+  background: var(--facet-surface);
+  color: var(--facet-text-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tab-button + .tab-button {
+  border-left: 1px solid var(--facet-line);
+}
+
+.tab-active {
+  background: var(--facet-lime);
+  color: var(--facet-ink);
+}
+
+.preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  color: var(--facet-text-muted);
+}
+
+.preset-chip {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface-raised);
+  color: var(--facet-text);
+  cursor: pointer;
+}
+
+.preset-chip:hover {
+  border-color: var(--facet-lime);
+  color: var(--facet-lime);
+}
+
+.studio-form,
+.playground-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.studio-grid,
+.playground-fields,
+.detail-meta-grid,
+.receipt-grid,
+.schema-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.studio-code-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.published-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--facet-success);
+  background: color-mix(in srgb, var(--facet-success) 10%, transparent);
+}
+
+.published-banner p {
+  margin: 0.35rem 0 0;
+  color: var(--facet-text-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.facet-detail-page {
+  display: grid;
+  gap: 2rem;
+}
+
+.back-link {
+  width: fit-content;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--facet-lime);
+}
+
+.detail-header h1 {
+  margin: 0.5rem 0 0.75rem;
+  font-size: clamp(2.2rem, 4vw, 3.5rem);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+}
+
+.detail-description {
+  max-width: 64ch;
+  margin: 0;
+  color: var(--facet-text-muted);
+  line-height: 1.55;
+}
+
+.detail-meta-grid,
+.receipt-grid {
+  margin: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+}
+
+.detail-meta-grid dt,
+.receipt-grid dt {
+  color: var(--facet-text-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-meta-grid dd,
+.receipt-grid dd {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.78rem;
+}
+
+.playground-section {
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+}
+
+.run-output {
+  display: grid;
+  gap: 1.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--facet-line);
+}
+
+.dataset-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+}
+
+.dataset-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+}
+
+.dataset-table th,
+.dataset-table td {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--facet-line);
+  border-right: 1px solid var(--facet-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.dataset-table th {
+  background: var(--facet-surface-raised);
+  color: var(--facet-lime);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.json-pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.receipt-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.receipt-panel h4 {
+  margin: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--facet-lime);
+}
+
+.explorer-link {
+  color: var(--facet-lime);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
