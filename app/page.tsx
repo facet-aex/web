@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { ActorAgentStudio } from "@/components/actor-agent-studio";
+import { ClerkAuthBar } from "@/components/clerk-auth-bar";
 import { FacetRow } from "@/components/facet-row";
 import { PublishPreviewDialog } from "@/components/publish-preview-dialog";
 import { ProviderImportWorkspace } from "@/components/provider-import-workspace";
@@ -53,7 +54,9 @@ export default async function HomePage({
           <a href="#provider-console">OpenAPI Console</a>
           <a href="#docs">Docs</a>
         </nav>
-        <span className="environment">Avalanche Fuji</span>
+        <ClerkAuthBar
+          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        />
       </header>
 
       <section className="hero" id="top" aria-labelledby="hero-title">

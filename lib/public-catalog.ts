@@ -28,6 +28,7 @@ export interface PublicFacet {
     runtime: string;
     imageDigest: string;
     registryTxHash?: string;
+    registryVerified?: boolean;
   };
   agentMeta?: {
     erc8004ChainId: 43113;
@@ -35,6 +36,7 @@ export interface PublicFacet {
     erc8004TokenId: string;
     taskKind: string;
     registryTxHash?: string;
+    registryVerified?: boolean;
   };
   publishedAt: string;
 }

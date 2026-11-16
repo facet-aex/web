@@ -90,7 +90,14 @@ export default async function FacetDetailPage({
         {(facet.actorMeta?.registryTxHash ??
         facet.agentMeta?.registryTxHash) ? (
           <div>
-            <dt>ActorRegistry Tx</dt>
+            <dt>
+              ActorRegistry Tx (
+              {(facet.actorMeta?.registryVerified ??
+              facet.agentMeta?.registryVerified)
+                ? "Verified on Fuji ✓"
+                : "Unverified Reference"}
+              )
+            </dt>
             <dd>
               <a
                 className="explorer-link"

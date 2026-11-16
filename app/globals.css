@@ -1708,3 +1708,16 @@ footer {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.auth-pill {
+  background: transparent;
+  border-top: 0;
+  border-bottom: 0;
+  border-right: 0;
+  cursor: pointer;
+}
+
+.auth-pill:hover {
+  background: var(--facet-lime);
+  color: var(--facet-ink);
+}

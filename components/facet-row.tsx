@@ -32,6 +32,7 @@ export function FacetRow({ facet }: { facet: PublicFacet }) {
           {facet.actorMeta ? (
             <span className="badge-digest">
               {facet.actorMeta.imageDigest.slice(0, 18)}…
+              {facet.actorMeta.registryVerified ? " ✓" : ""}
             </span>
           ) : null}
         </div>

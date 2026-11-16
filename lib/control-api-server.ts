@@ -1,3 +1,5 @@
+import { verifyToken } from "@clerk/backend";
+
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 export const MAX_IMPORT_COMMAND_BYTES = 2 * 5 * 1024 * 1024 + 64 * 1024;
@@ -126,6 +128,43 @@ function unavailableResponse(): Response {
   );
 }
 
+function unauthorizedResponse(
+  message = "Authentication is required.",
+): Response {
+  return Response.json(
+    {
+      error: {
+        code: "AUTHENTICATION_REQUIRED",
+        message,
+      },
+    },
+    { status: 401 },
+  );
+}
+
+function readCookieToken(
+  cookieHeader: string | null,
+  name: string,
+): string | undefined {
+  if (!cookieHeader) return undefined;
+  for (const part of cookieHeader.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx < 0) continue;
+    const key = part.slice(0, idx).trim();
+    if (key === name) {
+      return decodeURIComponent(part.slice(idx + 1).trim());
+    }
+  }
+  return undefined;
+}
+
+function extractClerkToken(request: Request): string | undefined {
+  const authHeader = request.headers.get("authorization");
+  const bearer = /^Bearer\s+(.+)$/iu.exec(authHeader ?? "");
+  if (bearer?.[1]) return bearer[1];
+  return readCookieToken(request.headers.get("cookie"), "__session");
+}
+
 export async function proxyControlApi(
   request: Request,
   path: string,
@@ -144,10 +183,51 @@ export async function proxyControlApi(
   const requestId = request.headers.get("x-request-id");
   if (requestId) headers.set("x-request-id", requestId);
 
-  if (process.env.FACET_ENV === "local") {
+  const authMode =
+    process.env.FACET_AUTH_MODE ??
+    (process.env.FACET_ENV === "local" ? "local" : "clerk");
+
+  if (authMode === "local") {
+    if (process.env.FACET_ENV !== "local") return unavailableResponse();
     const devUser = process.env.FACET_LOCAL_DEV_USER;
     if (!devUser) return unavailableResponse();
     headers.set("x-facet-dev-user", devUser);
+  } else {
+    const token = extractClerkToken(request);
+    if (!token) {
+      return unauthorizedResponse(
+        "Sign in with Clerk to access Provider Console.",
+      );
+    }
+    const secretKey = process.env.CLERK_SECRET_KEY;
+    const jwtKey = process.env.CLERK_JWT_KEY;
+    if (!secretKey && !jwtKey) {
+      return unavailableResponse();
+    }
+    try {
+      const authorizedParties = (
+        process.env.CLERK_AUTHORIZED_PARTIES ??
+        process.env.PUBLIC_WEB_ORIGIN ??
+        "http://localhost:3000"
+      )
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+      const verified = await verifyToken(token, {
+        ...(secretKey ? { secretKey } : {}),
+        ...(jwtKey ? { jwtKey } : {}),
+        ...(process.env.CLERK_JWT_ISSUER
+          ? { issuer: process.env.CLERK_JWT_ISSUER }
+          : {}),
+        authorizedParties,
+      });
+      if (!verified.sub) {
+        return unauthorizedResponse("Invalid Clerk session token.");
+      }
+      headers.set("authorization", `Bearer ${token}`);
+    } catch {
+      return unauthorizedResponse("Invalid or expired Clerk session.");
+    }
   }
 
   try {

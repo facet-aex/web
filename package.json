@@ -21,6 +21,7 @@
   },
   "packageManager": "npm@11.6.2",
   "dependencies": {
+    "@clerk/backend": "3.27.0",
     "@fontsource-variable/inter-tight": "5.3.0",
     "@fontsource/ibm-plex-mono": "5.3.0",
     "@x402/core": "2.30.0",

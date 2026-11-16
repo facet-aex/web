@@ -279,4 +279,24 @@ describe("Control API server adapter", () => {
     expect(invalidVersion.status).toBe(400);
     expect(upstream).not.toHaveBeenCalled();
   });
+
+  it("fails closed with 401 when FACET_AUTH_MODE=clerk has no session token", async () => {
+    vi.stubEnv("FACET_ENV", "production");
+    vi.stubEnv("FACET_AUTH_MODE", "clerk");
+    vi.stubEnv("FACET_CONTROL_API_URL", "http://control-api:4000");
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test_example");
+    const upstream = vi.fn();
+    vi.stubGlobal("fetch", upstream);
+
+    const response = await proxyControlApi(
+      new Request("https://facet.example/api/facet/providers"),
+      "/v1/me/providers",
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "AUTHENTICATION_REQUIRED" },
+    });
+    expect(upstream).not.toHaveBeenCalled();
+  });
 });
