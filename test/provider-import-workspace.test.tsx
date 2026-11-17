@@ -23,13 +23,13 @@ const queuedJob: ImportJob = {
 };
 
 describe("ApiStudio and FacetDraftWorkbench", () => {
-  it("renders a RapidAPI-style API Studio with Quick Endpoint, OpenAPI sources, and accurate upload boundaries", () => {
+  it("renders API Studio with Quick Endpoint, OpenAPI sources, and accurate upload boundaries without third-party brand leaks", () => {
     const markup = renderToStaticMarkup(<ApiStudio />);
 
     expect(markup).toContain('role="region"');
     expect(markup).toContain('aria-labelledby="api-studio-title"');
     expect(markup).toContain("API Studio");
-    expect(markup).not.toContain("HTTP API Studio");
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
     expect(markup).toContain("Quick Endpoint (GET)");
     expect(markup).toContain("Import OpenAPI Spec");
     expect(markup).not.toContain("Active Provider");

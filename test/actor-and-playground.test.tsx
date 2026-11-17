@@ -8,7 +8,7 @@ import { FacetPlayground } from "@/components/facet-playground";
 import type { PublicFacet } from "@/lib/public-catalog";
 
 describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
-  it("renders Apify-style Actor Studio with tabs, presets, and Docker sandbox specs", () => {
+  it("renders Actor Studio with tabs, presets, and Docker sandbox specs", () => {
     const markup = renderToStaticMarkup(<ActorStudio />);
 
     expect(markup).toContain("Actor Studio");
@@ -22,24 +22,25 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("facet/node-actor-runner:1.0");
     expect(markup).toContain("--network=none");
     expect(markup).toContain("Publish Actor");
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 
   it("renders Agent Studio with live On-Chain Agent Card and without unused custom code textarea", () => {
     const markup = renderToStaticMarkup(<AgentStudio />);
 
     expect(markup).toContain("Agent Studio");
-    expect(markup).not.toContain("ERC-8004 Agent Studio");
     expect(markup).toContain("VN Market &amp; Macro Analyst");
     expect(markup).toContain("Custom Agent");
-    expect(markup).toContain("ERC-8004 ON-CHAIN IDENTITY");
+    expect(markup).toContain("ON-CHAIN AGENT IDENTITY");
     expect(markup).toContain("AVALANCHE FUJI (43113)");
     expect(markup).toContain("0x8004A818BFB912233c491871b3d84c89A494BD9e");
     expect(markup).toContain("vn-market-analysis");
     expect(markup).toContain("Publish Agent");
     expect(markup).not.toContain("Actor JavaScript Code");
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 
-  it("renders an ERC-8004 On-Chain Agent Card with Fuji registry details", () => {
+  it("renders an On-Chain Agent Card with Fuji registry details", () => {
     const markup = renderToStaticMarkup(
       <AgentIdentityCard
         name="VN Market & Macro Analyst Agent"
@@ -57,7 +58,7 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
       />,
     );
 
-    expect(markup).toContain("ERC-8004 ON-CHAIN IDENTITY");
+    expect(markup).toContain("ON-CHAIN AGENT IDENTITY");
     expect(markup).toContain("AVALANCHE FUJI (43113)");
     expect(markup).toContain("#42");
     expect(markup).toContain("vn-market-analysis");
@@ -65,6 +66,7 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("Verified on Fuji");
     expect(markup).toContain("0.001 fUSD / run");
     expect(markup).toContain("question");
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 
   it("auto-generates Input-Schema Form fields including enum, integer, and array JSON fields", () => {

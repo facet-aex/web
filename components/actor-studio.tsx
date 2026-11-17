@@ -265,7 +265,7 @@ export function ActorStudio({
               ▣ FACET · ACTOR
             </span>
             <span className="studio-mode-tag">
-              Apify-Style Console · Docker Sandbox
+              Isolated Container Runner · Docker Sandbox
             </span>
           </div>
           <h1>Actor Studio</h1>

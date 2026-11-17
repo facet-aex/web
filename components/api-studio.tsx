@@ -104,7 +104,7 @@ export function ApiStudio({
   const [entryMode, setEntryMode] = useState<EntryMode>("openapi");
   const [sourceKind, setSourceKind] = useState<ImportSourceKind>("url");
 
-  // Quick GET Endpoint state (RapidAPI-style form)
+  // Quick GET Endpoint state
   const [quickTitle, setQuickTitle] = useState("");
   const [quickEndpoint, setQuickEndpoint] = useState("");
   const [quickSummary, setQuickSummary] = useState("");
@@ -383,9 +383,7 @@ export function ApiStudio({
         <div>
           <div className="modality-pill-row">
             <span className="badge-type badge-modality-api">⇄ FACET · API</span>
-            <span className="studio-mode-tag">
-              RapidAPI-Style Console · Gateway Proxy
-            </span>
+            <span className="studio-mode-tag">Gateway Proxy Console</span>
           </div>
           <h1 id="api-studio-title">API Studio</h1>
           <p>
@@ -769,7 +767,7 @@ export function ApiStudio({
                 </div>
               ) : null}
               <p className="operation-note">
-                Select one or more operations to configure in the RapidAPI
+                Select one or more operations to configure in the Endpoint
                 Definition Hub below. Selection locks after draft creation.
               </p>
               {operations.length ? (

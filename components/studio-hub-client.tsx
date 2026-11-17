@@ -5,7 +5,7 @@ import { FACET_TYPE_META } from "@/lib/facet-ui";
 const WORKFLOW_CARDS = [
   {
     meta: FACET_TYPE_META.EXTERNAL_HTTP_API,
-    inspiration: "RapidAPI Console UX",
+    inspiration: "Gateway Proxy Console",
     steps: [
       "Define a GET endpoint or import an OpenAPI 3.0/3.1 spec",
       "Configure upstream URL, headers, and encrypted secret vault",
@@ -15,7 +15,7 @@ const WORKFLOW_CARDS = [
   },
   {
     meta: FACET_TYPE_META.HOSTED_ACTOR,
-    inspiration: "Apify Console UX",
+    inspiration: "Isolated Container Runner",
     steps: [
       "Load a starter template or write ESM main.mjs run(input)",
       "Design inputs visually with the JSON Schema Builder + Form Preview",
@@ -25,9 +25,9 @@ const WORKFLOW_CARDS = [
   },
   {
     meta: FACET_TYPE_META.AUTONOMOUS_AGENT,
-    inspiration: "ERC-8004 Identity Card UX",
+    inspiration: "On-Chain Agent Card",
     steps: [
-      "Bind an Avalanche Fuji ERC-8004 Identity Token ID (#1+)",
+      "Bind an Avalanche Fuji Agent Identity Token ID (#1+)",
       "Preview the live On-Chain Agent Card, payout wallet & task schema",
       "Publish as a Facet and optionally verify your Registry tx",
     ],
@@ -44,9 +44,9 @@ export function StudioHubClient() {
           <h1 className="page-title">Publish a Facet</h1>
         </div>
         <p>
-          Every signed-in account publishes directly to Store. All three forms—
-          <strong>API</strong>, <strong>Actor</strong>, and{" "}
-          <strong>Agent</strong>—become a single standardized{" "}
+          Every signed-in account publishes directly to Store. All three forms
+          <strong> API</strong>, <strong>Actor</strong>, and{" "}
+          <strong>Agent</strong> become a single standardized{" "}
           <strong>Facet</strong> with shared schemas, x402 pricing, and
           receipts.
         </p>

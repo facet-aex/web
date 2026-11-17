@@ -103,6 +103,7 @@ describe("SiteHeader and SiteFooter", () => {
     expect(markup).not.toContain("External HTTP API");
     expect(markup).not.toContain("Hosted Docker Actor");
     expect(markup).not.toContain("ERC-8004 A2A Agent");
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
     expect(markup).toContain('href="/docs"');
     expect(markup).not.toContain(">Home<");
     expect(markup).toContain("nav-active");
@@ -112,6 +113,7 @@ describe("SiteHeader and SiteFooter", () => {
     const markup = renderToStaticMarkup(<SiteFooter />);
     expect(markup).toContain('href="/store"');
     expect(markup).toContain('href="/studio"');
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
     expect(markup).toContain('href="/docs"');
   });
 });

@@ -39,7 +39,7 @@ export function FacetRow({ facet }: { facet: PublicFacet }) {
           ) : facet.facetType === "AUTONOMOUS_AGENT" && facet.agentMeta ? (
             <>
               <span className="badge-trust">
-                ERC-8004 #{facet.agentMeta.erc8004TokenId}
+                Identity #{facet.agentMeta.erc8004TokenId}
               </span>
               <span className="kicker-chip">{facet.agentMeta.taskKind}</span>
             </>

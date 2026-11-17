@@ -73,7 +73,7 @@ export function AgentIdentityCard({
     name: name.trim() || "Untitled Agent",
     slug: slug.trim() || "autonomous-agent",
     summary: summary.trim(),
-    erc8004: {
+    onChainIdentity: {
       chainId: FUJI_CHAIN_ID,
       registry: normalizedRegistry,
       tokenId: erc8004TokenId.trim() || null,
@@ -97,11 +97,11 @@ export function AgentIdentityCard({
   };
 
   return (
-    <section className="agent-card" aria-label="ERC-8004 On-Chain Agent Card">
+    <section className="agent-card" aria-label="On-Chain Agent Card">
       <div className="agent-card-top">
         <div className="agent-card-badges">
           <span className="badge-type badge-agent">
-            ERC-8004 ON-CHAIN IDENTITY
+            ON-CHAIN AGENT IDENTITY
           </span>
           <span className="agent-chain-pill">
             AVALANCHE FUJI ({FUJI_CHAIN_ID})
@@ -171,7 +171,7 @@ export function AgentIdentityCard({
             </dd>
           </div>
           <div>
-            <dt>ERC-8004 Registry</dt>
+            <dt>Identity Registry</dt>
             <dd>
               {isValidEvmAddress(normalizedRegistry) ? (
                 <a

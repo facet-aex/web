@@ -124,8 +124,7 @@ export function InputSchemaBuilder({
               <div className="schema-empty">
                 <p>
                   No input parameters defined yet. Click{" "}
-                  <strong>+ Add Field</strong> to build an Apify-style input
-                  form.
+                  <strong>+ Add Field</strong> to build a structured input form.
                 </p>
               </div>
             ) : (

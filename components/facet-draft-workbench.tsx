@@ -382,7 +382,7 @@ export function FacetDraftWorkbench({
     <form className="draft-workbench rapid-hub" onSubmit={createDrafts}>
       <header className="draft-workbench-heading">
         <div>
-          <p className="eyebrow">RapidAPI-Style Definition Workspace</p>
+          <p className="eyebrow">API Definition Workspace</p>
           <h3>Endpoint Definition Hub</h3>
         </div>
         <p>

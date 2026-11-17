@@ -35,7 +35,7 @@ const STUDIO_DROPDOWN_ITEMS: Array<{
     badge: "AGENT",
     glyph: "◈",
     title: "Agent",
-    subtitle: "Register ERC-8004 identity & Agent Card",
+    subtitle: "Register On-Chain Identity & Agent Card",
     accentClass: "modality-agent",
   },
 ];

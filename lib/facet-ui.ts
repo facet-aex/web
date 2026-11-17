@@ -70,7 +70,7 @@ export const FACET_TYPE_META: Record<FacetType, FacetTypeMeta> = {
     storeHref: "/store?type=AUTONOMOUS_AGENT",
     studioHref: "/studio/agent",
     description:
-      "ERC-8004 identity on Avalanche Fuji packaged as a Facet with verifiable task contracts, citations, and settlement.",
+      "On-chain Agent identity on Avalanche Fuji packaged as a Facet with verifiable task contracts, citations, and settlement.",
   },
 };
 

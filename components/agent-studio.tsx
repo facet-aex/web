@@ -127,7 +127,7 @@ export function AgentStudio({
 
     if (!/^[1-9][0-9]*$/u.test(erc8004TokenId.trim())) {
       setError(
-        "ERC-8004 Identity Token ID must be a positive nonzero integer (e.g. 1).",
+        "Agent Identity Token ID must be a positive nonzero integer (e.g. 1).",
       );
       return;
     }
@@ -164,7 +164,7 @@ export function AgentStudio({
       if (!ensured.providerId) {
         throw new Error(
           ensured.authRequired
-            ? "Sign in with Clerk to register an ERC-8004 agent under your account."
+            ? "Sign in with Clerk to publish an Agent under your account."
             : (ensured.error ??
                 "Your provider workspace could not be initialized."),
         );
@@ -284,8 +284,8 @@ export function AgentStudio({
           </div>
           <h1>Agent Studio</h1>
           <p>
-            Bind an ERC-8004 on-chain identity on Avalanche Fuji, define the
-            task contract, preview the Agent Card, and publish it as a Facet.
+            Bind an on-chain Agent identity on Avalanche Fuji, define the task
+            contract, preview the Agent Card, and publish it as a Facet.
           </p>
         </div>
         <div className="preset-bar" aria-label="Agent starter templates">
@@ -311,30 +311,30 @@ export function AgentStudio({
       <form className="studio-workbench-grid" onSubmit={handlePublish}>
         <div className="studio-editor-pane">
           <fieldset className="studio-section-box">
-            <legend>01 · On-Chain Identity (ERC-8004 on Avalanche Fuji)</legend>
+            <legend>01 · On-Chain Agent Identity (Avalanche Fuji)</legend>
             <div className="studio-grid">
               <div className="form-field">
-                <label htmlFor="agent-erc8004-id">
-                  ERC-8004 Identity Token ID (Fuji)
+                <label htmlFor="agent-identity-id">
+                  Agent Identity Token ID (Fuji)
                 </label>
                 <input
-                  id="agent-erc8004-id"
+                  id="agent-identity-id"
                   value={erc8004TokenId}
                   onChange={(e) => setErc8004TokenId(e.target.value)}
                   pattern="^[1-9][0-9]*$"
                   required
                 />
                 <small>
-                  Positive nonzero token ID minted on the Fuji ERC-8004
-                  registry.
+                  Positive nonzero token ID minted on the Fuji Agent Identity
+                  Registry.
                 </small>
               </div>
               <div className="form-field">
-                <label htmlFor="agent-erc8004-registry">
-                  Canonical ERC-8004 Registry (Fuji 43113)
+                <label htmlFor="agent-identity-registry">
+                  Agent Identity Registry (Fuji 43113)
                 </label>
                 <input
-                  id="agent-erc8004-registry"
+                  id="agent-identity-registry"
                   value={ERC8004_IDENTITY_REGISTRY}
                   readOnly
                 />
@@ -350,7 +350,7 @@ export function AgentStudio({
                 </small>
               </div>
               <div className="form-field">
-                <label htmlFor="agent-task-kind">A2A Task Kind</label>
+                <label htmlFor="agent-task-kind">Task Kind</label>
                 <input
                   id="agent-task-kind"
                   value={taskKind}
@@ -360,7 +360,7 @@ export function AgentStudio({
                 />
                 <small>
                   Use <code>vn-market-analysis</code> for live execution on the
-                  built-in Fuji A2A runner.
+                  built-in Fuji runner.
                 </small>
               </div>
               <div className="form-field">
@@ -474,7 +474,7 @@ export function AgentStudio({
                   id="agent-tags"
                   value={tagsText}
                   onChange={(e) => setTagsText(e.target.value)}
-                  placeholder="vietnam, a2a, erc8004"
+                  placeholder="vietnam, agent, analytics"
                 />
               </div>
               <div className="form-field">
@@ -588,7 +588,7 @@ export function AgentStudio({
             <div className="published-card" role="status">
               <p className="eyebrow">Agent Published</p>
               <strong>
-                {published.slug} · ERC-8004 #{published.erc8004TokenId}
+                {published.slug} · Identity #{published.erc8004TokenId}
               </strong>
               <Link
                 className="button button-primary import-submit"

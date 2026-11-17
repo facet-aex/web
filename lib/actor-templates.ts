@@ -176,11 +176,11 @@ export const AGENT_TEMPLATE_PRESET: AgentTemplatePreset = {
   name: "VN Market & Macro Analyst",
   slug: "vn-market-analyst-agent",
   summary:
-    "Agent anchored to ERC-8004 synthesizing sourced Vietnamese gold, FX, and news datasets.",
+    "Verified on-chain Agent synthesizing sourced Vietnamese gold, FX, and news datasets.",
   category: "a2a-agents",
-  tags: ["vietnam", "a2a", "erc8004", "agent"],
+  tags: ["vietnam", "agent", "macro"],
   description:
-    "Agent định danh ERC-8004 trên Fuji, tự động tổng hợp dữ liệu vàng, tỷ giá và tin tức Việt Nam thành báo cáo phân tích có trích dẫn nguồn.",
+    "Agent định danh on-chain trên Fuji, tự động tổng hợp dữ liệu vàng, tỷ giá và tin tức Việt Nam thành báo cáo phân tích có trích dẫn nguồn.",
   erc8004TokenId: "1",
   erc8004Registry: ERC8004_IDENTITY_REGISTRY,
   taskKind: "vn-market-analysis",
@@ -241,15 +241,15 @@ export const AGENT_TEMPLATE_PRESET: AgentTemplatePreset = {
 };
 
 export const CUSTOM_AGENT_PRESET: AgentTemplatePreset = {
-  id: "custom-erc8004-agent",
+  id: "custom-agent",
   label: "Custom Agent",
   name: "Custom Agent",
   slug: "custom-agent",
-  summary: "ERC-8004 bound Agent ready for verifiable x402 task delegation.",
+  summary: "On-chain Agent ready for verifiable x402 task delegation.",
   category: "a2a-agents",
-  tags: ["a2a", "erc8004", "agent"],
+  tags: ["agent", "fusd"],
   description:
-    "On-chain Agent anchored to an Avalanche Fuji ERC-8004 identity token.",
+    "Autonomous Agent anchored to an Avalanche Fuji on-chain identity token.",
   erc8004TokenId: "1",
   erc8004Registry: ERC8004_IDENTITY_REGISTRY,
   taskKind: "vn-market-analysis",

@@ -44,7 +44,7 @@ const detail = await client.getFacet(facets[0].id);`;
 const CLI_SNIPPET = `# Search across all Facets or filter by type
 facet search "vietnam" --type HOSTED_ACTOR
 
-# Inspect full schema, imageDigest, or ERC-8004 Token ID
+# Inspect full schema, imageDigest, or Agent Identity Token ID
 facet inspect <facetId>
 
 # Publish an Actor manifest from CLI
@@ -83,7 +83,7 @@ const FUJI_DEPLOYMENT_ROWS = [
   {
     name: "FacetActorRegistry",
     address: FUJI_CONTRACTS.actorRegistry,
-    role: "Anchors facetId, facetType, imageDigest, pricing, payTo, and ERC-8004 tokenId.",
+    role: "Anchors facetId, facetType, imageDigest, pricing, payTo, and Agent Identity tokenId.",
   },
   {
     name: "FacetFeeSplitAndEscrow",
@@ -96,12 +96,12 @@ const FUJI_DEPLOYMENT_ROWS = [
     role: "Logs immutable run receipts (inputHash, outputHash, itemCount, paymentTxHash, runnerSignature).",
   },
   {
-    name: "ERC-8004 Identity Registry",
+    name: "Fuji Agent Identity Registry",
     address: ERC8004_IDENTITY_REGISTRY,
     role: "Canonical Avalanche Fuji identity registry bound to AUTONOMOUS_AGENT Facets.",
   },
   {
-    name: "ERC-8004 Reputation Registry",
+    name: "Fuji Agent Reputation Registry",
     address: ERC8004_REPUTATION_REGISTRY,
     role: "Canonical Avalanche Fuji agent reputation contract.",
   },
@@ -214,8 +214,8 @@ export default function DocsPage() {
                         Executor delegating multi-step tasks with cited datasets
                       </td>
                       <td>
-                        Canonical Fuji <strong>ERC-8004 Identity</strong> token
-                        + <code>FacetReceiptLog</code>
+                        Canonical Fuji <strong>Agent Identity Registry</strong>{" "}
+                        token + <code>FacetReceiptLog</code>
                       </td>
                       <td>PAY_PER_RUN or PAY_PER_RESULT (TaskEscrow)</td>
                     </tr>
@@ -242,9 +242,8 @@ export default function DocsPage() {
                 <li>
                   <strong>Inspect (`get_facet`):</strong> Read the pinned{" "}
                   <code>versionId</code>, <code>inputSchema</code>,{" "}
-                  <code>pricing</code>, and on-chain provenance (
-                  <code>actorMeta.imageDigest</code> or{" "}
-                  <code>agentMeta.erc8004TokenId</code>).
+                  <code>pricing</code>, and on-chain identity / digest
+                  provenance metadata.
                 </li>
                 <li>
                   <strong>Invoke (`invoke_facet`):</strong> Construct valid
@@ -284,7 +283,8 @@ export default function DocsPage() {
                   <code>get_facet</code>
                   <p>
                     Inputs: <code>facetId</code> (UUID). Returns full{" "}
-                    <code>inputSchema</code>, pricing, and ERC-8004/Docker meta.
+                    <code>inputSchema</code>, pricing, and on-chain provenance
+                    metadata.
                   </p>
                 </article>
                 <article className="docs-tool-card">
@@ -383,7 +383,7 @@ export default function DocsPage() {
                 <article className="docs-tool-card">
                   <strong>Agent (/studio/agent)</strong>
                   <p>
-                    Bind your Avalanche Fuji ERC-8004 Identity Token ID (
+                    Bind your Avalanche Fuji Agent Identity Token ID (
                     <code>&gt;= 1</code>), verify your On-Chain Agent Card, and
                     optionally verify your registration tx on{" "}
                     <code>FacetActorRegistry</code>.
@@ -405,8 +405,8 @@ export default function DocsPage() {
               <p>
                 All smart contract addresses below are verified deployments on
                 Avalanche Fuji C-Chain from{" "}
-                <code>contracts/fuji-deployment.json</code> and canonical
-                ERC-8004 registries.
+                <code>contracts/fuji-deployment.json</code> and canonical Fuji
+                identity registries.
               </p>
               <div className="dataset-table-wrap">
                 <table className="dataset-table">

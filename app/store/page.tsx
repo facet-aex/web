@@ -18,7 +18,7 @@ const TYPE_TABS: Array<{
     value: "",
     badge: "ALL",
     contextTitle: "Facet · All Types",
-    hint: "Showing every published Facet—API, Actor, and Agent—with inspectable schemas and x402 pricing.",
+    hint: "Showing every published Facet API, Actor, and Agent with inspectable schemas and x402 pricing.",
   },
   {
     label: "API",
@@ -84,10 +84,10 @@ export default async function StorePage({
             <h1 className="page-title">Facet Store</h1>
           </div>
           <p>
-            Every entry in Store is a <strong>Facet</strong>—implemented as an{" "}
-            <strong>API</strong>, an <strong>Actor</strong>, or an{" "}
-            <strong>Agent</strong>—with inspectable input schemas, fUSD pricing,
-            and verifiable on-chain receipts.
+            Every entry in Store is a <strong>Facet</strong> which was
+            implemented as an <strong>API</strong>, an <strong>Actor</strong>,
+            or an <strong>Agent</strong> with inspectable input schemas, fUSD
+            pricing, and verifiable on-chain receipts.
           </p>
         </div>
 
@@ -206,7 +206,8 @@ export default async function StorePage({
               <div>
                 <dt>◈ Facet · Agent</dt>
                 <dd>
-                  ERC-8004 on-chain identity executing tasks with citations.
+                  Verified on-chain Agent identity executing tasks with
+                  citations.
                 </dd>
               </div>
             </dl>

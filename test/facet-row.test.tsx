@@ -99,9 +99,10 @@ describe("FacetRow", () => {
     const markup = renderToStaticMarkup(<FacetRow facet={facet} />);
 
     expect(markup).toContain("Facet · Agent");
-    expect(markup).toContain("ERC-8004 #1");
+    expect(markup).toContain("Identity #1");
     expect(markup).toContain("vn-market-analysis");
     expect(markup).toContain("Delegate to Agent");
     expect(markup).toContain("modality-agent");
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 });
