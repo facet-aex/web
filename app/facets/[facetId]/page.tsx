@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AgentIdentityCard } from "@/components/agent-identity-card";
 import { FacetPlayground } from "@/components/facet-playground";
+import { RegistryVerificationForm } from "@/components/registry-verification-form";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import {
@@ -161,6 +162,20 @@ export default async function FacetDetailPage({
             </div>
           ) : null}
         </dl>
+
+        {(facet.actorMeta || facet.agentMeta) &&
+        !(
+          facet.actorMeta?.registryVerified ?? facet.agentMeta?.registryVerified
+        ) ? (
+          <RegistryVerificationForm
+            facetId={facet.id}
+            initialTxHash={
+              facet.actorMeta?.registryTxHash ??
+              facet.agentMeta?.registryTxHash ??
+              ""
+            }
+          />
+        ) : null}
 
         <FacetPlayground facet={facet} />
 
