@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+
+import { formatAtomicFusd } from "@/lib/facet-ui";
 import type { PublicFacet } from "@/lib/public-catalog";
 
 interface SchemaProperty {
@@ -52,6 +54,8 @@ function buildInitialInput(schema: unknown): Record<string, unknown> {
     const prop = rawProp as SchemaProperty;
     if (prop.type === "object" && isRecord(prop.properties)) {
       result[key] = buildInitialInput(prop);
+    } else if (prop.type === "array") {
+      result[key] = Array.isArray(prop.default) ? prop.default : [];
     } else if (prop.default !== undefined) {
       result[key] = prop.default;
     } else if (Array.isArray(prop.enum) && prop.enum.length > 0) {
@@ -65,6 +69,25 @@ function buildInitialInput(schema: unknown): Record<string, unknown> {
     }
   }
   return result;
+}
+
+function buildInitialArrayText(
+  schema: unknown,
+  initialInput: Record<string, unknown>,
+): Record<string, string> {
+  const fields = flattenSchemaFields(schema);
+  const map: Record<string, string> = {};
+  for (const field of fields) {
+    if (field.prop.type === "array") {
+      const value = getAtPath(initialInput, field.path);
+      map[field.label] = JSON.stringify(
+        Array.isArray(value) ? value : [],
+        null,
+        2,
+      );
+    }
+  }
+  return map;
 }
 
 function flattenSchemaFields(
@@ -139,16 +162,17 @@ function extractDatasetRows(
   return [];
 }
 
-function formatAtomicFusd(atomic?: string): string {
-  if (!atomic || !/^[0-9]+$/u.test(atomic)) return "0.001 fUSD";
-  const value = Number(atomic) / 1_000_000;
-  return `${value} fUSD`;
-}
-
 export function FacetPlayground({ facet }: { facet: PublicFacet }) {
   const fields = flattenSchemaFields(facet.inputSchema);
   const [formValue, setFormValue] = useState<Record<string, unknown>>(() =>
     buildInitialInput(facet.inputSchema),
+  );
+  const [arrayFieldText, setArrayFieldText] = useState<Record<string, string>>(
+    () =>
+      buildInitialArrayText(
+        facet.inputSchema,
+        buildInitialInput(facet.inputSchema),
+      ),
   );
   const [rawMode, setRawMode] = useState(fields.length === 0);
   const [rawJson, setRawJson] = useState(() =>
@@ -178,7 +202,27 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
         return;
       }
     } else {
-      inputPayload = formValue;
+      let nextFormValue = formValue;
+      for (const field of fields) {
+        if (field.prop.type !== "array") continue;
+        const text = arrayFieldText[field.label] ?? "[]";
+        try {
+          const parsed = JSON.parse(text) as unknown;
+          if (!Array.isArray(parsed)) {
+            throw new Error(`Field "${field.label}" must be a JSON array.`);
+          }
+          nextFormValue = setAtPath(nextFormValue, field.path, parsed);
+        } catch (err) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : `Field "${field.label}" contains invalid JSON.`,
+          );
+          setRunning(false);
+          return;
+        }
+      }
+      inputPayload = nextFormValue;
     }
 
     try {
@@ -233,7 +277,12 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
             } else {
               try {
                 const parsed = JSON.parse(rawJson) as unknown;
-                if (isRecord(parsed)) setFormValue(parsed);
+                if (isRecord(parsed)) {
+                  setFormValue(parsed);
+                  setArrayFieldText(
+                    buildInitialArrayText(facet.inputSchema, parsed),
+                  );
+                }
               } catch {
                 // Keep existing formValue if raw JSON is incomplete
               }
@@ -290,7 +339,7 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
               if (prop.type === "boolean") {
                 return (
                   <div className="form-field" key={label}>
-                    <label htmlFor={inputId}>
+                    <label className="checkbox-label" htmlFor={inputId}>
                       <input
                         id={inputId}
                         type="checkbox"
@@ -300,9 +349,49 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
                             setAtPath(prev, path, e.target.checked),
                           )
                         }
-                      />{" "}
-                      {label}
+                      />
+                      <span>{label}</span>
                     </label>
+                    {prop.description ? (
+                      <small>{prop.description}</small>
+                    ) : null}
+                  </div>
+                );
+              }
+              if (prop.type === "array") {
+                const rawArrayText =
+                  arrayFieldText[label] ??
+                  JSON.stringify(
+                    Array.isArray(current) ? current : [],
+                    null,
+                    2,
+                  );
+                return (
+                  <div className="form-field form-field-wide" key={label}>
+                    <label htmlFor={inputId}>{label} (JSON array)</label>
+                    <textarea
+                      id={inputId}
+                      rows={5}
+                      spellCheck={false}
+                      value={rawArrayText}
+                      onChange={(e) => {
+                        const nextText = e.target.value;
+                        setArrayFieldText((prev) => ({
+                          ...prev,
+                          [label]: nextText,
+                        }));
+                        try {
+                          const parsed = JSON.parse(nextText) as unknown;
+                          if (Array.isArray(parsed)) {
+                            setFormValue((prev) =>
+                              setAtPath(prev, path, parsed),
+                            );
+                          }
+                        } catch {
+                          // Allow incomplete JSON edits while typing; validated on Run
+                        }
+                      }}
+                    />
                     {prop.description ? (
                       <small>{prop.description}</small>
                     ) : null}

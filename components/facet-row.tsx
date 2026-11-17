@@ -1,40 +1,54 @@
-import type { PublicFacet } from "@/lib/public-catalog";
+import Link from "next/link";
 
-function typeLabel(facetType?: PublicFacet["facetType"]): string {
-  if (facetType === "HOSTED_ACTOR") return "Docker Actor";
-  if (facetType === "AUTONOMOUS_AGENT") return "ERC-8004 Agent";
-  return "HTTP API";
-}
+import { formatAtomicFusd, getFacetTypeMeta } from "@/lib/facet-ui";
+import type { PublicFacet } from "@/lib/public-catalog";
 
 function priceLabel(facet: PublicFacet): string {
   if (!facet.pricing) return "0.001 fUSD";
-  const amount = Number(facet.pricing.priceAtomic) / 1_000_000;
   const unit = facet.pricing.model === "PAY_PER_RESULT" ? "item" : "run";
-  return `${amount} fUSD / ${unit}`;
+  return `${formatAtomicFusd(facet.pricing.priceAtomic)} / ${unit}`;
 }
 
 export function FacetRow({ facet }: { facet: PublicFacet }) {
+  const meta = getFacetTypeMeta(facet.facetType);
+
   return (
-    <article className="facet-row" aria-labelledby={`${facet.id}-title`}>
+    <article
+      className={`facet-row ${meta.accentClass}`}
+      aria-labelledby={`${facet.id}-title`}
+    >
       <div className="facet-index" aria-hidden="true">
-        {facet.id.slice(-2)}
+        <span className="facet-type-glyph">{meta.glyph}</span>
+        <span className="facet-type-code">{meta.badge}</span>
+        <span className="facet-short-id">{facet.id.slice(-2)}</span>
       </div>
       <div className="facet-main">
         <div className="facet-kicker">
-          <span className="badge-type">{typeLabel(facet.facetType)}</span>
-          <span>{facet.category}</span>
-          <span>{facet.method}</span>
-          {facet.agentMeta ? (
-            <span className="badge-trust">
-              ERC-8004 #{facet.agentMeta.erc8004TokenId}
-            </span>
-          ) : null}
-          {facet.actorMeta ? (
-            <span className="badge-digest">
-              {facet.actorMeta.imageDigest.slice(0, 18)}…
-              {facet.actorMeta.registryVerified ? " ✓" : ""}
-            </span>
-          ) : null}
+          <span className={`badge-type badge-${meta.accentClass}`}>
+            {meta.facetTag}
+          </span>
+          <span className="kicker-chip">{facet.category}</span>
+          {facet.facetType === "HOSTED_ACTOR" && facet.actorMeta ? (
+            <>
+              <span className="kicker-chip">{facet.actorMeta.runtime}</span>
+              <span className="badge-digest">
+                {facet.actorMeta.imageDigest.slice(0, 15)}…
+                {facet.actorMeta.registryVerified ? " ✓" : ""}
+              </span>
+            </>
+          ) : facet.facetType === "AUTONOMOUS_AGENT" && facet.agentMeta ? (
+            <>
+              <span className="badge-trust">
+                ERC-8004 #{facet.agentMeta.erc8004TokenId}
+              </span>
+              <span className="kicker-chip">{facet.agentMeta.taskKind}</span>
+            </>
+          ) : (
+            <>
+              <span className="kicker-chip">{facet.method}</span>
+              <span className="kicker-chip">Gateway Proxy</span>
+            </>
+          )}
         </div>
         <h3 id={`${facet.id}-title`}>{facet.name}</h3>
         <p>{facet.description}</p>
@@ -59,13 +73,14 @@ export function FacetRow({ facet }: { facet: PublicFacet }) {
           </dd>
         </div>
       </dl>
-      <a
+      <Link
         className="row-action"
         href={`/facets/${facet.id}`}
         aria-label={`Inspect ${facet.name}`}
       >
-        Inspect &amp; Run <span aria-hidden="true">↗</span>
-      </a>
+        <span>{meta.actionLabel}</span>
+        <span aria-hidden="true">↗</span>
+      </Link>
     </article>
   );
 }
