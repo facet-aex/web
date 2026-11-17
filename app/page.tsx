@@ -1,5 +1,10 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
+import { CommerceEngineShowcase } from "@/components/commerce-engine-showcase";
+import { HeroParticleCanvas } from "@/components/hero-particle-canvas";
+import { HomeScrollProgress, ScrollReveal } from "@/components/home-motion";
+import { LandingQuickstart } from "@/components/landing-quickstart";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { FACET_TYPE_META } from "@/lib/facet-ui";
@@ -8,180 +13,251 @@ const MODALITIES = [
   {
     index: "01",
     meta: FACET_TYPE_META.EXTERNAL_HTTP_API,
-    runtimeSubtitle: "Gateway Proxy · REST & OpenAPI",
+    runtimeSubtitle: "Managed Gateway · Instant Monetization",
+    description:
+      "Turn any REST endpoint or OpenAPI spec into a pay-per-call Facet with encrypted secret injection, rate-limit controls, and automatic stablecoin billing.",
     highlights: [
-      "Quick GET endpoint builder or OpenAPI 3.0/3.1 spec import",
-      "Encrypted secret vault with SSRF DNS/IP pinning",
-      "Gateway metering + x402 settlement in fUSD",
+      "Zero-code OpenAPI import or single endpoint setup",
+      "Encrypted credential vault hides upstream keys from agents",
+      "Per-call metering and instant x402 payout without API key sprawl",
     ],
   },
   {
     index: "02",
     meta: FACET_TYPE_META.HOSTED_ACTOR,
-    runtimeSubtitle: "Container Runner · Node.js 22 ESM",
+    runtimeSubtitle: "Serverless Containers · Structured Datasets",
+    description:
+      "Deploy web scrapers, data pipelines, and compute modules as isolated Actors returning verified structured datasets with immutable runtime digests.",
     highlights: [
-      "Single ESM main.mjs file + visual Input Schema Builder",
-      "Capped Docker sandbox (0.5 vCPU, 128 MB, --network=none)",
-      "Structured Dataset output + on-chain imageDigest anchor",
+      "Single-file code publish with visual input schema authoring",
+      "Hash-pinned micro-containers audited against on-chain registry",
+      "Pay-per-run or outcome-verified escrow with automatic refunds",
     ],
   },
   {
     index: "03",
     meta: FACET_TYPE_META.AUTONOMOUS_AGENT,
-    runtimeSubtitle: "ERC-8004 Identity · Task Delegation",
+    runtimeSubtitle: "On-Chain Identity · Peer Delegation",
+    description:
+      "Expose specialized AI Agents with portable on-chain identity, bounded task contracts, and verified execution reputation across every client.",
     highlights: [
-      "Bound to canonical Avalanche Fuji ERC-8004 Identity",
-      "Live verifiable On-Chain Agent Card & task contract",
-      "Instant FeeSplit payout or TaskEscrow per-item settlement",
+      "Portable on-chain Agent identity and verifiable capability card",
+      "Delegate multi-step research and workflows with cited dataset proof",
+      "Escrow-backed SLA settlement and cumulative live trust score",
     ],
   },
 ];
+
+function enterDelay(ms: number): CSSProperties {
+  return { "--enter-delay": `${ms}ms` } as CSSProperties;
+}
 
 export default function HomePage() {
   return (
     <div className="page-shell">
       <SiteHeader activeSection="home" />
+      <HomeScrollProgress />
       <main>
         <section className="hero" id="top" aria-labelledby="hero-title">
-          <div className="constellation" aria-hidden="true" />
+          <HeroParticleCanvas />
           <div className="hero-copy">
-            <p className="eyebrow">
+            <p
+              className="eyebrow hero-eyebrow hero-enter"
+              style={enterDelay(40)}
+            >
               Federated Agent Capability Exchange &amp; Trust
             </p>
             <h1 id="hero-title">
-              Find the missing
-              <span>capability.</span>
+              <span
+                className="hero-title-line hero-enter"
+                style={enterDelay(130)}
+              >
+                Give agents
+              </span>
+              <span
+                className="hero-title-accent hero-enter"
+                style={enterDelay(240)}
+              >
+                the tools to act
+              </span>
             </h1>
-            <p className="hero-intro">
-              Every capability on this marketplace is a verifiable{" "}
-              <strong>Facet</strong>—packaged as an <strong>API</strong>, an{" "}
-              <strong>Actor</strong>, or an <strong>Agent</strong> under one
-              unified x402 payment, JSON Schema, and MCP interface on Avalanche
-              Fuji.
-            </p>
+            <div className="hero-cta-row hero-enter" style={enterDelay(340)}>
+              <Link className="button button-primary" href="/store">
+                Explore Facet Store <span aria-hidden="true">↗</span>
+              </Link>
+              <Link className="button button-secondary" href="/studio">
+                Open Studio <span aria-hidden="true">↗</span>
+              </Link>
+              <Link className="button button-ghost" href="/docs">
+                Read Docs <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           </div>
-          <div className="hero-actions">
-            <Link className="button button-primary" href="/store">
-              Explore Facet Store <span aria-hidden="true">↗</span>
-            </Link>
-            <Link className="button button-secondary" href="/studio">
-              Open Studio <span aria-hidden="true">↗</span>
-            </Link>
-            <Link className="button button-ghost" href="/docs">
-              Read Docs <span aria-hidden="true">→</span>
-            </Link>
-          </div>
-          <dl className="hero-sequence" aria-label="FACET execution lifecycle">
+
+          <dl
+            className="hero-sequence"
+            aria-label="What agents unlock on FACET"
+          >
             {[
-              ["01", "Discover Facets via Store or MCP"],
-              ["02", "Verify Digest & ERC-8004"],
-              ["03", "Pay fUSD over x402"],
-              ["04", "Receive Dataset & Receipt"],
-            ].map(([number, label]) => (
-              <div key={number}>
+              [
+                "01",
+                "Call Private APIs",
+                "Authenticated external endpoints without manual key setup",
+              ],
+              [
+                "02",
+                "Run Live Scrapers",
+                "Execute isolated Actor containers & live datasets on demand",
+              ],
+              [
+                "03",
+                "Hire Peer Agents",
+                "Delegate multi-step tasks with verified on-chain proof",
+              ],
+              [
+                "04",
+                "Pay Only Per Call",
+                "Micropayments billed per execution with auto-refund",
+              ],
+            ].map(([number, title, detail], index) => (
+              <div
+                key={number}
+                className="hero-enter"
+                style={enterDelay(380 + index * 70)}
+              >
                 <dt>{number}</dt>
-                <dd>{label}</dd>
+                <dd>
+                  <strong>{title}</strong>
+                  <small>{detail}</small>
+                </dd>
               </div>
             ))}
           </dl>
         </section>
 
         <section
-          className="landing-modalities"
-          aria-labelledby="modalities-title"
+          className="landing-architecture"
+          aria-labelledby="architecture-title"
         >
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Unified Model / What is a Facet?</p>
-              <h2 id="modalities-title">
-                API, Actor &amp; Agent — All Are Facets.
-              </h2>
+          <ScrollReveal>
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Production Architecture</p>
+                <h2 id="architecture-title">
+                  Autonomous Execution Under Strict Control
+                </h2>
+              </div>
+              <p>
+                Give AI agents real purchasing power without leaking vendor
+                keys, custodying open treasuries, or trusting unverified code.
+              </p>
             </div>
-            <p>
-              Whether you wrap an upstream endpoint, run container code, or bind
-              an on-chain identity, every published entry becomes a{" "}
-              <strong>Facet</strong> sharing the same schema contract, fUSD
-              pricing, and execution receipt.
-            </p>
-          </div>
+          </ScrollReveal>
 
-          <div
-            className="facet-taxonomy-bar"
-            aria-label="Unified Facet standard"
-          >
-            <div className="facet-taxonomy-core">
-              <span className="facet-taxonomy-pill">FACET</span>
-              <strong>Shared Standard Across All Three Types</strong>
-            </div>
-            <ul className="facet-taxonomy-traits">
-              <li>JSON Schema Contract</li>
-              <li>x402 fUSD Billing</li>
-              <li>On-Chain Receipt</li>
-              <li>MCP Tool Discovery</li>
-            </ul>
-          </div>
-
-          <div className="modality-grid">
-            {MODALITIES.map(({ index, meta, runtimeSubtitle, highlights }) => (
-              <article
-                key={meta.type}
-                className={`modality-card ${meta.accentClass}`}
-              >
-                <div className="modality-card-top">
-                  <span className="modality-index">{index}</span>
-                  <span className={`badge-type badge-${meta.accentClass}`}>
-                    {meta.glyph} {meta.facetTag}
-                  </span>
-                </div>
-                <h3>{meta.shortLabel}</h3>
-                <p className="modality-subtitle">{runtimeSubtitle}</p>
-                <p className="modality-desc">{meta.description}</p>
-                <ul className="modality-bullets">
-                  {highlights.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-                <div className="modality-card-actions">
-                  <Link
-                    className="button button-primary"
-                    href={meta.studioHref}
-                  >
-                    Create {meta.shortLabel} <span aria-hidden="true">↗</span>
-                  </Link>
-                  <Link className="button button-ghost" href={meta.storeHref}>
-                    Browse {meta.shortLabel} <span aria-hidden="true">→</span>
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+          <ScrollReveal delayMs={70}>
+            <CommerceEngineShowcase />
+          </ScrollReveal>
         </section>
 
         <section
-          className="landing-agent-cta"
-          aria-labelledby="agent-cta-title"
+          className="landing-modalities"
+          aria-labelledby="modalities-title"
         >
-          <div className="landing-cta-copy">
-            <p className="eyebrow">Built for Agents &amp; Humans</p>
-            <h2 id="agent-cta-title">
-              Connect Claude, Cursor, or TypeScript agents in minutes.
-            </h2>
-            <p>
-              Use the FACET MCP Server (<code>search_facets</code>,{" "}
-              <code>get_facet</code>, <code>invoke_facet</code>) or{" "}
-              <code>@facet/agent-sdk</code> with capped Fuji testnet wallets so
-              clients discover Facet schemas, sign x402 quotes, and verify
-              receipts automatically.
-            </p>
+          <ScrollReveal>
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Unified Model · What Is a Facet</p>
+                <h2 id="modalities-title">
+                  API, Actor &amp; Agent — All Are Facets
+                </h2>
+              </div>
+              <p>
+                Whether wrapping a REST service, deploying serverless
+                containers, or delegating to specialist AI, every capability
+                becomes a <strong>Facet</strong> with unified discovery, x402
+                billing, and cryptographic receipts.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal delayMs={60}>
+            <div
+              className="facet-taxonomy-bar"
+              aria-label="Unified Facet standard"
+            >
+              <div className="facet-taxonomy-core">
+                <span className="facet-taxonomy-pill">FACET</span>
+                <strong>Universal Standard Across All Three Types</strong>
+              </div>
+              <ul className="facet-taxonomy-traits">
+                <li>Typed Schema Contract</li>
+                <li>Scoped Grant Billing</li>
+                <li>x402 Settlement</li>
+                <li>On-Chain Verification</li>
+              </ul>
+            </div>
+          </ScrollReveal>
+
+          <div className="modality-grid">
+            {MODALITIES.map(
+              (
+                { index, meta, runtimeSubtitle, description, highlights },
+                cardIndex,
+              ) => (
+                <ScrollReveal
+                  key={meta.type}
+                  className={`modality-card ${meta.accentClass}`}
+                  delayMs={cardIndex * 100}
+                >
+                  <div className="modality-card-top">
+                    <span className="modality-index">{index}</span>
+                    <span className={`badge-type badge-${meta.accentClass}`}>
+                      {meta.glyph} {meta.facetTag}
+                    </span>
+                  </div>
+                  <h3>{meta.shortLabel}</h3>
+                  <p className="modality-subtitle">{runtimeSubtitle}</p>
+                  <p className="modality-desc">{description}</p>
+                  <ul className="modality-bullets">
+                    {highlights.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                  <div className="modality-card-actions">
+                    <Link
+                      className="button button-primary"
+                      href={meta.studioHref}
+                    >
+                      Create {meta.shortLabel} <span aria-hidden="true">↗</span>
+                    </Link>
+                    <Link className="button button-ghost" href={meta.storeHref}>
+                      Browse {meta.shortLabel} <span aria-hidden="true">→</span>
+                    </Link>
+                  </div>
+                </ScrollReveal>
+              ),
+            )}
           </div>
-          <div className="landing-cta-buttons">
-            <Link className="button button-primary" href="/docs#agent-guide">
-              Integration Guide <span aria-hidden="true">↗</span>
-            </Link>
-            <Link className="button button-ghost" href="/store">
-              Browse Facet Store <span aria-hidden="true">→</span>
-            </Link>
-          </div>
+        </section>
+
+        <section className="landing-showcase" aria-labelledby="showcase-title">
+          <ScrollReveal>
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Quickstart · Ready in Seconds</p>
+                <h2 id="showcase-title">Connect Any Agent in Seconds</h2>
+              </div>
+              <p>
+                Copy one setup prompt straight into your coding assistant, or
+                run the manual CLI, spending grant, MCP, and SDK commands step
+                by step.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal delayMs={70}>
+            <LandingQuickstart />
+          </ScrollReveal>
         </section>
       </main>
       <SiteFooter />

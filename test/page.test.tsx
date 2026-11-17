@@ -16,19 +16,66 @@ afterEach(() => {
 });
 
 describe("HomePage landing page", () => {
-  it("renders a focused landing page with CTAs to Store, Studio, and Docs and no embedded studio forms", () => {
+  it("renders Hero without trailing period, redesigned production commerce flow, 1-line section titles, and 2-path quickstart", () => {
     const markup = renderToStaticMarkup(<HomePage />);
 
+    // Page 1: Hero preserved without trailing period in title
     expect(markup).toContain("Federated Agent Capability Exchange &amp; Trust");
+    expect(markup).toContain("hero-eyebrow");
+    expect(markup).toContain("hero-canvas");
+    expect(markup).toContain("hero-enter");
+    expect(markup).toContain("scroll-reveal");
+    expect(markup).toContain("Give agents");
+    expect(markup).toContain("the tools to act");
+    expect(markup).not.toContain("the tools to act.");
+    expect(markup).toContain("Call Private APIs");
+    expect(markup).toContain("Run Live Scrapers");
+    expect(markup).toContain("Hire Peer Agents");
+    expect(markup).toContain("Pay Only Per Call");
+    expect(markup).not.toContain("Discover and run");
+    expect(markup).not.toContain("hero-terminal");
     expect(markup).not.toContain(
       "Federated Agent Capability Exchange &amp; Trust —",
     );
-    expect(markup).toContain("Find the missing");
+
+    // Ensure no heading (h1-h3) on Home ends with a trailing period
+    expect(markup).not.toMatch(/\.<\/(span|h1|h2|h3)>/u);
+
+    // Page 2: Minimal 1-menu production commerce showcase (replaces static bento-grid & duplicate menus)
+    expect(markup).not.toContain("bento-grid");
+    expect(markup).not.toContain("Built for Verifiable Commerce");
+    expect(markup).not.toContain("commerce-pipeline-bar");
+    expect(markup).not.toContain("commerce-pillars-strip");
+    expect(markup).toContain("commerce-engine");
+    expect(markup).toContain("Autonomous Execution Under Strict Control");
+    expect(markup).not.toContain("Autonomous Execution Under Strict Control.");
+    expect(markup).toContain("Unified Discovery");
+    expect(markup).toContain("Scoped Spending Grants");
+    expect(markup).toContain("Zero-Trust Execution");
+    expect(markup).toContain("Atomic x402 Settlement");
+    expect(markup).toContain("Cryptographic Receipts");
+
+    // Page 3: Unified Facet taxonomy in production framing
     expect(markup).toContain("facet-taxonomy-bar");
-    expect(markup).toContain("API, Actor &amp; Agent — All Are Facets.");
+    expect(markup).toContain("API, Actor &amp; Agent — All Are Facets");
+    expect(markup).not.toContain("API, Actor &amp; Agent — All Are Facets.");
+
+    // Page 4: Fast 2-option Quickstart (Agent Prompt + Manual CLI/Grant/MCP/SDK)
+    expect(markup).toContain("landing-showcase");
+    expect(markup).toContain("Connect Any Agent in Seconds");
+    expect(markup).not.toContain("Connect Any Agent in Seconds.");
+    expect(markup).toContain("Paste Prompt to Your Agent");
+    expect(markup).toContain("Install CLI, Grant, MCP &amp; SDK");
+    expect(markup).toContain("facet grant create");
+    expect(markup).toContain("@facet/agent-sdk");
+    expect(markup).toContain("@facet/mcp-server");
+
+    // Production vision copy & strict FACET branding checks
+    expect(markup).not.toContain("127.0.0.1");
+    expect(markup).not.toContain("--network=none");
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
     expect(markup).not.toContain("External HTTP API");
     expect(markup).not.toContain("Hosted Actor");
-    expect(markup).not.toContain("ERC-8004 A2A Agent");
     expect(markup).not.toContain("Autonomous Agent");
     expect(markup).toContain('src="/facet-logo.svg"');
     expect(markup).toContain('href="/store"');
@@ -124,15 +171,17 @@ describe("Studio pages", () => {
       expect(markup).not.toContain("← Studio Overview");
       expect(markup).not.toContain("Active Provider");
       expect(markup).not.toContain("+ New Provider");
+      expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
     }
   });
 });
 
 describe("DocsPage documentation", () => {
-  it("renders structured sections, Agent Integration guide, and verified Fuji contracts", () => {
+  it("renders structured sections, Agent Integration guide, and verified Fuji contracts without Apify, RapidAPI, or ERC-8004 labels", () => {
     const markup = renderToStaticMarkup(<DocsPage />);
 
     expect(markup).toContain("FACET Documentation");
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
     expect(markup).toContain("Integrating FACET into Your AI Agent");
     expect(markup).toContain("search_facets");
     expect(markup).toContain("get_facet");
@@ -201,11 +250,12 @@ describe("FacetDetailPage modality views", () => {
       await FacetDetailPage({ params: Promise.resolve({ facetId }) }),
     );
 
-    expect(markup).toContain("ERC-8004 ON-CHAIN IDENTITY");
+    expect(markup).toContain("ON-CHAIN AGENT IDENTITY");
     expect(markup).toContain("Facet · Agent");
     expect(markup).toContain("#7");
     expect(markup).toContain("vn-market-analysis");
     expect(markup).toContain('href="/store"');
     expect(markup).toContain('href="/store?type=AUTONOMOUS_AGENT"');
+    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 });
