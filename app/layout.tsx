@@ -56,6 +56,30 @@ export default async function RootLayout({
             signUpUrl="/sign-up"
             signInFallbackRedirectUrl="/"
             signUpFallbackRedirectUrl="/"
+            appearance={{
+              options: {
+                logoImageUrl: "/facet-mark.svg",
+              },
+              variables: {
+                colorBackground: "#ffffff",
+                colorForeground: "#09090b",
+                colorMutedForeground: "#52525b",
+                colorPrimary: "#050505",
+                colorPrimaryForeground: "#dfff4f",
+                colorInput: "#f4f4f5",
+                colorInputForeground: "#09090b",
+                borderRadius: "0px",
+              },
+              elements: {
+                card: {
+                  border: "1px solid #18181b",
+                  boxShadow: "0 24px 60px rgba(0, 0, 0, 0.5)",
+                },
+                userProfileRootBox: {
+                  border: "1px solid #18181b",
+                },
+              },
+            }}
           >
             {children}
           </ClerkProvider>
