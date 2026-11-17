@@ -1,8 +1,11 @@
+import { ERC8004_IDENTITY_REGISTRY } from "@/lib/facet-ui";
+
 export interface ActorTemplatePreset {
   id: string;
   label: string;
   name: string;
   slug: string;
+  summary: string;
   category: string;
   tags: string[];
   description: string;
@@ -12,12 +15,54 @@ export interface ActorTemplatePreset {
   code: string;
 }
 
+export const BLANK_ACTOR_PRESET: ActorTemplatePreset = {
+  id: "blank-actor",
+  label: "Blank Actor",
+  name: "Custom Data Actor",
+  slug: "custom-data-actor",
+  summary: "Transforms structured JSON input into normalized Dataset rows.",
+  category: "data-processing",
+  tags: ["actor", "docker", "dataset"],
+  description:
+    "Node.js 22 Actor running inside an isolated container returning structured Dataset items.",
+  pricingModel: "PAY_PER_RUN",
+  priceAtomic: "1000",
+  inputSchema: {
+    type: "object",
+    required: ["query"],
+    properties: {
+      query: {
+        type: "string",
+        default: "avalanche fuji",
+        description: "Primary task input parameter",
+      },
+      limit: {
+        type: "integer",
+        default: 5,
+        description: "Maximum items to return",
+      },
+    },
+  },
+  code: `export default async function run(input) {
+  const query = String(input?.query ?? "facet").trim();
+  const limit = Math.min(Math.max(Number(input?.limit ?? 5), 1), 50);
+  return Array.from({ length: Math.min(limit, 3) }, (_, index) => ({
+    index: index + 1,
+    query,
+    status: "ok",
+    processedAt: new Date().toISOString(),
+  }));
+}`,
+};
+
 export const ACTOR_TEMPLATE_PRESETS: ActorTemplatePreset[] = [
   {
     id: "vn-gold-fx-actor",
-    label: "VN Gold & FX Scraper (Actor)",
+    label: "VN Gold & FX Scraper",
     name: "VN Gold & FX Scraper",
     slug: "vn-gold-fx-actor",
+    summary:
+      "Normalizes SJC, DOJI, and PNJ gold quotes with VND FX rates into a Dataset.",
     category: "vietnamese-data",
     tags: ["vietnam", "gold", "fx", "actor"],
     description:
@@ -61,9 +106,11 @@ export const ACTOR_TEMPLATE_PRESETS: ActorTemplatePreset[] = [
   },
   {
     id: "vn-tech-news-actor",
-    label: "VN Tech & Macro News Extractor (Actor)",
+    label: "VN Tech & Macro News Extractor",
     name: "VN Tech & Macro News Extractor",
     slug: "vn-tech-news-actor",
+    summary:
+      "Extracts entities, topics, and sentiment from Vietnamese tech/fintech articles.",
     category: "vietnamese-data",
     tags: ["vietnam", "news", "nlp", "actor"],
     description:
@@ -106,17 +153,107 @@ export const ACTOR_TEMPLATE_PRESETS: ActorTemplatePreset[] = [
   },
 ];
 
-export const AGENT_TEMPLATE_PRESET = {
-  name: "VN Market & Macro Analyst Agent",
+export interface AgentTemplatePreset {
+  id: string;
+  label: string;
+  name: string;
+  slug: string;
+  summary: string;
+  category: string;
+  tags: string[];
+  description: string;
+  erc8004TokenId: string;
+  erc8004Registry: string;
+  taskKind: string;
+  pricingModel: "PAY_PER_RUN" | "PAY_PER_RESULT";
+  priceAtomic: string;
+  inputSchema: Record<string, unknown>;
+}
+
+export const AGENT_TEMPLATE_PRESET: AgentTemplatePreset = {
+  id: "vn-market-analyst-agent",
+  label: "VN Market & Macro Analyst",
+  name: "VN Market & Macro Analyst",
   slug: "vn-market-analyst-agent",
+  summary:
+    "Agent anchored to ERC-8004 synthesizing sourced Vietnamese gold, FX, and news datasets.",
   category: "a2a-agents",
   tags: ["vietnam", "a2a", "erc8004", "agent"],
   description:
-    "Autonomous A2A Agent định danh ERC-8004 trên Fuji, tự động tổng hợp dữ liệu vàng, tỷ giá và tin tức Việt Nam thành báo cáo phân tích.",
+    "Agent định danh ERC-8004 trên Fuji, tự động tổng hợp dữ liệu vàng, tỷ giá và tin tức Việt Nam thành báo cáo phân tích có trích dẫn nguồn.",
   erc8004TokenId: "1",
-  erc8004Registry: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  erc8004Registry: ERC8004_IDENTITY_REGISTRY,
   taskKind: "vn-market-analysis",
-  pricingModel: "PAY_PER_RUN" as const,
+  pricingModel: "PAY_PER_RUN",
+  priceAtomic: "1000",
+  inputSchema: {
+    type: "object",
+    required: ["question", "goldQuotes", "articles"],
+    properties: {
+      question: {
+        type: "string",
+        default:
+          "Phân tích xu hướng giá vàng SJC và fintech Việt Nam từ dữ liệu có nguồn",
+        description: "Câu hỏi hoặc nhiệm vụ giao cho Agent",
+      },
+      goldQuotes: {
+        type: "array",
+        default: [
+          {
+            brand: "SJC",
+            buyVnd: 88500000,
+            sellVnd: 91000000,
+            asOf: "2026-11-16T08:00:00Z",
+            sourceUrl: "https://sjc.com.vn/gia-vang-online",
+          },
+        ],
+        description:
+          "Sourced gold quote records (brand, buyVnd, sellVnd, asOf, sourceUrl)",
+        items: {
+          type: "object",
+          required: ["brand", "buyVnd", "sellVnd", "asOf", "sourceUrl"],
+        },
+      },
+      articles: {
+        type: "array",
+        default: [
+          {
+            title: "Hệ sinh thái thanh toán x402 mở rộng ứng dụng AI Agent",
+            text: "Thanh toán vi mô tức thì trên Avalanche giúp fintech tăng trưởng tích cực.",
+            sourceUrl: "https://vneconomy.vn/fintech-x402",
+            asOf: "2026-11-16T08:00:00Z",
+          },
+        ],
+        description: "Sourced news articles (title, text, sourceUrl, asOf)",
+        items: {
+          type: "object",
+          required: ["title", "text", "sourceUrl", "asOf"],
+        },
+      },
+      focus: {
+        type: "string",
+        enum: ["COMPREHENSIVE", "GOLD_FX", "TECH_NEWS"],
+        default: "COMPREHENSIVE",
+        description: "Trọng tâm phân tích",
+      },
+    },
+  },
+};
+
+export const CUSTOM_AGENT_PRESET: AgentTemplatePreset = {
+  id: "custom-erc8004-agent",
+  label: "Custom Agent",
+  name: "Custom Agent",
+  slug: "custom-agent",
+  summary: "ERC-8004 bound Agent ready for verifiable x402 task delegation.",
+  category: "a2a-agents",
+  tags: ["a2a", "erc8004", "agent"],
+  description:
+    "On-chain Agent anchored to an Avalanche Fuji ERC-8004 identity token.",
+  erc8004TokenId: "1",
+  erc8004Registry: ERC8004_IDENTITY_REGISTRY,
+  taskKind: "vn-market-analysis",
+  pricingModel: "PAY_PER_RUN",
   priceAtomic: "1000",
   inputSchema: {
     type: "object",
@@ -124,14 +261,8 @@ export const AGENT_TEMPLATE_PRESET = {
     properties: {
       question: {
         type: "string",
-        default: "Phân tích xu hướng giá vàng SJC và fintech Việt Nam hôm nay",
-        description: "Câu hỏi hoặc nhiệm vụ giao cho A2A Agent",
-      },
-      focus: {
-        type: "string",
-        enum: ["COMPREHENSIVE", "GOLD_FX", "TECH_NEWS"],
-        default: "COMPREHENSIVE",
-        description: "Trọng tâm phân tích",
+        default: "Summarize sourced records",
+        description: "Task prompt sent to the A2A agent",
       },
     },
   },

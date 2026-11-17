@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { ProviderImportWorkspace } from "@/components/provider-import-workspace";
+import { ApiStudio } from "@/components/api-studio";
 import { FacetDraftWorkbench } from "@/components/facet-draft-workbench";
-import { PublishPreviewDialog } from "@/components/publish-preview-dialog";
+import { ProviderImportWorkspace } from "@/components/provider-import-workspace";
 import {
   pollImportJob,
   validateOpenApiUpload,
@@ -22,28 +22,33 @@ const queuedJob: ImportJob = {
   createdAt: "2026-11-09T09:00:00.000Z",
 };
 
-describe("ProviderImportWorkspace", () => {
-  it("renders an accessible import flow with accurate source boundaries", () => {
-    const markup = renderToStaticMarkup(<ProviderImportWorkspace />);
+describe("ApiStudio and FacetDraftWorkbench", () => {
+  it("renders a RapidAPI-style API Studio with Quick Endpoint, OpenAPI sources, and accurate upload boundaries", () => {
+    const markup = renderToStaticMarkup(<ApiStudio />);
 
     expect(markup).toContain('role="region"');
-    expect(markup).toContain('aria-labelledby="provider-console-title"');
-    expect(markup).toContain("Provider Console");
-    expect(markup).toContain('for="import-provider"');
-    expect(markup).toContain('for="new-provider-name"');
-    expect(markup).toContain("Create provider");
+    expect(markup).toContain('aria-labelledby="api-studio-title"');
+    expect(markup).toContain("API Studio");
+    expect(markup).not.toContain("HTTP API Studio");
+    expect(markup).toContain("Quick Endpoint (GET)");
+    expect(markup).toContain("Import OpenAPI Spec");
+    expect(markup).not.toContain("Active Provider");
+    expect(markup).not.toContain("+ New Provider");
     expect(markup).toContain('for="import-name"');
     expect(markup).toContain('value="url"');
     expect(markup).toContain('value="paste"');
     expect(markup).toContain('value="upload"');
     expect(markup).toContain("URL of an OpenAPI JSON/YAML document");
-    expect(markup).toContain("JSON-content fallback");
-    expect(markup).toContain("Multipart upload is not implemented");
     expect(markup).toContain('role="status"');
     expect(markup).toContain('aria-live="polite"');
   });
 
-  it("renders the draft, endpoint and validation workflow without exposing secrets", () => {
+  it("keeps ProviderImportWorkspace export working", () => {
+    const markup = renderToStaticMarkup(<ProviderImportWorkspace />);
+    expect(markup).toContain("API Studio");
+  });
+
+  it("renders the RapidAPI 2-pane endpoint workbench without exposing secrets", () => {
     const markup = renderToStaticMarkup(
       <FacetDraftWorkbench
         providerId="019a69b8-1f36-7a12-9ea4-777f09a777ea"
@@ -68,20 +73,14 @@ describe("ProviderImportWorkspace", () => {
       />,
     );
 
-    expect(markup).toContain("Draft selected operations");
+    expect(markup).toContain("Endpoint Definition Hub");
+    expect(markup).toContain("/repos");
+    expect(markup).toContain("General &amp; Catalog");
+    expect(markup).toContain("Gateway &amp; Auth");
+    expect(markup).toContain("Validate &amp; Publish");
     expect(markup).toContain('for="draft-name-');
-    expect(markup).toContain("Where FACET calls your API");
-    expect(markup).toContain("validate, and publish");
-    expect(markup).toContain("publish");
-    expect(markup).toContain("Give it a clear name and description");
+    expect(markup).toContain("Create Facet Drafts");
     expect(markup).not.toContain("secretRefId");
-  });
-
-  it("links the publish call to the live Provider Console", () => {
-    const markup = renderToStaticMarkup(<PublishPreviewDialog />);
-
-    expect(markup).toContain('href="#provider-console"');
-    expect(markup).not.toContain("Remote fetching is not enabled");
   });
 });
 

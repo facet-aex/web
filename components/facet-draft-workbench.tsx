@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import {
@@ -16,6 +17,7 @@ import {
   type FacetPublicationResult,
   type FacetValidationResult,
 } from "@/lib/facet-draft-workflow";
+import { STORE_CATEGORY_FILTERS } from "@/lib/facet-ui";
 import {
   readErrorEnvelope,
   type OperationCandidate,
@@ -26,7 +28,20 @@ interface FacetDraftWorkbenchProps {
   importJobId: string;
   operations: OperationCandidate[];
   onDraftsCreated?: () => void;
+  onAnyPublished?: () => void;
 }
+
+type WorkbenchStage =
+  | "EDITING"
+  | "DRAFT"
+  | "CONFIGURING"
+  | "CONFIGURED"
+  | "VALIDATING"
+  | "VALID"
+  | "PUBLISHING"
+  | "PUBLISHED";
+
+type InspectorTab = "general" | "gateway" | "publish";
 
 interface WorkbenchItem {
   operation: OperationCandidate;
@@ -43,15 +58,7 @@ interface WorkbenchItem {
   validation: FacetValidationResult | null;
   publication: FacetPublicationResult | null;
   publicationVisibility: "PUBLIC" | "UNLISTED";
-  stage:
-    | "EDITING"
-    | "DRAFT"
-    | "CONFIGURING"
-    | "CONFIGURED"
-    | "VALIDATING"
-    | "VALID"
-    | "PUBLISHING"
-    | "PUBLISHED";
+  stage: WorkbenchStage;
   error: string | null;
 }
 
@@ -104,12 +111,18 @@ export function FacetDraftWorkbench({
   importJobId,
   operations,
   onDraftsCreated,
+  onAnyPublished,
 }: FacetDraftWorkbenchProps) {
   const [items, setItems] = useState<WorkbenchItem[]>(() =>
     createItems(operations),
   );
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<InspectorTab>("general");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  const safeIndex = Math.min(activeIndex, Math.max(items.length - 1, 0));
+  const activeItem = items[safeIndex];
 
   function updateItem(index: number, update: Partial<WorkbenchItem>) {
     setItems((current) =>
@@ -160,6 +173,7 @@ export function FacetDraftWorkbench({
           error: null,
         })),
       );
+      setActiveTab("gateway");
       onDraftsCreated?.();
     } catch (error) {
       setCreateError(
@@ -180,8 +194,9 @@ export function FacetDraftWorkbench({
     try {
       let secretRefId = item.secretReference ?? undefined;
       if (item.authKind !== "NONE") {
-        if (!secretRefId && !item.secretValue)
+        if (!secretRefId && !item.secretValue) {
           throw new Error("Enter the upstream secret value.");
+        }
         if (!secretRefId) {
           const secretResponse = await fetch(
             `/api/facet/providers/${encodeURIComponent(providerId)}/secrets`,
@@ -246,6 +261,7 @@ export function FacetDraftWorkbench({
         stage: "CONFIGURED",
         error: null,
       });
+      setActiveTab("publish");
     } catch (error) {
       updateItem(index, {
         stage: "DRAFT",
@@ -336,6 +352,7 @@ export function FacetDraftWorkbench({
         stage: "PUBLISHED",
         error: null,
       });
+      onAnyPublished?.();
     } catch (error) {
       updateItem(index, {
         stage: "VALID",
@@ -348,65 +365,179 @@ export function FacetDraftWorkbench({
   }
 
   const draftsCreated = items.length > 0 && items.every((item) => item.draft);
+  const validCount = items.filter((item) =>
+    ["VALID", "PUBLISHING", "PUBLISHED"].includes(item.stage),
+  ).length;
+  const publishedCount = items.filter(
+    (item) => item.stage === "PUBLISHED",
+  ).length;
+
+  if (!activeItem) return null;
+  const prefix = `facet-${activeItem.operation.id}`;
+  const hasUnacknowledgedWarnings =
+    activeItem.validation?.warnings.some((warning) => !warning.acknowledged) ??
+    false;
 
   return (
-    <form className="draft-workbench" onSubmit={createDrafts}>
+    <form className="draft-workbench rapid-hub" onSubmit={createDrafts}>
       <header className="draft-workbench-heading">
         <div>
-          <p className="eyebrow">Draft workbench</p>
-          <h3>Draft selected operations</h3>
+          <p className="eyebrow">RapidAPI-Style Definition Workspace</p>
+          <h3>Endpoint Definition Hub</h3>
         </div>
         <p>
-          FACET generated one agent tool contract per selected operation. Give
-          it a clear name and description so agents can find it. Then confirm
-          the private API endpoint and optional key, validate, and publish.
+          Review each endpoint&apos;s catalog copy, create your provider-private
+          draft batch, map upstream base URL and secrets, then validate and
+          publish to the Store.
         </p>
       </header>
 
       <ol className="draft-progress" aria-label="Facet draft progress">
-        <li data-complete="true">Import</li>
-        <li data-complete={draftsCreated}>Draft</li>
-        <li
-          data-complete={items.every((item) =>
-            ["VALID", "PUBLISHING", "PUBLISHED"].includes(item.stage),
-          )}
-        >
-          Valid
+        <li data-complete="true">01 · Imported ({items.length})</li>
+        <li data-complete={draftsCreated}>
+          02 · Drafts {draftsCreated ? "Locked" : "Pending"}
+        </li>
+        <li data-complete={validCount === items.length}>
+          03 · Valid ({validCount}/{items.length})
+        </li>
+        <li data-complete={publishedCount === items.length}>
+          04 · Published ({publishedCount}/{items.length})
         </li>
       </ol>
 
-      <div className="draft-list">
-        {items.map((item, index) => {
-          const prefix = `facet-${item.operation.id}`;
-          const hasUnacknowledgedWarnings =
-            item.validation?.warnings.some(
-              (warning) => !warning.acknowledged,
-            ) ?? false;
-          return (
-            <section className="draft-row" key={item.operation.id}>
-              <header className="draft-row-heading">
-                <span className="operation-method">
-                  {item.operation.method.toUpperCase()}
-                </span>
-                <div>
-                  <h4>{item.operation.path}</h4>
-                  <p>{item.operation.summary ?? item.operation.operationId}</p>
-                </div>
-                <span
-                  className={`draft-stage draft-stage-${item.stage.toLowerCase()}`}
-                >
-                  {item.stage}
-                </span>
-              </header>
+      <div className="rapid-two-pane">
+        <aside className="rapid-endpoint-sidebar" aria-label="Endpoints list">
+          <div className="rapid-sidebar-header">
+            <span>Endpoints ({items.length})</span>
+            <span>{draftsCreated ? "Drafts Ready" : "Pre-Draft"}</span>
+          </div>
+          <ul className="rapid-endpoint-list">
+            {items.map((item, idx) => {
+              const selected = idx === safeIndex;
+              return (
+                <li key={item.operation.id}>
+                  <button
+                    type="button"
+                    className={`rapid-endpoint-btn ${selected ? "rapid-endpoint-active" : ""}`}
+                    onClick={() => setActiveIndex(idx)}
+                  >
+                    <span className="rapid-endpoint-top">
+                      <span className="operation-method">
+                        {item.operation.method.toUpperCase()}
+                      </span>
+                      <span
+                        className={`draft-stage draft-stage-${item.stage.toLowerCase()}`}
+                      >
+                        {item.stage}
+                      </span>
+                    </span>
+                    <strong className="rapid-endpoint-path">
+                      {item.operation.path}
+                    </strong>
+                    <small>{item.selection.name}</small>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
 
+          {!draftsCreated ? (
+            <div className="rapid-sidebar-footer">
+              <p>
+                Review catalog metadata on the right, then create drafts to
+                unlock Gateway &amp; Secret config.
+              </p>
+              <button
+                className="button button-primary import-submit"
+                type="submit"
+                disabled={creating || !items.length}
+              >
+                {creating ? "Creating Drafts…" : "Create Facet Drafts"}
+                <span aria-hidden="true">↗</span>
+              </button>
+              {createError ? (
+                <div className="error-banner" role="alert">
+                  <strong>Draft creation needs attention</strong>
+                  <p>{createError}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </aside>
+
+        <div className="rapid-inspector-pane">
+          <div className="rapid-inspector-header">
+            <div className="rapid-inspector-title">
+              <span className="operation-method">
+                {activeItem.operation.method.toUpperCase()}
+              </span>
+              <div>
+                <h4>{activeItem.operation.path}</h4>
+                <p>
+                  {activeItem.operation.summary ??
+                    activeItem.operation.operationId ??
+                    "API endpoint operation"}
+                </p>
+              </div>
+            </div>
+            <span
+              className={`draft-stage draft-stage-${activeItem.stage.toLowerCase()}`}
+            >
+              {activeItem.stage}
+            </span>
+          </div>
+
+          <div
+            className="studio-tabs rapid-inspector-tabs"
+            role="tablist"
+            aria-label="Endpoint configuration tabs"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "general"}
+              className={`tab-button ${activeTab === "general" ? "tab-active" : ""}`}
+              onClick={() => setActiveTab("general")}
+            >
+              General &amp; Catalog
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "gateway"}
+              className={`tab-button ${activeTab === "gateway" ? "tab-active" : ""}`}
+              onClick={() => setActiveTab("gateway")}
+            >
+              Gateway &amp; Auth
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "publish"}
+              className={`tab-button ${activeTab === "publish" ? "tab-active" : ""}`}
+              onClick={() => setActiveTab("publish")}
+            >
+              Validate &amp; Publish
+            </button>
+          </div>
+
+          {activeTab === "general" ? (
+            <div className="rapid-tab-body">
+              {draftsCreated ? (
+                <p className="panel-intro">
+                  Catalog metadata is locked after draft creation. Continue to{" "}
+                  <strong>Gateway &amp; Auth</strong> to configure upstream
+                  execution.
+                </p>
+              ) : null}
               <div className="draft-fields">
                 <div className="form-field">
-                  <label htmlFor={`draft-name-${prefix}`}>Facet name</label>
+                  <label htmlFor={`draft-name-${prefix}`}>Facet Name</label>
                   <input
                     id={`draft-name-${prefix}`}
-                    value={item.selection.name}
+                    value={activeItem.selection.name}
                     onChange={(event) =>
-                      updateSelection(index, { name: event.target.value })
+                      updateSelection(safeIndex, { name: event.target.value })
                     }
                     disabled={draftsCreated}
                     maxLength={160}
@@ -417,9 +548,9 @@ export function FacetDraftWorkbench({
                   <label htmlFor={`draft-slug-${prefix}`}>Slug</label>
                   <input
                     id={`draft-slug-${prefix}`}
-                    value={item.selection.slug}
+                    value={activeItem.selection.slug}
                     onChange={(event) =>
-                      updateSelection(index, { slug: event.target.value })
+                      updateSelection(safeIndex, { slug: event.target.value })
                     }
                     disabled={draftsCreated}
                     pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
@@ -430,58 +561,35 @@ export function FacetDraftWorkbench({
                   <label htmlFor={`draft-category-${prefix}`}>Category</label>
                   <input
                     id={`draft-category-${prefix}`}
-                    value={item.selection.category}
+                    list={`api-category-presets-${prefix}`}
+                    value={activeItem.selection.category}
                     onChange={(event) =>
-                      updateSelection(index, { category: event.target.value })
+                      updateSelection(safeIndex, {
+                        category: event.target.value,
+                      })
                     }
                     disabled={draftsCreated}
                     required
                   />
-                </div>
-                <div className="form-field">
-                  <label htmlFor={`draft-description-${prefix}`}>
-                    When should an agent use this?
-                  </label>
-                  <input
-                    id={`draft-description-${prefix}`}
-                    value={item.selection.description}
-                    onChange={(event) =>
-                      updateSelection(index, {
-                        description: event.target.value,
-                      })
-                    }
-                    disabled={draftsCreated}
-                    placeholder="Get historical Bitcoin prices for short-term analysis"
-                  />
-                </div>
-                <div className="form-field">
-                  <label htmlFor={`draft-tags-${prefix}`}>
-                    Search terms (comma-separated)
-                  </label>
-                  <input
-                    id={`draft-tags-${prefix}`}
-                    value={item.selection.tags.join(", ")}
-                    onChange={(event) =>
-                      updateSelection(index, {
-                        tags: event.target.value
-                          .split(",")
-                          .map((tag) => tag.trim())
-                          .filter(Boolean),
-                      })
-                    }
-                    disabled={draftsCreated}
-                    placeholder="bitcoin, btc, historical prices"
-                  />
+                  <datalist id={`api-category-presets-${prefix}`}>
+                    {STORE_CATEGORY_FILTERS.EXTERNAL_HTTP_API.filter(
+                      (option) => option.slug,
+                    ).map((option) => (
+                      <option key={option.slug} value={option.slug}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </datalist>
                 </div>
                 <div className="form-field">
                   <label htmlFor={`draft-side-effect-${prefix}`}>
-                    Side effects
+                    Side Effects
                   </label>
                   <select
                     id={`draft-side-effect-${prefix}`}
-                    value={item.selection.sideEffectClass}
+                    value={activeItem.selection.sideEffectClass}
                     onChange={(event) =>
-                      updateSelection(index, {
+                      updateSelection(safeIndex, {
                         sideEffectClass: event.target
                           .value as DraftSelection["sideEffectClass"],
                       })
@@ -495,26 +603,78 @@ export function FacetDraftWorkbench({
                     ))}
                   </select>
                 </div>
+                <div className="form-field endpoint-url">
+                  <label htmlFor={`draft-description-${prefix}`}>
+                    When should an agent use this API?
+                  </label>
+                  <input
+                    id={`draft-description-${prefix}`}
+                    value={activeItem.selection.description}
+                    onChange={(event) =>
+                      updateSelection(safeIndex, {
+                        description: event.target.value,
+                      })
+                    }
+                    disabled={draftsCreated}
+                    placeholder="Get historical Bitcoin prices for short-term analysis"
+                  />
+                </div>
+                <div className="form-field endpoint-url">
+                  <label htmlFor={`draft-tags-${prefix}`}>
+                    Search Terms (comma-separated)
+                  </label>
+                  <input
+                    id={`draft-tags-${prefix}`}
+                    value={activeItem.selection.tags.join(", ")}
+                    onChange={(event) =>
+                      updateSelection(safeIndex, {
+                        tags: event.target.value
+                          .split(",")
+                          .map((tag) => tag.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    disabled={draftsCreated}
+                    placeholder="bitcoin, btc, historical prices"
+                  />
+                </div>
               </div>
+            </div>
+          ) : null}
+
+          {activeTab === "gateway" ? (
+            <div className="rapid-tab-body">
+              {!activeItem.draft ? (
+                <div className="rapid-lock-banner">
+                  <strong>Create drafts first</strong>
+                  <p>
+                    Click <strong>Create Facet Drafts</strong> in the Endpoints
+                    sidebar to unlock upstream Gateway URL and encrypted secret
+                    mapping.
+                  </p>
+                </div>
+              ) : null}
 
               <fieldset
                 className="endpoint-fields"
                 disabled={
-                  !item.draft ||
-                  ["VALID", "PUBLISHING", "PUBLISHED"].includes(item.stage)
+                  !activeItem.draft ||
+                  ["VALID", "PUBLISHING", "PUBLISHED"].includes(
+                    activeItem.stage,
+                  )
                 }
               >
-                <legend>Where FACET calls your API</legend>
+                <legend>Upstream Endpoint &amp; Secret Vault</legend>
                 <div className="form-field endpoint-url">
                   <label htmlFor={`endpoint-url-${prefix}`}>
-                    HTTPS base URL
+                    HTTPS Base URL
                   </label>
                   <input
                     id={`endpoint-url-${prefix}`}
                     type="url"
-                    value={item.baseUrl}
+                    value={activeItem.baseUrl}
                     onChange={(event) =>
-                      updateItem(index, { baseUrl: event.target.value })
+                      updateItem(safeIndex, { baseUrl: event.target.value })
                     }
                     placeholder="https://api.provider.example"
                     required
@@ -522,14 +682,14 @@ export function FacetDraftWorkbench({
                 </div>
                 <div className="form-field">
                   <label htmlFor={`endpoint-auth-${prefix}`}>
-                    Authentication
+                    Upstream Authentication
                   </label>
                   <select
                     id={`endpoint-auth-${prefix}`}
-                    value={item.authKind}
-                    disabled={item.secretReference !== null}
+                    value={activeItem.authKind}
+                    disabled={activeItem.secretReference !== null}
                     onChange={(event) =>
-                      updateItem(index, {
+                      updateItem(safeIndex, {
                         authKind: event.target.value as EndpointAuthKind,
                       })
                     }
@@ -539,7 +699,7 @@ export function FacetDraftWorkbench({
                     <option value="API_KEY_QUERY">API key / query</option>
                     <option value="BEARER">Bearer token</option>
                   </select>
-                  {item.authReviewRequired ? (
+                  {activeItem.authReviewRequired ? (
                     <small className="field-warning">
                       The imported security requirement could not be mapped
                       automatically. Confirm the supported upstream method
@@ -547,88 +707,125 @@ export function FacetDraftWorkbench({
                     </small>
                   ) : null}
                 </div>
-                {item.authKind.startsWith("API_KEY") ? (
+                {activeItem.authKind.startsWith("API_KEY") ? (
                   <div className="form-field">
                     <label htmlFor={`endpoint-param-${prefix}`}>
-                      Parameter name
+                      Parameter Name
                     </label>
                     <input
                       id={`endpoint-param-${prefix}`}
-                      value={item.parameterName}
+                      value={activeItem.parameterName}
                       onChange={(event) =>
-                        updateItem(index, { parameterName: event.target.value })
+                        updateItem(safeIndex, {
+                          parameterName: event.target.value,
+                        })
                       }
                       placeholder="X-Api-Key"
                       required
                     />
                   </div>
                 ) : null}
-                {item.authKind !== "NONE" ? (
+                {activeItem.authKind !== "NONE" ? (
                   <>
                     <div className="form-field">
                       <label htmlFor={`secret-label-${prefix}`}>
-                        Secret label
+                        Secret Vault Label
                       </label>
                       <input
                         id={`secret-label-${prefix}`}
-                        value={item.secretLabel}
-                        disabled={item.secretReference !== null}
+                        value={activeItem.secretLabel}
+                        disabled={activeItem.secretReference !== null}
                         onChange={(event) =>
-                          updateItem(index, { secretLabel: event.target.value })
+                          updateItem(safeIndex, {
+                            secretLabel: event.target.value,
+                          })
                         }
                         required
                       />
                     </div>
                     <div className="form-field">
                       <label htmlFor={`secret-value-${prefix}`}>
-                        Secret value
+                        Write-Only Secret Value
                       </label>
                       <input
                         id={`secret-value-${prefix}`}
                         type="password"
                         autoComplete="new-password"
-                        value={item.secretValue}
-                        disabled={item.secretReference !== null}
+                        value={activeItem.secretValue}
+                        disabled={activeItem.secretReference !== null}
                         onChange={(event) =>
-                          updateItem(index, { secretValue: event.target.value })
+                          updateItem(safeIndex, {
+                            secretValue: event.target.value,
+                          })
                         }
                         required={
-                          item.stage === "DRAFT" && !item.secretReference
+                          activeItem.stage === "DRAFT" &&
+                          !activeItem.secretReference
                         }
                       />
                       <small>
-                        Paste the provider API key here. FACET stores it
-                        privately and clears this field after saving.
+                        Paste the upstream API key here. FACET stores it
+                        write-only and clears this field after saving.
                       </small>
                     </div>
                   </>
                 ) : null}
               </fieldset>
 
-              {item.error ? (
-                <div className="error-banner" role="alert">
-                  <strong>This Facet needs attention</strong>
-                  <p>{item.error}</p>
+              {activeItem.draft ? (
+                <div className="draft-actions">
+                  {activeItem.stage === "DRAFT" ? (
+                    <button
+                      className="button button-primary"
+                      type="button"
+                      onClick={() => void configure(safeIndex)}
+                    >
+                      Save Endpoint Config <span aria-hidden="true">↗</span>
+                    </button>
+                  ) : activeItem.stage === "CONFIGURING" ? (
+                    <span role="status" className="draft-busy">
+                      Saving endpoint config…
+                    </span>
+                  ) : (
+                    <span className="draft-ready">
+                      ✓ Endpoint configured — proceed to Validate &amp; Publish
+                    </span>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {activeTab === "publish" ? (
+            <div className="rapid-tab-body">
+              {!activeItem.draft ? (
+                <div className="rapid-lock-banner">
+                  <strong>Create drafts &amp; configure endpoint first</strong>
+                  <p>
+                    Validation and publication unlock once this endpoint&apos;s
+                    upstream URL and auth settings are saved.
+                  </p>
                 </div>
               ) : null}
 
-              {item.validation ? (
+              {activeItem.validation ? (
                 <div className="validation-report" aria-live="polite">
                   <strong>
-                    Validation: {item.validation.validationStatus.toLowerCase()}
+                    Validation:{" "}
+                    {activeItem.validation.validationStatus.toLowerCase()}
                   </strong>
-                  {item.validation.errors.length ? (
+                  {activeItem.validation.errors.length ? (
                     <ul>
-                      {item.validation.errors.map((issue) => (
+                      {activeItem.validation.errors.map((issue) => (
                         <li key={`${issue.code}-${issue.path ?? "root"}`}>
                           {issue.message}
                         </li>
                       ))}
                     </ul>
                   ) : null}
-                  {item.validation.warnings.length ? (
+                  {activeItem.validation.warnings.length ? (
                     <ul>
-                      {item.validation.warnings.map((warning) => (
+                      {activeItem.validation.warnings.map((warning) => (
                         <li key={warning.warningId}>
                           {warning.message}
                           {warning.acknowledged ? " — acknowledged" : ""}
@@ -639,51 +836,53 @@ export function FacetDraftWorkbench({
                 </div>
               ) : null}
 
-              {item.draft ? (
+              {activeItem.draft ? (
                 <div className="draft-actions">
-                  {item.stage === "DRAFT" ? (
+                  {activeItem.stage === "DRAFT" ? (
                     <button
                       className="button button-secondary"
                       type="button"
-                      onClick={() => void configure(index)}
+                      onClick={() => setActiveTab("gateway")}
                     >
-                      Save endpoint
+                      Configure Gateway &amp; Auth First →
                     </button>
                   ) : null}
-                  {item.stage === "CONFIGURED" && !hasUnacknowledgedWarnings ? (
+                  {activeItem.stage === "CONFIGURED" &&
+                  !hasUnacknowledgedWarnings ? (
                     <button
                       className="button button-primary"
                       type="button"
-                      onClick={() => void validate(index, false)}
+                      onClick={() => void validate(safeIndex, false)}
                     >
-                      Validate Facet
+                      Validate Facet <span aria-hidden="true">↗</span>
                     </button>
                   ) : null}
-                  {item.stage === "CONFIGURED" && hasUnacknowledgedWarnings ? (
+                  {activeItem.stage === "CONFIGURED" &&
+                  hasUnacknowledgedWarnings ? (
                     <button
                       className="button button-primary"
                       type="button"
-                      onClick={() => void validate(index, true)}
+                      onClick={() => void validate(safeIndex, true)}
                     >
-                      Acknowledge warnings and validate
+                      Acknowledge Warnings &amp; Validate{" "}
+                      <span aria-hidden="true">↗</span>
                     </button>
                   ) : null}
-                  {item.stage === "CONFIGURING" ||
-                  item.stage === "VALIDATING" ? (
+                  {activeItem.stage === "VALIDATING" ? (
                     <span role="status" className="draft-busy">
-                      {item.stage === "CONFIGURING" ? "Saving…" : "Validating…"}
+                      Validating…
                     </span>
                   ) : null}
-                  {item.stage === "VALID" ? (
+                  {activeItem.stage === "VALID" ? (
                     <div className="publish-control">
                       <label htmlFor={`publish-visibility-${prefix}`}>
-                        Catalog visibility
+                        Catalog Visibility
                       </label>
                       <select
                         id={`publish-visibility-${prefix}`}
-                        value={item.publicationVisibility}
+                        value={activeItem.publicationVisibility}
                         onChange={(event) =>
-                          updateItem(index, {
+                          updateItem(safeIndex, {
                             publicationVisibility: event.target.value as
                               "PUBLIC" | "UNLISTED",
                           })
@@ -695,50 +894,48 @@ export function FacetDraftWorkbench({
                       <button
                         className="button button-primary"
                         type="button"
-                        onClick={() => void publish(index)}
+                        onClick={() => void publish(safeIndex)}
                       >
-                        Publish Facet
+                        Publish Facet <span aria-hidden="true">↗</span>
                       </button>
                     </div>
                   ) : null}
-                  {item.stage === "PUBLISHING" ? (
+                  {activeItem.stage === "PUBLISHING" ? (
                     <span role="status" className="draft-busy">
                       Publishing…
                     </span>
                   ) : null}
-                  {item.stage === "PUBLISHED" && item.publication ? (
-                    <span className="draft-ready">
-                      Published {item.publication.displayVersion} /{" "}
-                      {item.publication.visibility.toLowerCase()}
-                    </span>
+                  {activeItem.stage === "PUBLISHED" &&
+                  activeItem.publication ? (
+                    <div className="published-banner" role="status">
+                      <div>
+                        <strong>
+                          Published v{activeItem.publication.displayVersion} (
+                          {activeItem.publication.visibility.toLowerCase()})
+                        </strong>
+                        <p>{activeItem.publication.contentHash}</p>
+                      </div>
+                      <Link
+                        className="button button-primary"
+                        href={`/facets/${activeItem.publication.facetId}`}
+                      >
+                        Open in Facet Store <span aria-hidden="true">↗</span>
+                      </Link>
+                    </div>
                   ) : null}
                 </div>
               ) : null}
-            </section>
-          );
-        })}
-      </div>
+            </div>
+          ) : null}
 
-      {!draftsCreated ? (
-        <div className="draft-create-bar">
-          <p>
-            {items.length} operation{items.length === 1 ? "" : "s"} selected
-          </p>
-          <button
-            className="button button-primary"
-            type="submit"
-            disabled={creating || !items.length}
-          >
-            {creating ? "Creating drafts…" : "Create Facet drafts"}
-          </button>
+          {activeItem.error ? (
+            <div className="error-banner" role="alert">
+              <strong>This endpoint needs attention</strong>
+              <p>{activeItem.error}</p>
+            </div>
+          ) : null}
         </div>
-      ) : null}
-      {createError ? (
-        <div className="error-banner" role="alert">
-          <strong>Draft creation needs attention</strong>
-          <p>{createError}</p>
-        </div>
-      ) : null}
+      </div>
     </form>
   );
 }
