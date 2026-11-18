@@ -22,6 +22,10 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("facet/node-actor-runner:1.0");
     expect(markup).toContain("--network=none");
     expect(markup).toContain("Publish Actor");
+    expect(markup).toContain("Link payout wallet");
+    expect(markup).toContain("Run Docker preview");
+    expect(markup).toContain("actor-version");
+    expect(markup).not.toContain("Pre-Anchored Registry Tx");
     expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 

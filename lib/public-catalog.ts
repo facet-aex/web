@@ -5,6 +5,7 @@ export type PricingModel = "PAY_PER_RUN" | "PAY_PER_RESULT";
 
 export interface PublicFacet {
   id: string;
+  fullName?: string;
   versionId: string;
   slug: string;
   name: string;
@@ -39,6 +40,29 @@ export interface PublicFacet {
     registryVerified?: boolean;
   };
   publishedAt: string;
+}
+
+export async function getPublicFacetByName(
+  username: string,
+  facetName: string,
+): Promise<PublicFacet | undefined> {
+  if (
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(username) ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(facetName)
+  )
+    return undefined;
+  const baseUrl = process.env.FACET_CONTROL_API_URL;
+  if (!baseUrl) return undefined;
+  try {
+    const response = await fetch(
+      new URL(`/v1/catalog/facets/${username}/${facetName}`, baseUrl),
+      { cache: "no-store", signal: AbortSignal.timeout(5000) },
+    );
+    if (!response.ok) return undefined;
+    return ((await response.json()) as { facet: PublicFacet }).facet;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function getPublicFacets(

@@ -10,6 +10,8 @@ export interface ProviderMembership {
     id: string;
     name: string;
     slug: string;
+    walletAddress?: string | null;
+    walletVerifiedAt?: string | null;
   };
   role: string;
 }
@@ -49,6 +51,14 @@ function readMemberships(value: unknown): ProviderMembership[] {
           id: provider.id,
           name: provider.name,
           slug: provider.slug,
+          walletAddress:
+            typeof provider.walletAddress === "string"
+              ? provider.walletAddress
+              : null,
+          walletVerifiedAt:
+            typeof provider.walletVerifiedAt === "string"
+              ? provider.walletVerifiedAt
+              : null,
         },
         role: membership.role,
       },
@@ -74,14 +84,6 @@ function writeStoredProviderId(id: string): void {
   } catch {
     // Ignore storage unavailability
   }
-}
-
-function generatePersonalProviderSlug(): string {
-  const randomSuffix =
-    typeof globalThis.crypto?.randomUUID === "function"
-      ? globalThis.crypto.randomUUID().replace(/-/gu, "").slice(0, 10)
-      : Math.random().toString(16).slice(2, 12).padEnd(8, "0");
-  return `studio-${randomSuffix.toLowerCase()}`;
 }
 
 async function requestOrProvisionProvider(
@@ -124,10 +126,30 @@ async function requestOrProvisionProvider(
     };
   }
 
-  const payload: Record<string, string> = {
-    name: "Personal Studio",
-    slug: generatePersonalProviderSlug(),
-  };
+  const meResponse = await fetch("/api/facet/me", {
+    cache: "no-store",
+    ...(signal ? { signal } : {}),
+  });
+  const me = (await meResponse.json().catch(() => null)) as {
+    user?: { username?: string };
+    error?: { message?: string };
+  } | null;
+  const username = me?.user?.username;
+  if (
+    !meResponse.ok ||
+    !username ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(username)
+  ) {
+    return {
+      providerId: null,
+      authRequired: meResponse.status === 401,
+      error:
+        me?.error?.message ??
+        "Set a FACET-compatible username before creating a provider workspace.",
+      memberships: [],
+    };
+  }
+  const payload: Record<string, string> = { name: username, slug: username };
   if (walletAddress?.trim() && isValidEvmAddress(walletAddress)) {
     payload.walletAddress = walletAddress.trim();
   }
@@ -176,6 +198,14 @@ async function requestOrProvisionProvider(
       id: createBody.provider.id,
       name: createBody.provider.name,
       slug: createBody.provider.slug,
+      walletAddress:
+        typeof createBody.provider.walletAddress === "string"
+          ? createBody.provider.walletAddress
+          : null,
+      walletVerifiedAt:
+        typeof createBody.provider.walletVerifiedAt === "string"
+          ? createBody.provider.walletVerifiedAt
+          : null,
     },
     role: "owner",
   };

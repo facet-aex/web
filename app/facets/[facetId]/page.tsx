@@ -11,7 +11,7 @@ import {
   getFacetTypeMeta,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
-import { getPublicFacet } from "@/lib/public-catalog";
+import { getPublicFacet, type PublicFacet } from "@/lib/public-catalog";
 
 function extractInputFieldNames(schema: unknown): string[] {
   if (
@@ -36,6 +36,10 @@ export default async function FacetDetailPage({
   const facet = await getPublicFacet(facetId);
   if (!facet) notFound();
 
+  return <FacetDetailView facet={facet} />;
+}
+
+export function FacetDetailView({ facet }: { facet: PublicFacet }) {
   const meta = getFacetTypeMeta(facet.facetType);
   const priceFusd = facet.pricing
     ? `${formatAtomicFusd(facet.pricing.priceAtomic)} (${facet.pricing.model})`
@@ -97,7 +101,11 @@ export default async function FacetDetailPage({
         <dl className="detail-meta-grid">
           <div>
             <dt>Version</dt>
-            <dd>v{facet.displayVersion}</dd>
+            <dd>
+              {facet.displayVersion.startsWith("v")
+                ? facet.displayVersion
+                : `v${facet.displayVersion}`}
+            </dd>
           </div>
           <div>
             <dt>Invocation Method</dt>

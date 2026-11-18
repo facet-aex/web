@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createWalletClient, custom } from "viem";
 
 import { InputSchemaBuilder } from "@/components/input-schema-builder";
 import { ProviderSelectorBar } from "@/components/provider-selector-bar";
@@ -13,8 +14,6 @@ import {
 import {
   STORE_CATEGORY_FILTERS,
   formatAtomicFusd,
-  isValidEvmAddress,
-  isValidTxHash,
   slugifyName,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
@@ -32,9 +31,6 @@ const ALL_ACTOR_PRESETS: ActorTemplatePreset[] = [
   ...ACTOR_TEMPLATE_PRESETS,
 ];
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-
 export function ActorStudio({
   publishableKey,
 }: {
@@ -48,40 +44,116 @@ export function ActorStudio({
 
   const [name, setName] = useState(initialPreset.name);
   const [slug, setSlug] = useState(initialPreset.slug);
+  const [displayVersion, setDisplayVersion] = useState("v1");
   const [slugLocked, setSlugLocked] = useState(true);
   const [summary, setSummary] = useState(initialPreset.summary);
   const [category, setCategory] = useState(initialPreset.category);
   const [tagsText, setTagsText] = useState(initialPreset.tags.join(", "));
   const [description, setDescription] = useState(initialPreset.description);
-  const [pricingModel, setPricingModel] = useState<
-    "PAY_PER_RUN" | "PAY_PER_RESULT"
-  >(initialPreset.pricingModel);
-  const [priceAtomic, setPriceAtomic] = useState(initialPreset.priceAtomic);
-  const [payTo, setPayTo] = useState("");
+  const pricingModel = "PAY_PER_RUN";
+  const priceAtomic = "1000";
   const [inputSchemaText, setInputSchemaText] = useState(
     JSON.stringify(initialPreset.inputSchema, null, 2),
   );
   const [code, setCode] = useState(initialPreset.code);
 
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [explicitFacetId, setExplicitFacetId] = useState("");
-  const [registryTxHash, setRegistryTxHash] = useState("");
+  const [verifiedWallet, setVerifiedWallet] = useState<string | null>(null);
+  const [linkingWallet, setLinkingWallet] = useState(false);
+  const [previewInput, setPreviewInput] = useState('{"query":"example"}');
+  const [previewResult, setPreviewResult] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const publishKey = useRef<string | null>(null);
+  const [ownedActors, setOwnedActors] = useState<
+    Array<{
+      id: string;
+      fullName: string;
+      displayVersion: string;
+      status: string;
+    }>
+  >([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<{
     id: string;
+    versionId: string;
     slug: string;
     imageDigest: string;
-    registryVerified: boolean;
+    status: "REGISTRATION_PENDING" | "PUBLISHED" | "REGISTRATION_FAILED";
+    registryTxHash?: string;
+    errorCode?: string;
   } | null>(null);
 
-  const [verifyTxInput, setVerifyTxInput] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [verifiedTxHash, setVerifiedTxHash] = useState<string | null>(null);
+  const currentProvider = workspace.memberships.find(
+    (membership) => membership.provider.id === workspace.providerId,
+  )?.provider;
+  const payoutWallet =
+    verifiedWallet ??
+    (currentProvider?.walletVerifiedAt ? currentProvider.walletAddress : null);
+
+  useEffect(() => {
+    if (!workspace.providerId) return;
+    const controller = new AbortController();
+    void fetch("/api/facet/actors/mine", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) =>
+        response.ok
+          ? (response.json() as Promise<{ actors: typeof ownedActors }>)
+          : { actors: [] },
+      )
+      .then((body) => {
+        if (!controller.signal.aborted) setOwnedActors(body.actors);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [workspace.providerId, published?.status]);
+
+  useEffect(() => {
+    if (!published || published.status !== "REGISTRATION_PENDING") return;
+    const controller = new AbortController();
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch(
+          `/api/facet/actors/${published.id}/publish-status`,
+          { cache: "no-store", signal: controller.signal },
+        );
+        if (!response.ok) return;
+        const status = (await response.json()) as {
+          status?: string;
+          registryTxHash?: string;
+          errorCode?: string;
+        };
+        if (
+          status.status === "PUBLISHED" ||
+          status.status === "REGISTRATION_FAILED"
+        ) {
+          setPublished((previous) =>
+            previous
+              ? {
+                  ...previous,
+                  status: status.status as "PUBLISHED" | "REGISTRATION_FAILED",
+                  ...(status.registryTxHash
+                    ? { registryTxHash: status.registryTxHash }
+                    : {}),
+                  ...(status.errorCode ? { errorCode: status.errorCode } : {}),
+                }
+              : previous,
+          );
+        }
+      } catch {
+        /* Poll again while the page remains open. */
+      }
+    }, 3000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, [published]);
 
   function applyPreset(preset: ActorTemplatePreset) {
+    publishKey.current = null;
     setActivePresetId(preset.id);
     setName(preset.name);
     setSlug(preset.slug);
@@ -90,14 +162,11 @@ export function ActorStudio({
     setCategory(preset.category);
     setTagsText(preset.tags.join(", "));
     setDescription(preset.description);
-    setPricingModel(preset.pricingModel);
-    setPriceAtomic(preset.priceAtomic);
     setInputSchemaText(JSON.stringify(preset.inputSchema, null, 2));
     setCode(preset.code);
     setError(null);
     setPublished(null);
-    setVerifiedTxHash(null);
-    setVerifyError(null);
+    setPreviewResult(null);
   }
 
   const parsedSchema = parseInputSchemaText(inputSchemaText);
@@ -110,12 +179,128 @@ export function ActorStudio({
     );
   const codeLineCount = Math.max(code.split("\n").length, 1);
 
+  async function handleLinkWallet() {
+    setError(null);
+    setLinkingWallet(true);
+    try {
+      const providerId = (await workspace.ensureProvider()).providerId;
+      if (!providerId)
+        throw new Error("Sign in before linking a payout wallet.");
+      const injected = (
+        window as Window & {
+          ethereum?: {
+            request: (args: {
+              method: string;
+              params?: unknown[];
+            }) => Promise<unknown>;
+          };
+        }
+      ).ethereum;
+      if (!injected)
+        throw new Error(
+          "Install or open an EVM wallet to sign the payout challenge.",
+        );
+      const wallet = createWalletClient({ transport: custom(injected) });
+      const [address] = await wallet.requestAddresses();
+      if (!address) throw new Error("Select a payout address in your wallet.");
+      const challengeResponse = await fetch(
+        `/api/facet/providers/${providerId}/wallet-link-challenges`,
+        { method: "POST" },
+      );
+      const challenge = (await challengeResponse.json()) as {
+        challengeId?: string;
+        message?: string;
+        error?: { message?: string };
+      };
+      if (!challengeResponse.ok || !challenge.challengeId || !challenge.message)
+        throw new Error(challenge.error?.message ?? "Wallet challenge failed.");
+      const signature = await wallet.signMessage({
+        account: address,
+        message: challenge.message,
+      });
+      const confirmation = await fetch(
+        `/api/facet/providers/${providerId}/wallet-link`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            challengeId: challenge.challengeId,
+            address,
+            signature,
+          }),
+        },
+      );
+      const linked = (await confirmation.json()) as {
+        walletAddress?: string;
+        error?: { message?: string };
+      };
+      if (!confirmation.ok || !linked.walletAddress)
+        throw new Error(linked.error?.message ?? "Wallet link failed.");
+      setVerifiedWallet(linked.walletAddress);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Could not link payout wallet.",
+      );
+    } finally {
+      setLinkingWallet(false);
+    }
+  }
+
+  async function handlePreview() {
+    setError(null);
+    setPreviewing(true);
+    try {
+      const providerId = (await workspace.ensureProvider()).providerId;
+      if (!providerId) throw new Error("Sign in before previewing an Actor.");
+      if (!parsedSchema.schema)
+        throw new Error(parsedSchema.error ?? "Input schema is invalid.");
+      const input = JSON.parse(previewInput) as unknown;
+      if (!input || typeof input !== "object" || Array.isArray(input))
+        throw new Error("Preview input must be a JSON object.");
+      const response = await fetch("/api/facet/actors/preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          providerId,
+          code,
+          inputSchema: parsedSchema.schema,
+          input,
+        }),
+      });
+      const result = (await response.json()) as {
+        result?: unknown;
+        dataset?: unknown;
+        usage?: unknown;
+        error?: { message?: string };
+      };
+      if (!response.ok)
+        throw new Error(result.error?.message ?? "Docker preview failed.");
+      setPreviewResult(
+        JSON.stringify(
+          {
+            result: result.result,
+            dataset: result.dataset,
+            usage: result.usage,
+          },
+          null,
+          2,
+        ),
+      );
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Could not preview Actor.",
+      );
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
   async function handlePublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setPublished(null);
-    setVerifiedTxHash(null);
-    setVerifyError(null);
 
     if (!parsedSchema.schema) {
       setError(parsedSchema.error ?? "Input schema must be valid JSON.");
@@ -127,21 +312,13 @@ export function ActorStudio({
       );
       return;
     }
-    if (payTo.trim() && !isValidEvmAddress(payTo)) {
-      setError("Creator wallet payTo must be a valid 0x EVM address.");
+    if (!payoutWallet) {
+      setError("Link and verify your payout wallet before publishing.");
       return;
     }
-    if (registryTxHash.trim()) {
-      if (!isValidTxHash(registryTxHash)) {
-        setError("Registry transaction hash must be a 0x 64-hex string.");
-        return;
-      }
-      if (!UUID_PATTERN.test(explicitFacetId.trim())) {
-        setError(
-          "Supplying a pre-anchored registryTxHash requires a matching explicit Facet UUID.",
-        );
-        return;
-      }
+    if (!previewResult) {
+      setError("Run a Docker preview before publishing.");
+      return;
     }
 
     const tags = tagsText
@@ -152,7 +329,7 @@ export function ActorStudio({
 
     setSubmitting(true);
     try {
-      const ensured = await workspace.ensureProvider(payTo);
+      const ensured = await workspace.ensureProvider();
       if (!ensured.providerId) {
         throw new Error(
           ensured.authRequired
@@ -164,12 +341,15 @@ export function ActorStudio({
 
       const response = await fetch("/api/facet/actors", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": (publishKey.current ??= crypto.randomUUID()),
+        },
         body: JSON.stringify({
-          ...(explicitFacetId.trim() ? { id: explicitFacetId.trim() } : {}),
           providerId: ensured.providerId,
           name: name.trim(),
           slug: slug.trim(),
+          displayVersion,
           ...(summary.trim() ? { summary: summary.trim() } : {}),
           description: description.trim(),
           category: category.trim(),
@@ -177,19 +357,16 @@ export function ActorStudio({
           inputSchema: parsedSchema.schema,
           code,
           pricingModel,
-          priceAtomic: priceAtomic.trim() || "1000",
-          ...(payTo.trim() ? { payTo: payTo.trim() } : {}),
-          ...(registryTxHash.trim()
-            ? { registryTxHash: registryTxHash.trim() }
-            : {}),
+          priceAtomic,
         }),
       });
       const body = (await response.json().catch(() => null)) as {
         facet?: {
           id: string;
+          versionId: string;
           slug: string;
           imageDigest?: string;
-          registryVerified?: boolean;
+          status?: "REGISTRATION_PENDING" | "PUBLISHED";
         };
         error?: { message?: string };
       } | null;
@@ -204,55 +381,15 @@ export function ActorStudio({
 
       setPublished({
         id: body.facet.id,
+        versionId: body.facet.versionId,
         slug: body.facet.slug,
         imageDigest: body.facet.imageDigest ?? "sha256:computed",
-        registryVerified: Boolean(body.facet.registryVerified),
+        status: body.facet.status ?? "REGISTRATION_PENDING",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not publish Actor.");
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleVerifyRegistry() {
-    if (!published) return;
-    setVerifyError(null);
-    if (!isValidTxHash(verifyTxInput)) {
-      setVerifyError("Enter a valid 0x 64-hex Fuji transaction hash.");
-      return;
-    }
-    setVerifying(true);
-    try {
-      const response = await fetch(
-        `/api/facet/facets/${encodeURIComponent(published.id)}/verify-registry`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ registryTxHash: verifyTxInput.trim() }),
-        },
-      );
-      const body = (await response.json().catch(() => null)) as {
-        registryVerified?: boolean;
-        registryTxHash?: string;
-        error?: { message?: string };
-      } | null;
-      if (!response.ok || !body?.registryVerified) {
-        throw new Error(
-          body?.error?.message ??
-            "Fuji FacetActorRegistry verification failed.",
-        );
-      }
-      setVerifiedTxHash(body.registryTxHash ?? verifyTxInput.trim());
-      setPublished((prev) =>
-        prev ? { ...prev, registryVerified: true } : prev,
-      );
-    } catch (err) {
-      setVerifyError(
-        err instanceof Error ? err.message : "Verification failed.",
-      );
-    } finally {
-      setVerifying(false);
     }
   }
 
@@ -295,7 +432,13 @@ export function ActorStudio({
         publishableKey={publishableKey}
       />
 
-      <form className="studio-workbench-grid" onSubmit={handlePublish}>
+      <form
+        className="studio-workbench-grid"
+        onSubmit={handlePublish}
+        onChange={() => {
+          publishKey.current = null;
+        }}
+      >
         <div className="studio-editor-pane">
           <div className="studio-identity-bar">
             <div className="form-field">
@@ -324,6 +467,16 @@ export function ActorStudio({
                 pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
                 minLength={2}
                 maxLength={80}
+                required
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="actor-version">Version</label>
+              <input
+                id="actor-version"
+                value={displayVersion}
+                onChange={(event) => setDisplayVersion(event.target.value)}
+                pattern="^v?[0-9]+(\.[0-9]+\.[0-9]+)?$"
                 required
               />
             </div>
@@ -441,7 +594,10 @@ export function ActorStudio({
                     id="actor-code"
                     aria-label="Actor JavaScript Code (main.mjs)"
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
+                    onChange={(e) => {
+                      setCode(e.target.value);
+                      setPreviewResult(null);
+                    }}
                     rows={Math.max(codeLineCount, 12)}
                     spellCheck={false}
                     required
@@ -451,6 +607,32 @@ export function ActorStudio({
                   Return an Array of objects to populate the Store Dataset Table
                   Viewer automatically, or return a single Object.
                 </small>
+              </div>
+              <div className="form-field">
+                <label htmlFor="actor-preview-input">
+                  Docker preview input (JSON)
+                </label>
+                <textarea
+                  id="actor-preview-input"
+                  value={previewInput}
+                  onChange={(event) => setPreviewInput(event.target.value)}
+                  rows={4}
+                />
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  disabled={previewing || workspace.authRequired}
+                  onClick={() => void handlePreview()}
+                >
+                  {previewing
+                    ? "Running Docker preview…"
+                    : "Run Docker preview"}
+                </button>
+                {previewResult ? (
+                  <pre className="mono-detail" role="status">
+                    {previewResult}
+                  </pre>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -464,7 +646,10 @@ export function ActorStudio({
               </p>
               <InputSchemaBuilder
                 value={inputSchemaText}
-                onChange={setInputSchemaText}
+                onChange={(value) => {
+                  setInputSchemaText(value);
+                  setPreviewResult(null);
+                }}
                 disabled={submitting}
                 idPrefix="actor-schema"
               />
@@ -473,111 +658,26 @@ export function ActorStudio({
 
           {editorTab === "pricing" ? (
             <div className="studio-tab-panel">
-              <fieldset className="pricing-mode-cards">
-                <legend>x402 Settlement Model (Avalanche Fuji fUSD)</legend>
-                <label className="pricing-card">
-                  <input
-                    type="radio"
-                    name="actor-pricing-model"
-                    value="PAY_PER_RUN"
-                    checked={pricingModel === "PAY_PER_RUN"}
-                    onChange={() => setPricingModel("PAY_PER_RUN")}
-                  />
-                  <span>
-                    <strong>PAY_PER_RUN</strong>
-                    <small>
-                      Instant FeeSplit settlement on completion (95% creator /
-                      5% treasury).
-                    </small>
-                  </span>
-                </label>
-                <label className="pricing-card">
-                  <input
-                    type="radio"
-                    name="actor-pricing-model"
-                    value="PAY_PER_RESULT"
-                    checked={pricingModel === "PAY_PER_RESULT"}
-                    onChange={() => setPricingModel("PAY_PER_RESULT")}
-                  />
-                  <span>
-                    <strong>PAY_PER_RESULT</strong>
-                    <small>
-                      TaskEscrow meters exact dataset items returned and refunds
-                      unused fUSD automatically.
-                    </small>
-                  </span>
-                </label>
-              </fieldset>
-
-              <div className="studio-grid">
-                <div className="form-field">
-                  <label htmlFor="actor-price">
-                    Price in Atomic fUSD (6 decimals ·{" "}
-                    {formatAtomicFusd(priceAtomic)})
-                  </label>
-                  <input
-                    id="actor-price"
-                    value={priceAtomic}
-                    onChange={(e) => setPriceAtomic(e.target.value)}
-                    pattern="^[1-9][0-9]*$"
-                    required
-                  />
-                  <small>
-                    1000 = 0.001 fUSD. Keep PAY_PER_RESULT ≤ 5000 atomic so
-                    20-item escrow fits default demo limits.
-                  </small>
-                </div>
-                <div className="form-field">
-                  <label htmlFor="actor-payto">
-                    Creator Payout Wallet payTo (optional)
-                  </label>
-                  <input
-                    id="actor-payto"
-                    value={payTo}
-                    onChange={(e) => setPayTo(e.target.value)}
-                    placeholder="0x... (defaults to provider wallet)"
-                  />
-                </div>
-              </div>
-
-              <div className="advanced-toggle-box">
-                <button
-                  type="button"
-                  className="preset-chip"
-                  onClick={() => setShowAdvanced((prev) => !prev)}
-                  aria-expanded={showAdvanced}
-                >
-                  {showAdvanced
-                    ? "Hide Advanced On-Chain Pre-Anchor"
-                    : "Advanced: Pre-Anchored FacetActorRegistry Tx"}
-                </button>
-                {showAdvanced ? (
-                  <div className="studio-grid advanced-fields">
-                    <div className="form-field">
-                      <label htmlFor="actor-explicit-id">
-                        Explicit Facet UUID (optional)
-                      </label>
-                      <input
-                        id="actor-explicit-id"
-                        value={explicitFacetId}
-                        onChange={(e) => setExplicitFacetId(e.target.value)}
-                        placeholder="019a69b8-..."
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label htmlFor="actor-registry-tx">
-                        Pre-Anchored Registry Tx Hash (optional)
-                      </label>
-                      <input
-                        id="actor-registry-tx"
-                        value={registryTxHash}
-                        onChange={(e) => setRegistryTxHash(e.target.value)}
-                        placeholder="0x..."
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+              <p>
+                PAY_PER_RUN · 1,000 atomic fUSD ({formatAtomicFusd(priceAtomic)}
+                ) on Avalanche Fuji. The verified wallet below receives the
+                creator payout.
+              </p>
+              <p className="mono-detail">
+                {payoutWallet ?? "No payout wallet linked"}
+              </p>
+              <button
+                type="button"
+                className="button button-secondary"
+                disabled={linkingWallet || workspace.authRequired}
+                onClick={() => void handleLinkWallet()}
+              >
+                {linkingWallet
+                  ? "Signing wallet challenge…"
+                  : payoutWallet
+                    ? "Change verified payout wallet"
+                    : "Link payout wallet"}
+              </button>
             </div>
           ) : null}
         </div>
@@ -604,10 +704,7 @@ export function ActorStudio({
               </div>
               <div>
                 <dt>Pricing Quote</dt>
-                <dd>
-                  {formatAtomicFusd(priceAtomic)} /{" "}
-                  {pricingModel === "PAY_PER_RESULT" ? "item" : "run"}
-                </dd>
+                <dd>{formatAtomicFusd(priceAtomic)} / run</dd>
               </div>
             </dl>
           </div>
@@ -632,6 +729,16 @@ export function ActorStudio({
                   ? `✓ Valid JSON Schema (${extractedFields.fields.length} visual fields)`
                   : "○ Fix JSON Schema syntax"}
               </li>
+              <li data-ok={Boolean(payoutWallet)}>
+                {payoutWallet
+                  ? "✓ Payout wallet verified"
+                  : "○ Link payout wallet"}
+              </li>
+              <li data-ok={Boolean(previewResult)}>
+                {previewResult
+                  ? "✓ Docker preview completed"
+                  : "○ Run Docker preview"}
+              </li>
             </ul>
 
             {error ? (
@@ -644,7 +751,12 @@ export function ActorStudio({
             <button
               type="submit"
               className="button button-primary import-submit"
-              disabled={submitting || workspace.authRequired}
+              disabled={
+                submitting ||
+                workspace.authRequired ||
+                !payoutWallet ||
+                !previewResult
+              }
             >
               {submitting ? "Publishing Actor…" : "Publish Actor"}
               <span aria-hidden="true">↗</span>
@@ -653,55 +765,60 @@ export function ActorStudio({
 
           {published ? (
             <div className="published-card" role="status">
-              <p className="eyebrow">Actor Published</p>
+              <p className="eyebrow">
+                {published.status === "PUBLISHED"
+                  ? "Actor Published"
+                  : published.status === "REGISTRATION_FAILED"
+                    ? "Fuji Registration Failed"
+                    : "Fuji Registration Pending"}
+              </p>
               <strong>{published.slug}</strong>
               <p className="mono-detail">
                 imageDigest: {published.imageDigest}
               </p>
-              <Link
-                className="button button-primary import-submit"
-                href={`/facets/${published.id}`}
-              >
-                Open &amp; Run in Playground <span aria-hidden="true">↗</span>
-              </Link>
-
-              <div className="verify-tx-box">
-                <label htmlFor="actor-verify-tx">
-                  Verify Fuji FacetActorRegistry Tx (optional)
-                </label>
-                <div className="verify-tx-row">
-                  <input
-                    id="actor-verify-tx"
-                    value={verifyTxInput}
-                    onChange={(e) => setVerifyTxInput(e.target.value)}
-                    placeholder="0x... Fuji tx hash"
-                  />
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    disabled={verifying || !verifyTxInput.trim()}
-                    onClick={() => void handleVerifyRegistry()}
-                  >
-                    {verifying ? "Verifying…" : "Verify"}
-                  </button>
-                </div>
-                {verifyError ? (
-                  <small className="field-warning">{verifyError}</small>
-                ) : null}
-                {verifiedTxHash ? (
-                  <p className="mono-accent">
-                    Verified on Fuji ✓{" "}
-                    <a
-                      className="explorer-link"
-                      href={snowtraceTxUrl(verifiedTxHash)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View tx ↗
-                    </a>
-                  </p>
-                ) : null}
-              </div>
+              {published.status === "PUBLISHED" ? (
+                <Link
+                  className="button button-primary import-submit"
+                  href={`/facets/${currentProvider?.slug ?? "provider"}/${published.slug}`}
+                >
+                  Open &amp; Run in Playground <span aria-hidden="true">↗</span>
+                </Link>
+              ) : null}
+              {published.registryTxHash ? (
+                <a
+                  className="explorer-link"
+                  href={snowtraceTxUrl(published.registryTxHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Fuji registry transaction ↗
+                </a>
+              ) : null}
+              {published.errorCode ? (
+                <p className="field-warning">{published.errorCode}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {ownedActors.length ? (
+            <div className="inspector-card">
+              <p className="eyebrow">Your Actors</p>
+              <ul className="readiness-list">
+                {ownedActors.map((actor) => (
+                  <li key={actor.id}>
+                    {actor.status === "PUBLISHED" ? (
+                      <Link href={`/facets/${actor.fullName}`}>
+                        {actor.fullName}
+                      </Link>
+                    ) : (
+                      actor.fullName
+                    )}
+                    {" · "}
+                    {actor.displayVersion}
+                    {" · "}
+                    {actor.status}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </aside>
