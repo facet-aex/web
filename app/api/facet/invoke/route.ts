@@ -6,6 +6,7 @@ import {
 } from "@x402/core/http";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
+import { proxyControlApi } from "@/lib/control-api-server";
 
 const FUSD_ASSET = "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f";
 const UUID_RE =
@@ -50,6 +51,30 @@ export async function POST(request: Request): Promise<Response> {
     payload.idempotencyKey.length <= 128
       ? payload.idempotencyKey
       : randomUUID();
+
+  const allowance = await proxyControlApi(request, "/v1/demo-payer/authorize", {
+    method: "POST",
+    body: JSON.stringify({
+      facetVersionId: payload.facetVersionId,
+      idempotencyKey,
+    }),
+  });
+  if (!allowance.ok) return allowance;
+  const grant = (await allowance.json().catch(() => null)) as {
+    amountAtomic?: unknown;
+    payTo?: unknown;
+  } | null;
+  if (
+    grant?.amountAtomic !== "1000" ||
+    typeof grant.payTo !== "string" ||
+    !/^0x[a-f0-9]{40}$/iu.test(grant.payTo)
+  ) {
+    return errorResponse(
+      "DEMO_ALLOWANCE_INVALID",
+      "Invalid browser demo allowance.",
+      502,
+    );
+  }
 
   const invokeUrl = new URL(
     `/v1/facet-versions/${payload.facetVersionId}/invoke`,
@@ -104,6 +129,8 @@ export async function POST(request: Request): Promise<Response> {
       !option ||
       option.network !== "eip155:43113" ||
       option.asset.toLowerCase() !== FUSD_ASSET.toLowerCase() ||
+      option.amount !== grant.amountAtomic ||
+      option.payTo.toLowerCase() !== grant.payTo.toLowerCase() ||
       !/^[1-9][0-9]*$/u.test(option.amount) ||
       BigInt(option.amount) > BigInt(maxAtomic)
     ) {
