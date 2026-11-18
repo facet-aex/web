@@ -124,13 +124,15 @@ export async function POST(request: Request): Promise<Response> {
 
     const required = decodePaymentRequiredHeader(challengeHeader);
     const option = required.accepts[0];
+    const expectedRecipient =
+      process.env.FACET_FEE_SPLIT_ADDRESS ?? grant.payTo;
     if (
       required.x402Version !== 2 ||
       !option ||
       option.network !== "eip155:43113" ||
       option.asset.toLowerCase() !== FUSD_ASSET.toLowerCase() ||
       option.amount !== grant.amountAtomic ||
-      option.payTo.toLowerCase() !== grant.payTo.toLowerCase() ||
+      option.payTo.toLowerCase() !== expectedRecipient.toLowerCase() ||
       !/^[1-9][0-9]*$/u.test(option.amount) ||
       BigInt(option.amount) > BigInt(maxAtomic)
     ) {
