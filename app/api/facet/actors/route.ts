@@ -15,5 +15,9 @@ export async function POST(request: Request): Promise<Response> {
     }
     throw error;
   }
-  return proxyControlApi(request, "/v1/actors", { method: "POST", body });
+  return proxyControlApi(request, "/v1/actors", {
+    method: "POST",
+    body,
+    forwardIdempotencyKey: true,
+  });
 }

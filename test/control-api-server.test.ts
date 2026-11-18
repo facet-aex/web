@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST as createImport } from "@/app/api/facet/openapi-imports/route";
+import { POST as createActor } from "@/app/api/facet/actors/route";
+import { GET as actorPublishStatus } from "@/app/api/facet/actors/[facetId]/publish-status/route";
 import { POST as createFacets } from "@/app/api/facet/facets/route";
 import { PUT as configureEndpoint } from "@/app/api/facet/facet-versions/[versionId]/endpoint-config/route";
 import { POST as validateFacetVersion } from "@/app/api/facet/facet-versions/[versionId]/validate/route";
@@ -21,6 +23,44 @@ afterEach(() => {
 });
 
 describe("Control API server adapter", () => {
+  it("forwards Actor idempotency and retrieves provider-only publication status", async () => {
+    vi.stubEnv("FACET_ENV", "local");
+    vi.stubEnv("FACET_CONTROL_API_URL", "http://localhost:4000");
+    vi.stubEnv("FACET_LOCAL_DEV_USER", "owner");
+    const upstream = vi.fn<typeof fetch>(async () =>
+      Response.json(
+        { facet: { status: "REGISTRATION_PENDING" } },
+        { status: 202 },
+      ),
+    );
+    vi.stubGlobal("fetch", upstream);
+    const publish = await createActor(
+      new Request("http://localhost:3000/api/facet/actors", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "actor-draft-1",
+        },
+        body: JSON.stringify({
+          code: "export default async function run() {}",
+        }),
+      }),
+    );
+    expect(publish.status).toBe(202);
+    expect(
+      new Headers(upstream.mock.calls[0]?.[1]?.headers).get("idempotency-key"),
+    ).toBe("actor-draft-1");
+    const status = await actorPublishStatus(
+      new Request(
+        `http://localhost:3000/api/facet/actors/${validJobId}/publish-status`,
+      ),
+      { params: Promise.resolve({ facetId: validJobId }) },
+    );
+    expect(status.status).toBe(202);
+    expect(String(upstream.mock.calls[1]?.[0])).toBe(
+      `http://localhost:4000/v1/actors/${validJobId}/publish-status`,
+    );
+  });
   it("forwards JSON to the fixed backend with no caching and local auth", async () => {
     vi.stubEnv("FACET_ENV", "local");
     vi.stubEnv("FACET_CONTROL_API_URL", "http://localhost:4000");

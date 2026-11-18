@@ -7,6 +7,7 @@ export const MAX_IMPORT_COMMAND_BYTES = 2 * 5 * 1024 * 1024 + 64 * 1024;
 export interface ControlApiProxyInit {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: string;
+  forwardIdempotencyKey?: boolean;
 }
 
 class RequestBodyLimitError extends Error {
@@ -182,6 +183,10 @@ export async function proxyControlApi(
 
   const requestId = request.headers.get("x-request-id");
   if (requestId) headers.set("x-request-id", requestId);
+  if (init.forwardIdempotencyKey) {
+    const key = request.headers.get("idempotency-key");
+    if (key && key.length <= 128) headers.set("idempotency-key", key);
+  }
 
   const authMode =
     process.env.FACET_AUTH_MODE ??
