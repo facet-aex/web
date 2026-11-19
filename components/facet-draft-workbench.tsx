@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { FacetPricingFields } from "@/components/facet-pricing-fields";
 import {
   PublishRedirectToast,
   buildMyFacetsRedirectHref,
@@ -22,12 +23,16 @@ import {
   type FacetPublicationResult,
   type FacetValidationResult,
 } from "@/lib/facet-draft-workflow";
-import { STORE_CATEGORY_FILTERS } from "@/lib/facet-ui";
+import { getCategoryOptionsWithCurrent } from "@/lib/facet-ui";
 import { FACET_NAME_PATTERN, suggestFacetName } from "@/lib/identifiers";
 import {
   readErrorEnvelope,
   type OperationCandidate,
 } from "@/lib/openapi-import";
+import {
+  checkFacetIdentityConflict,
+  useOwnedFacets,
+} from "@/lib/use-owned-facets";
 
 interface FacetDraftWorkbenchProps {
   provider: string;
@@ -402,6 +407,33 @@ export function FacetDraftWorkbench({
   }
 
   const draftsCreated = items.length > 0 && items.every((item) => item.draft);
+  const ownedFacets = useOwnedFacets(provider, lastPublished?.identifier);
+  const batchNameCounts = new Map<string, number>();
+  for (const entry of items) {
+    const key = entry.selection.facetName.trim().toLowerCase();
+    if (key) {
+      batchNameCounts.set(key, (batchNameCounts.get(key) ?? 0) + 1);
+    }
+  }
+  const itemConflicts = items.map((entry) => {
+    const key = entry.selection.facetName.trim().toLowerCase();
+    const ownedConflict = checkFacetIdentityConflict(ownedFacets, {
+      facetName: entry.selection.facetName,
+      version: "1.0.0",
+      facetType: "API",
+    });
+    if (ownedConflict) return ownedConflict.message;
+    if (key && (batchNameCounts.get(key) ?? 0) > 1) {
+      return `Multiple endpoints in this import share Facet Name "${key}". Rename one before creating drafts.`;
+    }
+    return null;
+  });
+  const hasAnyPreDraftConflict =
+    !draftsCreated && itemConflicts.some((msg) => msg !== null);
+  const activeConflict = !draftsCreated
+    ? (itemConflicts[safeIndex] ?? null)
+    : null;
+
   const validCount = items.filter((item) =>
     ["VALID", "PUBLISHING", "PUBLISHED"].includes(item.stage),
   ).length;
@@ -497,11 +529,16 @@ export function FacetDraftWorkbench({
               <button
                 className="button button-primary import-submit"
                 type="submit"
-                disabled={creating || !items.length}
+                disabled={creating || !items.length || hasAnyPreDraftConflict}
               >
                 {creating ? "Creating Drafts…" : "Create Facet Drafts"}
                 <span aria-hidden="true">↗</span>
               </button>
+              {hasAnyPreDraftConflict ? (
+                <small className="field-warning">
+                  Resolve duplicate Facet Name conflicts before creating drafts.
+                </small>
+              ) : null}
               {createError ? (
                 <div className="error-banner" role="alert">
                   <strong>Draft creation needs attention</strong>
@@ -577,6 +614,17 @@ export function FacetDraftWorkbench({
                   execution.
                 </p>
               ) : null}
+              {activeConflict ? (
+                <div
+                  className="error-banner identity-conflict-banner"
+                  role="alert"
+                >
+                  <div>
+                    <strong>Duplicate Facet Name</strong>
+                    <p>{activeConflict}</p>
+                  </div>
+                </div>
+              ) : null}
               <div className="draft-fields">
                 <div className="form-field">
                   <label htmlFor={`draft-name-${prefix}`}>
@@ -618,9 +666,8 @@ export function FacetDraftWorkbench({
                 </div>
                 <div className="form-field">
                   <label htmlFor={`draft-category-${prefix}`}>Category</label>
-                  <input
+                  <select
                     id={`draft-category-${prefix}`}
-                    list={`api-category-presets-${prefix}`}
                     value={activeItem.selection.category}
                     onChange={(event) =>
                       updateSelection(safeIndex, {
@@ -629,16 +676,15 @@ export function FacetDraftWorkbench({
                     }
                     disabled={draftsCreated}
                     required
-                  />
-                  <datalist id={`api-category-presets-${prefix}`}>
-                    {STORE_CATEGORY_FILTERS.API.filter(
-                      (option) => option.slug,
+                  >
+                    {getCategoryOptionsWithCurrent(
+                      activeItem.selection.category,
                     ).map((option) => (
                       <option key={option.slug} value={option.slug}>
                         {option.label}
                       </option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
                 <div className="form-field">
                   <label htmlFor={`draft-side-effect-${prefix}`}>
@@ -893,6 +939,15 @@ export function FacetDraftWorkbench({
                     </ul>
                   ) : null}
                 </div>
+              ) : null}
+
+              {activeItem.draft ? (
+                <FacetPricingFields
+                  idPrefix={`api-${prefix}`}
+                  pricingModel="PAY_PER_RUN"
+                  priceFusdText="0.001"
+                  priceReadOnly={true}
+                />
               ) : null}
 
               {activeItem.draft ? (

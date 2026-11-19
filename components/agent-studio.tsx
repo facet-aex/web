@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { AgentIdentityCard } from "@/components/agent-identity-card";
+import { FacetPricingFields } from "@/components/facet-pricing-fields";
 import { InputSchemaBuilder } from "@/components/input-schema-builder";
 import { ProviderSelectorBar } from "@/components/provider-selector-bar";
 import {
@@ -21,10 +22,12 @@ import {
 } from "@/lib/actor-templates";
 import {
   ERC8004_IDENTITY_REGISTRY,
-  STORE_CATEGORY_FILTERS,
-  formatAtomicFusd,
+  atomicToFusdInput,
+  getCategoryLabel,
+  getCategoryOptionsWithCurrent,
   isValidEvmAddress,
   isValidTxHash,
+  parseFusdToAtomic,
   snowtraceAddressUrl,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
@@ -42,6 +45,10 @@ import {
 } from "@/lib/input-schema-builder";
 import { readErrorEnvelope } from "@/lib/openapi-import";
 import { useAccountWorkspace } from "@/lib/use-account-workspace";
+import {
+  checkFacetIdentityConflict,
+  useOwnedFacets,
+} from "@/lib/use-owned-facets";
 
 const AGENT_PRESETS: AgentTemplatePreset[] = [
   AGENT_TEMPLATE_PRESET,
@@ -74,10 +81,11 @@ export function AgentStudio({
     initialPreset.erc8004TokenId,
   );
   const [taskKind, setTaskKind] = useState(initialPreset.taskKind);
-  const [pricingModel, setPricingModel] = useState<
-    "PAY_PER_RUN" | "PAY_PER_RESULT"
-  >(initialPreset.pricingModel);
-  const [priceAtomic, setPriceAtomic] = useState(initialPreset.priceAtomic);
+  const pricingModel = "PAY_PER_RUN" as const;
+  const [priceFusdText, setPriceFusdText] = useState(
+    atomicToFusdInput(initialPreset.priceAtomic),
+  );
+  const priceAtomic = parseFusdToAtomic(priceFusdText);
   const [payTo, setPayTo] = useState("");
   const [inputSchemaText, setInputSchemaText] = useState(
     JSON.stringify(initialPreset.inputSchema, null, 2),
@@ -103,6 +111,11 @@ export function AgentStudio({
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [verifiedTxHash, setVerifiedTxHash] = useState<string | null>(null);
 
+  const ownedFacets = useOwnedFacets(
+    workspace.username,
+    published ? "published" : undefined,
+  );
+
   function applyPreset(preset: AgentTemplatePreset) {
     setActivePresetId(preset.id);
     setActiveStep(1);
@@ -117,8 +130,7 @@ export function AgentStudio({
     setDescription(preset.description);
     setErc8004TokenId(preset.erc8004TokenId);
     setTaskKind(preset.taskKind);
-    setPricingModel(preset.pricingModel);
-    setPriceAtomic(preset.priceAtomic);
+    setPriceFusdText(atomicToFusdInput(preset.priceAtomic));
     setInputSchemaText(JSON.stringify(preset.inputSchema, null, 2));
     setError(null);
     setPublished(null);
@@ -139,36 +151,42 @@ export function AgentStudio({
         ? Object.keys(parsedSchema.schema.properties)
         : [];
 
-  const step1BlockReason = !/^[1-9][0-9]*$/u.test(erc8004TokenId.trim())
-    ? "Agent Identity Token ID must be a positive nonzero integer."
-    : !taskKind.trim()
-      ? "Enter a Task Kind before continuing."
-      : payTo.trim() && !isValidEvmAddress(payTo)
-        ? "Agent payout wallet payTo must be a valid 0x EVM address."
-        : registryTxHash.trim() && !isValidTxHash(registryTxHash)
-          ? "Registry transaction hash must be a 0x 64-hex string."
-          : null;
-  const step1Valid = step1BlockReason === null;
+  const identityConflict = checkFacetIdentityConflict(ownedFacets, {
+    facetName,
+    version,
+    facetType: "AGENT",
+  });
 
-  const step2BlockReason = !facetDisplayName.trim()
+  const step1BlockReason = !facetDisplayName.trim()
     ? "Enter an Agent Display Name before continuing."
     : !isValidFacetName(facetName.trim())
       ? "Facet Name must be 4–32 lowercase letters, numbers, or hyphens."
       : !isValidSemver(version.trim())
         ? "Version must follow SemVer (for example, 1.0.0)."
-        : !category.trim()
-          ? "Select or enter a Category before continuing."
-          : !description.trim()
-            ? "Enter Capabilities & Delegation Scope before continuing."
-            : !/^[1-9][0-9]*$/u.test(priceAtomic.trim())
-              ? "Price must be a positive integer in atomic fUSD."
-              : null;
-  const step2Valid = step2BlockReason === null;
+        : identityConflict
+          ? identityConflict.message
+          : !category.trim()
+            ? "Select a Category before continuing."
+            : !description.trim()
+              ? "Enter Capabilities & Delegation Scope before continuing."
+              : !/^[1-9][0-9]*$/u.test(erc8004TokenId.trim())
+                ? "Agent Identity Token ID must be a positive nonzero integer."
+                : !taskKind.trim()
+                  ? "Enter a Task Kind before continuing."
+                  : registryTxHash.trim() && !isValidTxHash(registryTxHash)
+                    ? "Registry transaction hash must be a 0x 64-hex string."
+                    : null;
+  const step1Valid = step1BlockReason === null;
 
-  const step3Valid = Boolean(parsedSchema.schema);
-  const step3BlockReason = step3Valid
+  const step2Valid = Boolean(parsedSchema.schema);
+  const step2BlockReason = step2Valid
     ? null
     : (parsedSchema.error ?? "Fix JSON Schema syntax before continuing.");
+
+  const step3Valid = step1Valid && step2Valid;
+  const step3BlockReason = step3Valid
+    ? null
+    : (step1BlockReason ?? step2BlockReason);
 
   const progress = computeStudioProgress({
     activeStep,
@@ -182,25 +200,25 @@ export function AgentStudio({
     {
       step: 1 as const,
       code: "01",
-      label: "On-Chain Identity",
+      label: "Identity & Profile",
       state: progress.getState(1),
     },
     {
       step: 2 as const,
       code: "02",
-      label: "Profile & Pricing",
+      label: `Task Input Schema (${inputFieldNames.length})`,
       state: progress.getState(2),
     },
     {
       step: 3 as const,
       code: "03",
-      label: `Task Input Schema (${inputFieldNames.length})`,
+      label: "Contract Preview",
       state: progress.getState(3),
     },
     {
       step: 4 as const,
       code: "04",
-      label: "Review & Publish",
+      label: "Pricing & Payout",
       state: progress.getState(4),
     },
   ];
@@ -221,6 +239,14 @@ export function AgentStudio({
     }
     if (!parsedSchema.schema) {
       setError(parsedSchema.error ?? "Input schema must be valid JSON.");
+      return;
+    }
+    if (!priceAtomic) {
+      setError("Enter a valid positive fUSD price (up to 6 decimals).");
+      return;
+    }
+    if (identityConflict) {
+      setError(identityConflict.message);
       return;
     }
     if (payTo.trim() && !isValidEvmAddress(payTo)) {
@@ -256,7 +282,7 @@ export function AgentStudio({
           taskKind: taskKind.trim(),
           inputSchema: parsedSchema.schema,
           pricingModel,
-          priceAtomic: priceAtomic.trim() || "1000",
+          priceAtomic,
           ...(payTo.trim() ? { payTo: payTo.trim() } : {}),
           ...(registryTxHash.trim()
             ? { registryTxHash: registryTxHash.trim() }
@@ -428,139 +454,13 @@ export function AgentStudio({
         <div className="studio-editor-pane">
           {currentStep === 1 ? (
             <fieldset className="studio-section-box">
-              <legend>01 · On-Chain Agent Identity (Avalanche Fuji)</legend>
+              <legend>01 · Identity &amp; Profile</legend>
               <div className="studio-step-header">
                 <span className="studio-step-kicker studio-step-kicker-agent">
-                  Step 01 of 04 · On-Chain Identity
+                  Step 01 of 04 · Identity &amp; Profile
                 </span>
                 <h2 className="studio-step-title">
-                  Bind your Agent identity token and task kind
-                </h2>
-              </div>
-
-              <div className="studio-grid">
-                <div className="form-field">
-                  <label htmlFor="agent-identity-id">
-                    Agent Identity Token ID (Fuji)
-                  </label>
-                  <input
-                    id="agent-identity-id"
-                    value={erc8004TokenId}
-                    onChange={(e) => setErc8004TokenId(e.target.value)}
-                    pattern="^[1-9][0-9]*$"
-                    required
-                  />
-                  <small>
-                    Positive nonzero token ID minted on the Fuji Agent Identity
-                    Registry.
-                  </small>
-                </div>
-                <div className="form-field">
-                  <label htmlFor="agent-identity-registry">
-                    Agent Identity Registry (Fuji 43113)
-                  </label>
-                  <input
-                    id="agent-identity-registry"
-                    value={ERC8004_IDENTITY_REGISTRY}
-                    readOnly
-                  />
-                  <small>
-                    <a
-                      className="explorer-link"
-                      href={snowtraceAddressUrl(ERC8004_IDENTITY_REGISTRY)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Inspect contract on Snowtrace ↗
-                    </a>
-                  </small>
-                </div>
-                <div className="form-field">
-                  <label htmlFor="agent-task-kind">Task Kind</label>
-                  <input
-                    id="agent-task-kind"
-                    value={taskKind}
-                    onChange={(e) => setTaskKind(e.target.value)}
-                    maxLength={80}
-                    required
-                  />
-                  <small>
-                    Use <code>vn-market-analysis</code> for live execution on
-                    the built-in Fuji runner.
-                  </small>
-                </div>
-                <div className="form-field">
-                  <label htmlFor="agent-payto">
-                    Agent Payout Wallet payTo (optional)
-                  </label>
-                  <input
-                    id="agent-payto"
-                    value={payTo}
-                    onChange={(e) => setPayTo(e.target.value)}
-                    placeholder="0x... (defaults to provider wallet)"
-                  />
-                </div>
-              </div>
-
-              <div className="advanced-toggle-box">
-                <button
-                  type="button"
-                  className="preset-chip"
-                  onClick={() => setShowAdvanced((prev) => !prev)}
-                  aria-expanded={showAdvanced}
-                >
-                  {showAdvanced
-                    ? "Hide Pre-Anchor Options"
-                    : "Advanced: Pre-Anchored FacetActorRegistry Tx"}
-                </button>
-                {showAdvanced ? (
-                  <div className="studio-grid advanced-fields">
-                    <div className="form-field">
-                      <label htmlFor="agent-registry-tx">
-                        Pre-Anchored Registry Tx Hash (optional)
-                      </label>
-                      <input
-                        id="agent-registry-tx"
-                        value={registryTxHash}
-                        onChange={(e) => setRegistryTxHash(e.target.value)}
-                        placeholder="0x..."
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="studio-step-footer">
-                {step1BlockReason ? (
-                  <span className="studio-step-hint">{step1BlockReason}</span>
-                ) : null}
-                <div className="studio-step-footer-actions">
-                  <button
-                    type="button"
-                    className="button button-primary"
-                    disabled={!step1Valid}
-                    onClick={() => {
-                      setError(null);
-                      setCompletedUpTo((prev) => Math.max(prev, 1));
-                      setActiveStep(2);
-                    }}
-                  >
-                    Continue to Profile &amp; Pricing →
-                  </button>
-                </div>
-              </div>
-            </fieldset>
-          ) : null}
-
-          {currentStep === 2 ? (
-            <fieldset className="studio-section-box">
-              <legend>02 · Agent Profile &amp; x402 Pricing</legend>
-              <div className="studio-step-header">
-                <span className="studio-step-kicker studio-step-kicker-agent">
-                  Step 02 of 04 · Profile &amp; Pricing
-                </span>
-                <h2 className="studio-step-title">
-                  Configure Agent identity slug, SemVer, and x402 quote
+                  Configure Agent identity, SemVer, and Fuji token binding
                 </h2>
               </div>
 
@@ -628,23 +528,28 @@ export function AgentStudio({
                 </div>
                 <div className="form-field">
                   <label htmlFor="agent-category">Category</label>
-                  <input
+                  <select
                     id="agent-category"
-                    list="agent-category-presets"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    maxLength={80}
                     required
-                  />
-                  <datalist id="agent-category-presets">
-                    {STORE_CATEGORY_FILTERS.AGENT.filter(
-                      (option) => option.slug,
-                    ).map((option) => (
+                  >
+                    {getCategoryOptionsWithCurrent(category).map((option) => (
                       <option key={option.slug} value={option.slug}>
                         {option.label}
                       </option>
                     ))}
-                  </datalist>
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-summary">Agent Card Headline</label>
+                  <input
+                    id="agent-summary"
+                    value={summary}
+                    onChange={(e) => setSummary(e.target.value)}
+                    maxLength={280}
+                    placeholder="One-line mission displayed on the Agent Card"
+                  />
                 </div>
                 <div className="form-field">
                   <label htmlFor="agent-tags">Tags (comma-separated)</label>
@@ -655,49 +560,31 @@ export function AgentStudio({
                     placeholder="vietnam, agent, analytics"
                   />
                 </div>
-                <div className="form-field">
-                  <label htmlFor="agent-pricing-model">x402 Settlement</label>
-                  <select
-                    id="agent-pricing-model"
-                    value={pricingModel}
-                    onChange={(e) =>
-                      setPricingModel(
-                        e.target.value as "PAY_PER_RUN" | "PAY_PER_RESULT",
-                      )
-                    }
-                  >
-                    <option value="PAY_PER_RUN">
-                      PAY_PER_RUN (Instant FeeSplit)
-                    </option>
-                    <option value="PAY_PER_RESULT">
-                      PAY_PER_RESULT (TaskEscrow per citation)
-                    </option>
-                  </select>
-                </div>
-                <div className="form-field">
-                  <label htmlFor="agent-price">
-                    Price (atomic fUSD · {formatAtomicFusd(priceAtomic)})
-                  </label>
-                  <input
-                    id="agent-price"
-                    value={priceAtomic}
-                    onChange={(e) => setPriceAtomic(e.target.value)}
-                    pattern="^[1-9][0-9]*$"
-                    required
-                  />
-                </div>
               </div>
 
-              <div className="form-field">
-                <label htmlFor="agent-summary">Agent Card Headline</label>
-                <input
-                  id="agent-summary"
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
-                  maxLength={280}
-                  placeholder="One-line mission displayed on the Agent Card"
-                />
-              </div>
+              {identityConflict ? (
+                <div
+                  className="error-banner identity-conflict-banner"
+                  role="alert"
+                >
+                  <div>
+                    <strong>Duplicate Facet Identity</strong>
+                    <p>{identityConflict.message}</p>
+                  </div>
+                  {identityConflict.suggestedVersion ? (
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={() => {
+                        setError(null);
+                        setVersion(identityConflict.suggestedVersion!);
+                      }}
+                    >
+                      Use v{identityConflict.suggestedVersion}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="form-field">
                 <label htmlFor="agent-description">
@@ -711,6 +598,128 @@ export function AgentStudio({
                   required
                 />
               </div>
+
+              <div className="studio-grid">
+                <div className="form-field">
+                  <label htmlFor="agent-identity-id">
+                    Agent Identity Token ID (Fuji)
+                  </label>
+                  <input
+                    id="agent-identity-id"
+                    value={erc8004TokenId}
+                    onChange={(e) => setErc8004TokenId(e.target.value)}
+                    pattern="^[1-9][0-9]*$"
+                    required
+                  />
+                  <small>
+                    Positive nonzero token ID minted on the Fuji Agent Identity
+                    Registry.
+                  </small>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-identity-registry">
+                    Agent Identity Registry (Fuji 43113)
+                  </label>
+                  <input
+                    id="agent-identity-registry"
+                    value={ERC8004_IDENTITY_REGISTRY}
+                    readOnly
+                  />
+                  <small>
+                    <a
+                      className="explorer-link"
+                      href={snowtraceAddressUrl(ERC8004_IDENTITY_REGISTRY)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Inspect contract on Snowtrace ↗
+                    </a>
+                  </small>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-task-kind">Task Kind</label>
+                  <input
+                    id="agent-task-kind"
+                    value={taskKind}
+                    onChange={(e) => setTaskKind(e.target.value)}
+                    maxLength={80}
+                    required
+                  />
+                  <small>
+                    Use <code>vn-market-analysis</code> for live execution on
+                    the built-in Fuji runner.
+                  </small>
+                </div>
+              </div>
+
+              <div className="advanced-toggle-box">
+                <button
+                  type="button"
+                  className="preset-chip"
+                  onClick={() => setShowAdvanced((prev) => !prev)}
+                  aria-expanded={showAdvanced}
+                >
+                  {showAdvanced
+                    ? "Hide Pre-Anchor Options"
+                    : "Advanced: Pre-Anchored FacetActorRegistry Tx"}
+                </button>
+                {showAdvanced ? (
+                  <div className="studio-grid advanced-fields">
+                    <div className="form-field">
+                      <label htmlFor="agent-registry-tx">
+                        Pre-Anchored Registry Tx Hash (optional)
+                      </label>
+                      <input
+                        id="agent-registry-tx"
+                        value={registryTxHash}
+                        onChange={(e) => setRegistryTxHash(e.target.value)}
+                        placeholder="0x..."
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="studio-step-footer">
+                {step1BlockReason ? (
+                  <span className="studio-step-hint">{step1BlockReason}</span>
+                ) : null}
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    disabled={!step1Valid}
+                    onClick={() => {
+                      setError(null);
+                      setCompletedUpTo((prev) => Math.max(prev, 1));
+                      setActiveStep(2);
+                    }}
+                  >
+                    Continue to Task Input Schema →
+                  </button>
+                </div>
+              </div>
+            </fieldset>
+          ) : null}
+
+          {currentStep === 2 ? (
+            <fieldset className="studio-section-box">
+              <legend>02 · A2A Task Input Schema</legend>
+              <div className="studio-step-header">
+                <span className="studio-step-kicker studio-step-kicker-agent">
+                  Step 02 of 04 · Task Input Schema
+                </span>
+                <h2 className="studio-step-title">
+                  Define structured delegation inputs
+                </h2>
+              </div>
+
+              <InputSchemaBuilder
+                value={inputSchemaText}
+                onChange={setInputSchemaText}
+                disabled={submitting}
+                idPrefix="agent-schema"
+              />
 
               <div className="studio-step-footer">
                 <button
@@ -737,7 +746,7 @@ export function AgentStudio({
                       setActiveStep(3);
                     }}
                   >
-                    Continue to Task Input Schema →
+                    Continue to Contract Preview →
                   </button>
                 </div>
               </div>
@@ -746,22 +755,64 @@ export function AgentStudio({
 
           {currentStep === 3 ? (
             <fieldset className="studio-section-box">
-              <legend>03 · A2A Task Input Schema</legend>
+              <legend>03 · Contract Preview</legend>
               <div className="studio-step-header">
                 <span className="studio-step-kicker studio-step-kicker-agent">
-                  Step 03 of 04 · Task Input Schema
+                  Step 03 of 04 · Contract Preview
                 </span>
                 <h2 className="studio-step-title">
-                  Define structured delegation inputs
+                  Inspect A2A delegation contract before pricing
                 </h2>
               </div>
 
-              <InputSchemaBuilder
-                value={inputSchemaText}
-                onChange={setInputSchemaText}
-                disabled={submitting}
-                idPrefix="agent-schema"
-              />
+              <dl className="inspector-specs">
+                <div>
+                  <dt>Target Facet</dt>
+                  <dd>
+                    {workspace.username ?? "your-account"}/{facetName}@{version}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Category</dt>
+                  <dd>{getCategoryLabel(category)}</dd>
+                </div>
+                <div>
+                  <dt>On-Chain Identity</dt>
+                  <dd>
+                    #{erc8004TokenId} · {taskKind}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Input Fields</dt>
+                  <dd>
+                    {inputFieldNames.length} field
+                    {inputFieldNames.length === 1 ? "" : "s"} (
+                    {inputFieldNames.join(", ") || "none"})
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="actor-preview-result-box">
+                <span className="eyebrow">
+                  A2A Task Schema Contract Preview
+                </span>
+                <pre className="mono-detail actor-preview-output">
+                  {JSON.stringify(
+                    {
+                      provider: workspace.username ?? "your-account",
+                      facetName,
+                      facetDisplayName,
+                      version,
+                      category,
+                      taskKind,
+                      identityTokenId: erc8004TokenId,
+                      inputSchema: parsedSchema.schema,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </div>
 
               <div className="studio-step-footer">
                 <button
@@ -788,7 +839,7 @@ export function AgentStudio({
                       setActiveStep(4);
                     }}
                   >
-                    Continue to Review &amp; Publish →
+                    Continue to Pricing &amp; Payout →
                   </button>
                 </div>
               </div>
@@ -797,52 +848,41 @@ export function AgentStudio({
 
           {currentStep === 4 ? (
             <fieldset className="studio-section-box">
-              <legend>04 · Review &amp; Publish</legend>
+              <legend>04 · Pricing &amp; Payout</legend>
               <div className="studio-step-header">
                 <span className="studio-step-kicker studio-step-kicker-agent">
-                  Step 04 of 04 · Review &amp; Publish
+                  Step 04 of 04 · Pricing &amp; Payout
                 </span>
                 <h2 className="studio-step-title">
-                  Review Agent configuration and publish to Fuji
+                  Configure price, payout wallet, and publish Agent
                 </h2>
               </div>
 
-              <dl className="inspector-specs">
-                <div>
-                  <dt>Target Facet</dt>
-                  <dd>
-                    {workspace.username ?? "your-account"}/{facetName}@{version}
-                  </dd>
-                </div>
-                <div>
-                  <dt>On-Chain Identity</dt>
-                  <dd>
-                    #{erc8004TokenId} · {taskKind}
-                  </dd>
-                </div>
-                <div>
-                  <dt>x402 Pricing</dt>
-                  <dd>
-                    {pricingModel} · {formatAtomicFusd(priceAtomic)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Payout Wallet</dt>
-                  <dd>
-                    {payTo.trim() ||
-                      workspace.walletAddress ||
-                      "Provider linked wallet"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Input Contract</dt>
-                  <dd>
-                    {inputFieldNames.length} field
-                    {inputFieldNames.length === 1 ? "" : "s"} (
-                    {inputFieldNames.join(", ") || "none"})
-                  </dd>
-                </div>
-              </dl>
+              <FacetPricingFields
+                idPrefix="agent"
+                pricingModel={pricingModel}
+                priceFusdText={priceFusdText}
+                onPriceFusdChange={setPriceFusdText}
+                disabled={submitting}
+              />
+
+              <div className="form-field">
+                <label htmlFor="agent-payto">
+                  Agent Payout Wallet payTo (optional)
+                </label>
+                <input
+                  id="agent-payto"
+                  value={payTo}
+                  onChange={(e) => setPayTo(e.target.value)}
+                  placeholder="0x... (defaults to provider wallet)"
+                />
+                {payTo.trim() && !isValidEvmAddress(payTo) ? (
+                  <small className="field-warning">
+                    Enter a valid 0x EVM address or leave blank to use your
+                    linked payout wallet.
+                  </small>
+                ) : null}
+              </div>
 
               {error ? (
                 <div className="error-banner" role="alert">
@@ -870,9 +910,11 @@ export function AgentStudio({
                       submitting ||
                       workspace.authRequired ||
                       workspace.usernameRequired ||
+                      !priceAtomic ||
+                      Boolean(payTo.trim() && !isValidEvmAddress(payTo)) ||
+                      Boolean(identityConflict) ||
                       !step1Valid ||
-                      !step2Valid ||
-                      !step3Valid
+                      !step2Valid
                     }
                   >
                     {submitting ? "Publishing Agent…" : "Publish Agent"}
@@ -898,7 +940,7 @@ export function AgentStudio({
             erc8004TokenId={erc8004TokenId}
             taskKind={taskKind}
             pricingModel={pricingModel}
-            priceAtomic={priceAtomic}
+            priceAtomic={priceAtomic ?? "1000"}
             {...(payTo.trim() ? { payTo: payTo.trim() } : {})}
             registryVerified={Boolean(published?.registryVerified)}
             {...(verifiedTxHash || registryTxHash.trim()
@@ -906,54 +948,6 @@ export function AgentStudio({
               : {})}
             inputFields={inputFieldNames}
           />
-
-          <div className="inspector-card">
-            <p className="eyebrow">
-              Publish Readiness · Step 0{currentStep} of 04
-            </p>
-            <ul className="readiness-list">
-              <li
-                data-ok={Boolean(
-                  workspace.username &&
-                  !workspace.authRequired &&
-                  !workspace.usernameRequired,
-                )}
-              >
-                {workspace.authRequired
-                  ? "○ Sign in with Clerk required to publish"
-                  : workspace.usernameRequired
-                    ? "○ Valid 8–16 char kebab-case username required"
-                    : workspace.username
-                      ? `✓ Account @${workspace.username} ready`
-                      : workspace.error
-                        ? `○ ${workspace.error}`
-                        : "○ Checking signed-in account…"}
-              </li>
-              <li data-ok={step1Valid}>
-                {step1Valid
-                  ? `✓ 01 On-Chain Identity (#${erc8004TokenId} · ${taskKind})`
-                  : "○ Complete 01 On-Chain Identity"}
-              </li>
-              <li data-ok={step2Valid}>
-                {step2Valid
-                  ? `✓ 02 Profile & Pricing (${facetName}@${version})`
-                  : "○ Complete 02 Profile & Pricing"}
-              </li>
-              <li data-ok={step3Valid}>
-                {step3Valid
-                  ? `✓ 03 Task Input Schema (${inputFieldNames.length} fields)`
-                  : "○ Fix JSON Schema syntax"}
-              </li>
-            </ul>
-
-            <p className="readiness-step-hint">
-              {currentStep < 4
-                ? "Complete steps 01–03 in order to unlock Publish Agent."
-                : workspace.authRequired || workspace.usernameRequired
-                  ? "Sign in with a valid account to Publish Agent."
-                  : "All checks passed — ready to Publish Agent."}
-            </p>
-          </div>
 
           {published ? (
             <div className="published-card" role="status">

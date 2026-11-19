@@ -133,6 +133,85 @@ export function getStoreCategoriesForType(
   return STORE_CATEGORY_FILTERS.ALL;
 }
 
+export const FACET_CATEGORY_OPTIONS: CategoryFilterOption[] = [
+  { slug: "ai", label: "AI & Agents" },
+  { slug: "automation", label: "Automation & Workflows" },
+  { slug: "business", label: "Business & B2B" },
+  { slug: "data", label: "Data & Analytics" },
+  { slug: "data-processing", label: "Data Processing & ETL" },
+  { slug: "developer-tools", label: "Developer Tools" },
+  { slug: "ecommerce", label: "E-commerce & Retail" },
+  { slug: "finance", label: "Finance, Crypto & DeFi" },
+  { slug: "jobs", label: "Jobs & Recruiting" },
+  { slug: "lead-generation", label: "Lead Generation" },
+  { slug: "maps-travel", label: "Maps & Travel" },
+  { slug: "market-analysis", label: "Market Analysis" },
+  { slug: "marketing", label: "Marketing & Growth" },
+  { slug: "news", label: "News & Media" },
+  { slug: "real-estate", label: "Real Estate" },
+  { slug: "research", label: "Research & Science" },
+  { slug: "seo", label: "SEO Tools" },
+  { slug: "social", label: "Social Media" },
+  { slug: "vietnamese-data", label: "Vietnamese Data" },
+  { slug: "web-scraping", label: "Web Scraping" },
+  { slug: "a2a-agents", label: "Autonomous Multi-Task" },
+  { slug: "api", label: "API & Integrations" },
+  { slug: "other", label: "Other" },
+];
+
+export function getCategoryLabel(slug: string): string {
+  const normalized = slug.trim();
+  const match = FACET_CATEGORY_OPTIONS.find(
+    (option) => option.slug === normalized,
+  );
+  return match ? match.label : normalized || "Uncategorized";
+}
+
+export function getCategoryOptionsWithCurrent(
+  currentSlug: string,
+): CategoryFilterOption[] {
+  const trimmed = currentSlug.trim();
+  if (
+    !trimmed ||
+    FACET_CATEGORY_OPTIONS.some((option) => option.slug === trimmed)
+  ) {
+    return FACET_CATEGORY_OPTIONS;
+  }
+  return [...FACET_CATEGORY_OPTIONS, { slug: trimmed, label: trimmed }];
+}
+
+const MAX_PRICE_ATOMIC_STR = "1000000000000";
+
+export function parseFusdToAtomic(input: string): string | null {
+  const trimmed = input.trim();
+  if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/u.test(trimmed)) {
+    return null;
+  }
+  const [whole = "0", frac = ""] = trimmed.split(".");
+  const rawDigits = `${whole}${frac.padEnd(6, "0")}`;
+  const normalized = rawDigits.replace(/^0+/u, "") || "0";
+  if (
+    normalized === "0" ||
+    normalized.length > MAX_PRICE_ATOMIC_STR.length ||
+    (normalized.length === MAX_PRICE_ATOMIC_STR.length &&
+      normalized > MAX_PRICE_ATOMIC_STR)
+  ) {
+    return null;
+  }
+  return normalized;
+}
+
+export function atomicToFusdInput(atomic: string): string {
+  const trimmed = atomic.trim();
+  if (!trimmed || !/^[0-9]+$/u.test(trimmed)) return "0.001";
+  const normalized = trimmed.replace(/^0+/u, "") || "0";
+  if (normalized === "0") return "0";
+  const padded = normalized.padStart(7, "0");
+  const whole = padded.slice(0, -6);
+  const frac = padded.slice(-6).replace(/0+$/u, "");
+  return frac ? `${whole}.${frac}` : whole;
+}
+
 export function formatAtomicFusd(atomic?: string): string {
   if (!atomic || !/^[0-9]+$/u.test(atomic)) return "0.001 fUSD";
   const normalized = atomic.replace(/^0+/u, "") || "0";

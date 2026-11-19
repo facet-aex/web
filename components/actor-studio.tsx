@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createWalletClient, custom } from "viem";
 
+import { FacetPricingFields } from "@/components/facet-pricing-fields";
 import { InputSchemaBuilder } from "@/components/input-schema-builder";
 import { ProviderSelectorBar } from "@/components/provider-selector-bar";
 import {
   PublishRedirectToast,
   buildMyFacetsRedirectHref,
 } from "@/components/publish-redirect-toast";
+import { StudioFacetPreviewCard } from "@/components/studio-facet-preview-card";
 import {
   StudioStageBar,
   computeStudioProgress,
@@ -20,8 +22,10 @@ import {
   type ActorTemplatePreset,
 } from "@/lib/actor-templates";
 import {
-  STORE_CATEGORY_FILTERS,
+  atomicToFusdInput,
   formatAtomicFusd,
+  getCategoryOptionsWithCurrent,
+  parseFusdToAtomic,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
 import {
@@ -38,6 +42,10 @@ import {
 } from "@/lib/input-schema-builder";
 import { readErrorEnvelope } from "@/lib/openapi-import";
 import { useAccountWorkspace } from "@/lib/use-account-workspace";
+import {
+  checkFacetIdentityConflict,
+  useOwnedFacets,
+} from "@/lib/use-owned-facets";
 
 const ALL_ACTOR_PRESETS: ActorTemplatePreset[] = [
   BLANK_ACTOR_PRESET,
@@ -66,8 +74,11 @@ export function ActorStudio({
   const [category, setCategory] = useState(initialPreset.category);
   const [tagsText, setTagsText] = useState(initialPreset.tags.join(", "));
   const [description, setDescription] = useState(initialPreset.description);
-  const pricingModel = "PAY_PER_RUN";
-  const priceAtomic = "1000";
+  const pricingModel = "PAY_PER_RUN" as const;
+  const [priceFusdText, setPriceFusdText] = useState(
+    atomicToFusdInput(initialPreset.priceAtomic),
+  );
+  const priceAtomic = parseFusdToAtomic(priceFusdText);
   const [inputSchemaText, setInputSchemaText] = useState(
     JSON.stringify(initialPreset.inputSchema, null, 2),
   );
@@ -79,15 +90,6 @@ export function ActorStudio({
   const [previewResult, setPreviewResult] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const publishKey = useRef<string | null>(null);
-  const [ownedActors, setOwnedActors] = useState<
-    Array<{
-      provider: string;
-      facetName: string;
-      facetDisplayName: string;
-      version: string;
-      status: string;
-    }>
-  >([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,28 +104,12 @@ export function ActorStudio({
     errorCode?: string;
   } | null>(null);
 
+  const ownedFacets = useOwnedFacets(workspace.username, published?.status);
+  const ownedActors = ownedFacets.filter((item) => item.facetType === "ACTOR");
+
   const payoutWallet =
     verifiedWallet ??
     (workspace.walletVerified ? workspace.walletAddress : null);
-
-  useEffect(() => {
-    if (!workspace.username) return;
-    const controller = new AbortController();
-    void fetch("/api/facet/actors/mine", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) =>
-        response.ok
-          ? (response.json() as Promise<{ actors: typeof ownedActors }>)
-          : { actors: [] },
-      )
-      .then((body) => {
-        if (!controller.signal.aborted) setOwnedActors(body.actors);
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [workspace.username, published?.status]);
 
   useEffect(() => {
     if (!published || published.status !== "REGISTRATION_PENDING") return;
@@ -199,6 +185,7 @@ export function ActorStudio({
     setCategory(preset.category);
     setTagsText(preset.tags.join(", "));
     setDescription(preset.description);
+    setPriceFusdText(atomicToFusdInput(preset.priceAtomic));
     setInputSchemaText(JSON.stringify(preset.inputSchema, null, 2));
     setCode(preset.code);
     setError(null);
@@ -216,19 +203,40 @@ export function ActorStudio({
     );
   const codeLineCount = Math.max(code.split("\n").length, 1);
 
+  const identityConflict = checkFacetIdentityConflict(ownedFacets, {
+    facetName,
+    version,
+    facetType: "ACTOR",
+  });
+  const tags = tagsText
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+  const previewInputFields =
+    extractedFields.fields.length > 0
+      ? extractedFields.fields.map((field) => field.name)
+      : parsedSchema.schema &&
+          typeof parsedSchema.schema.properties === "object" &&
+          parsedSchema.schema.properties !== null
+        ? Object.keys(parsedSchema.schema.properties)
+        : [];
+
   const step1BlockReason = !facetDisplayName.trim()
     ? "Enter an Actor Title before continuing."
     : !isValidFacetName(facetName.trim())
       ? "Facet Name must be 4–32 lowercase letters, numbers, or hyphens."
       : !isValidSemver(version.trim())
         ? "Version must follow SemVer (for example, 1.0.0)."
-        : !category.trim()
-          ? "Select or enter a Category before continuing."
-          : !description.trim()
-            ? "Enter a Full Description before continuing."
-            : !hasEntrypointExport
-              ? "Code must export a default function or named run(input)."
-              : null;
+        : identityConflict
+          ? identityConflict.message
+          : !category.trim()
+            ? "Select a Category before continuing."
+            : !description.trim()
+              ? "Enter a Full Description before continuing."
+              : !hasEntrypointExport
+                ? "Code must export a default function or named run(input)."
+                : null;
   const step1Valid = step1BlockReason === null;
 
   const step2Valid = Boolean(parsedSchema.schema);
@@ -431,8 +439,16 @@ export function ActorStudio({
       setError("Run a Docker preview before publishing.");
       return;
     }
+    if (!priceAtomic) {
+      setError("Enter a valid positive fUSD price (up to 6 decimals).");
+      return;
+    }
+    if (identityConflict) {
+      setError(identityConflict.message);
+      return;
+    }
 
-    const tags = tagsText
+    const requestTags = tagsText
       .split(",")
       .map((tag) => tag.trim())
       .filter(Boolean)
@@ -462,7 +478,7 @@ export function ActorStudio({
           ...(summary.trim() ? { summary: summary.trim() } : {}),
           description: description.trim(),
           category: category.trim(),
-          ...(tags.length ? { tags } : {}),
+          ...(requestTags.length ? { tags: requestTags } : {}),
           inputSchema: parsedSchema.schema,
           code,
           pricingModel,
@@ -643,23 +659,18 @@ export function ActorStudio({
                 </div>
                 <div className="form-field">
                   <label htmlFor="actor-category">Category</label>
-                  <input
+                  <select
                     id="actor-category"
-                    list="actor-category-presets"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    maxLength={80}
                     required
-                  />
-                  <datalist id="actor-category-presets">
-                    {STORE_CATEGORY_FILTERS.ACTOR.filter(
-                      (option) => option.slug,
-                    ).map((option) => (
+                  >
+                    {getCategoryOptionsWithCurrent(category).map((option) => (
                       <option key={option.slug} value={option.slug}>
                         {option.label}
                       </option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
                 <div className="form-field">
                   <label htmlFor="actor-summary">Short Summary</label>
@@ -681,6 +692,30 @@ export function ActorStudio({
                   />
                 </div>
               </div>
+
+              {identityConflict ? (
+                <div
+                  className="error-banner identity-conflict-banner"
+                  role="alert"
+                >
+                  <div>
+                    <strong>Duplicate Facet Identity</strong>
+                    <p>{identityConflict.message}</p>
+                  </div>
+                  {identityConflict.suggestedVersion ? (
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={() => {
+                        setError(null);
+                        setVersion(identityConflict.suggestedVersion!);
+                      }}
+                    >
+                      Use v{identityConflict.suggestedVersion}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="form-field">
                 <label htmlFor="actor-description">Full Description</label>
@@ -903,14 +938,18 @@ export function ActorStudio({
                   Step 04 of 04 · Pricing &amp; Payout
                 </span>
                 <h2 className="studio-step-title">
-                  Confirm payout wallet and publish Actor
+                  Configure price, payout wallet, and publish Actor
                 </h2>
               </div>
-              <p>
-                PAY_PER_RUN · 1,000 atomic fUSD ({formatAtomicFusd(priceAtomic)}
-                ) on Avalanche Fuji. The verified wallet below receives the
-                creator payout.
-              </p>
+
+              <FacetPricingFields
+                idPrefix="actor"
+                pricingModel={pricingModel}
+                priceFusdText={priceFusdText}
+                onPriceFusdChange={setPriceFusdText}
+                disabled={submitting}
+              />
+
               <dl className="inspector-specs">
                 <div>
                   <dt>Target Facet</dt>
@@ -976,6 +1015,8 @@ export function ActorStudio({
                       workspace.usernameRequired ||
                       !payoutWallet ||
                       !previewResult ||
+                      !priceAtomic ||
+                      Boolean(identityConflict) ||
                       !step1Valid ||
                       !step2Valid
                     }
@@ -991,8 +1032,29 @@ export function ActorStudio({
 
         <aside
           className="studio-inspector-pane"
-          aria-label="Actor build summary"
+          aria-label="Facet Preview and runtime summary"
         >
+          <StudioFacetPreviewCard
+            facetType="ACTOR"
+            {...(workspace.username ? { provider: workspace.username } : {})}
+            facetDisplayName={facetDisplayName}
+            facetName={facetName}
+            version={version}
+            category={category}
+            summary={summary}
+            description={description}
+            tags={tags}
+            pricingModel={pricingModel}
+            priceAtomic={priceAtomic}
+            payoutWallet={payoutWallet}
+            inputFields={previewInputFields}
+            runtimeLabel="facet/node-actor-runner:1.0"
+            codeLineCount={codeLineCount}
+            hasEntrypointExport={hasEntrypointExport}
+            previewPassed={Boolean(previewResult)}
+            conflictMessage={identityConflict?.message ?? null}
+          />
+
           <div className="inspector-card">
             <p className="eyebrow">Sandbox Runtime Spec</p>
             <h3>facet/node-actor-runner:1.0</h3>
@@ -1011,62 +1073,11 @@ export function ActorStudio({
               </div>
               <div>
                 <dt>Pricing Quote</dt>
-                <dd>{formatAtomicFusd(priceAtomic)} / run</dd>
+                <dd>
+                  {priceAtomic ? `${formatAtomicFusd(priceAtomic)} / run` : "—"}
+                </dd>
               </div>
             </dl>
-          </div>
-
-          <div className="inspector-card">
-            <p className="eyebrow">
-              Publish Readiness · Step 0{currentStep} of 04
-            </p>
-            <ul className="readiness-list">
-              <li
-                data-ok={Boolean(
-                  workspace.username &&
-                  !workspace.authRequired &&
-                  !workspace.usernameRequired,
-                )}
-              >
-                {workspace.authRequired
-                  ? "○ Sign in with Clerk required to publish"
-                  : workspace.usernameRequired
-                    ? "○ Valid 8–16 char kebab-case username required"
-                    : workspace.username
-                      ? `✓ Account @${workspace.username} ready`
-                      : workspace.error
-                        ? `○ ${workspace.error}`
-                        : "○ Checking signed-in account…"}
-              </li>
-              <li data-ok={hasEntrypointExport}>
-                {hasEntrypointExport
-                  ? `✓ ESM entrypoint (${codeLineCount} lines)`
-                  : "○ Export default or run(input) required"}
-              </li>
-              <li data-ok={Boolean(parsedSchema.schema)}>
-                {parsedSchema.schema
-                  ? `✓ Valid JSON Schema (${extractedFields.fields.length} visual fields)`
-                  : "○ Fix JSON Schema syntax"}
-              </li>
-              <li data-ok={Boolean(previewResult)}>
-                {previewResult
-                  ? "✓ Docker preview completed"
-                  : "○ Run Docker preview"}
-              </li>
-              <li data-ok={Boolean(payoutWallet)}>
-                {payoutWallet
-                  ? "✓ Payout wallet verified"
-                  : "○ Link payout wallet"}
-              </li>
-            </ul>
-
-            <p className="readiness-step-hint">
-              {currentStep < 4
-                ? "Complete steps 01–03 in order to unlock Publish Actor."
-                : !payoutWallet
-                  ? "Verify a payout wallet in Step 04 to Publish Actor."
-                  : "All checks passed — ready to Publish Actor."}
-            </p>
           </div>
 
           {published ? (
