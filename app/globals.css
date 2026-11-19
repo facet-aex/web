@@ -1807,6 +1807,7 @@ code {
   display: grid;
   align-content: start;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .form-field-wide {
@@ -1948,6 +1949,7 @@ code {
   border: 1px solid var(--facet-line);
   background: var(--facet-surface);
   margin: 0;
+  min-width: 0;
 }
 
 .studio-section-box legend {
@@ -2157,6 +2159,7 @@ code {
   top: 90px;
   display: grid;
   gap: 1rem;
+  min-width: 0;
 }
 
 .inspector-card,
@@ -2166,6 +2169,7 @@ code {
   padding: 1.25rem;
   border: 1px solid var(--facet-line);
   background: var(--facet-surface);
+  min-width: 0;
 }
 
 .inspector-card h3 {
@@ -2223,6 +2227,28 @@ code {
   font-size: 0.74rem;
   color: var(--facet-text-muted);
   overflow-wrap: anywhere;
+}
+
+.actor-preview-result-box {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--facet-line);
+}
+
+.actor-preview-output {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: 22rem;
+  overflow: auto;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-canvas, #050505);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
 }
 
 .mono-accent {

@@ -664,12 +664,18 @@ export function ActorStudio({
                     ? "Running Docker preview…"
                     : "Run Docker preview"}
                 </button>
-                {previewResult ? (
-                  <pre className="mono-detail" role="status">
+              </div>
+              {previewResult ? (
+                <div className="actor-preview-result-box">
+                  <span className="eyebrow">Docker preview output</span>
+                  <pre
+                    className="mono-detail actor-preview-output"
+                    role="status"
+                  >
                     {previewResult}
                   </pre>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
