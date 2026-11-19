@@ -83,7 +83,7 @@ export function StudioStageBar({
   onSelectStep,
 }: {
   ariaLabel: string;
-  accent: "actor" | "agent";
+  accent: "actor" | "agent" | "api";
   steps: StudioStageItem[];
   onSelectStep: (step: 1 | 2 | 3 | 4) => void;
 }) {

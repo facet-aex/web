@@ -4,6 +4,10 @@ import localFont from "next/font/local";
 import { connection } from "next/server";
 
 import "./globals.css";
+import "./faucet.css";
+import "./pricing-playground.css";
+import "./docs-home.css";
+import "./api-studio.css";
 
 const display = localFont({
   src: "../node_modules/@fontsource-variable/inter-tight/files/inter-tight-latin-wght-normal.woff2",

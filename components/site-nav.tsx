@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-export type NavSection = "home" | "store" | "studio" | "docs";
+export type NavSection = "home" | "store" | "studio" | "docs" | "faucet";
 
 const STUDIO_DROPDOWN_ITEMS: Array<{
   href: string;
@@ -48,6 +48,7 @@ function resolveActiveSection(
   if (pathname === "/store" || pathname.startsWith("/facets")) return "store";
   if (pathname.startsWith("/studio")) return "studio";
   if (pathname.startsWith("/docs")) return "docs";
+  if (pathname.startsWith("/faucet")) return "faucet";
   if (pathname === "/") return "home";
   return fallback;
 }
@@ -129,6 +130,13 @@ export function SiteNav({ activeSection }: { activeSection?: NavSection }) {
         aria-current={active === "docs" ? "page" : undefined}
       >
         Docs
+      </Link>
+      <Link
+        href="/faucet"
+        className={`site-nav-cell${active === "faucet" ? " nav-active" : ""}`}
+        aria-current={active === "faucet" ? "page" : undefined}
+      >
+        Faucet
       </Link>
     </nav>
   );

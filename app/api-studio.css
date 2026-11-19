@@ -1,0 +1,5 @@
+/* Session 3 exclusive stylesheet: 4-step API Studio */
+
+.studio-stage-bar-api {
+  --stage-accent: var(--facet-cyan);
+}

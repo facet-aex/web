@@ -13,7 +13,7 @@ export function SiteHeader({ activeSection }: { activeSection?: NavSection }) {
         <span>FACET</span>
       </Link>
       <SiteNav {...(activeSection !== undefined ? { activeSection } : {})} />
-      <Suspense fallback={<span className="environment">Avalanche Fuji</span>}>
+      <Suspense fallback={<span className="environment">Avalanche</span>}>
         <ClerkAuthBar
           publishableKey={process.env["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"]}
         />

@@ -4,8 +4,10 @@ import {
   formatAtomicFusd,
   getCategoryLabel,
   getFacetTypeMeta,
+  parseFusdToAtomic,
   truncateMiddle,
 } from "@/lib/facet-ui";
+import type { PricingOptionDraft } from "@/lib/pricing-types";
 
 export function StudioFacetPreviewCard({
   facetType,
@@ -19,13 +21,17 @@ export function StudioFacetPreviewCard({
   tags,
   pricingModel,
   priceAtomic,
+  pricingOptions,
   payoutWallet,
-  inputFields,
+  inputFields = [],
   runtimeLabel,
   codeLineCount,
   hasEntrypointExport,
   previewPassed,
   conflictMessage,
+  apiMethod,
+  apiEndpointLabel,
+  liveReadinessStatus,
 }: {
   facetType: "ACTOR" | "API";
   provider?: string | undefined;
@@ -38,13 +44,17 @@ export function StudioFacetPreviewCard({
   tags: string[];
   pricingModel: "PAY_PER_RUN" | "PAY_PER_RESULT";
   priceAtomic: string | null;
+  pricingOptions?: PricingOptionDraft[] | undefined;
   payoutWallet?: string | null | undefined;
-  inputFields: string[];
+  inputFields?: string[] | undefined;
   runtimeLabel?: string | undefined;
   codeLineCount?: number | undefined;
   hasEntrypointExport?: boolean | undefined;
   previewPassed?: boolean | undefined;
   conflictMessage?: string | null | undefined;
+  apiMethod?: string | undefined;
+  apiEndpointLabel?: string | undefined;
+  liveReadinessStatus?: string | undefined;
 }) {
   const meta = getFacetTypeMeta(facetType);
   const unit = pricingModel === "PAY_PER_RESULT" ? "item" : "run";
@@ -111,10 +121,37 @@ export function StudioFacetPreviewCard({
         <div>
           <dt>Pricing</dt>
           <dd>
-            {pricingModel} ·{" "}
-            {priceAtomic
-              ? `${formatAtomicFusd(priceAtomic)} / ${unit}`
-              : "Invalid price"}
+            {pricingOptions && pricingOptions.length > 0 ? (
+              <div className="studio-preview-pricing-list">
+                {pricingOptions.map((option) => {
+                  const atomic = parseFusdToAtomic(option.priceFusd);
+                  const optionUnit =
+                    option.model === "PAY_PER_RESULT" ? "item" : "run";
+                  const capSuffix =
+                    option.model === "PAY_PER_RESULT" &&
+                    option.maxItemsCap !== undefined
+                      ? ` · max ${option.maxItemsCap} items`
+                      : "";
+                  return (
+                    <div key={option.model}>
+                      {option.model}
+                      {option.isPrimary ? " (Primary)" : ""} ·{" "}
+                      {atomic
+                        ? `${formatAtomicFusd(atomic)} / ${optionUnit}`
+                        : "Invalid price"}
+                      {capSuffix}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                {pricingModel} ·{" "}
+                {priceAtomic
+                  ? `${formatAtomicFusd(priceAtomic)} / ${unit}`
+                  : "Invalid price"}
+              </>
+            )}
           </dd>
         </div>
         <div>
@@ -131,7 +168,7 @@ export function StudioFacetPreviewCard({
             )}
           </dd>
         </div>
-        {facetType === "ACTOR" ? (
+        {facetType === "ACTOR" || facetType === "API" ? (
           <div>
             <dt>Payout Wallet</dt>
             <dd>
@@ -139,6 +176,24 @@ export function StudioFacetPreviewCard({
                 ? `${truncateMiddle(payoutWallet)} ✓`
                 : "Not linked yet"}
             </dd>
+          </div>
+        ) : null}
+        {apiMethod ? (
+          <div>
+            <dt>HTTP Method</dt>
+            <dd>{apiMethod}</dd>
+          </div>
+        ) : null}
+        {apiEndpointLabel ? (
+          <div>
+            <dt>Endpoint</dt>
+            <dd>{apiEndpointLabel}</dd>
+          </div>
+        ) : null}
+        {liveReadinessStatus ? (
+          <div>
+            <dt>Live Readiness</dt>
+            <dd>{liveReadinessStatus}</dd>
           </div>
         ) : null}
         {runtimeLabel ? (

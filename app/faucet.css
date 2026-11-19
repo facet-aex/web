@@ -1,0 +1,170 @@
+/* Testnet fUSD Faucet (/faucet) */
+
+.faucet-page {
+  padding: clamp(2.5rem, 5vw, 4.5rem) var(--page-padding);
+  display: flex;
+  justify-content: center;
+}
+
+.faucet-container {
+  width: 100%;
+  max-width: 720px;
+  display: grid;
+  gap: 1.75rem;
+}
+
+.faucet-heading {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.faucet-heading h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  letter-spacing: -0.04em;
+}
+
+.faucet-heading p {
+  margin: 0;
+  color: var(--facet-text-muted);
+  line-height: 1.55;
+}
+
+.faucet-card {
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+  padding: 1.5rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.faucet-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.faucet-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.faucet-label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--facet-text);
+}
+
+.faucet-connect-button {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface-raised);
+  color: var(--facet-cyan);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.faucet-connect-button:hover:not(:disabled) {
+  border-color: var(--facet-cyan);
+}
+
+.faucet-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}
+
+.faucet-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+  color: var(--facet-text);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.92rem;
+}
+
+.faucet-input:focus {
+  outline: 1px solid var(--facet-lime);
+  border-color: var(--facet-lime);
+}
+
+.faucet-submit-button {
+  min-width: 128px;
+}
+
+.faucet-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--facet-text-muted);
+  line-height: 1.5;
+}
+
+.faucet-meta a {
+  color: var(--facet-cyan);
+}
+
+.faucet-banner {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--facet-line);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.faucet-banner p {
+  margin: 0;
+}
+
+.faucet-banner-warning {
+  border-color: color-mix(in srgb, var(--facet-cyan) 45%, var(--facet-line));
+  background: color-mix(in srgb, var(--facet-cyan) 8%, var(--facet-surface));
+  color: var(--facet-text);
+}
+
+.faucet-banner-error {
+  border-color: color-mix(in srgb, #f87171 55%, var(--facet-line));
+  background: color-mix(in srgb, #f87171 10%, var(--facet-surface));
+  color: #fecaca;
+}
+
+.faucet-next-claim {
+  margin-top: 0.35rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.76rem;
+}
+
+.faucet-result {
+  border: 1px solid color-mix(in srgb, var(--facet-lime) 55%, var(--facet-line));
+  background: color-mix(in srgb, var(--facet-lime) 6%, var(--facet-surface));
+  padding: 1.1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.faucet-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.faucet-amount {
+  font-family: var(--font-mono), monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--facet-lime);
+}
+
+@media (max-width: 600px) {
+  .faucet-input-row {
+    grid-template-columns: 1fr;
+  }
+}
