@@ -68,20 +68,29 @@ export function ClerkSignUpCard() {
           ? USERNAME_RULE_HINT
           : getUsernameValidationError(trimmed);
 
+      const nextText = error ?? USERNAME_RULE_HINT;
+      const nextColor = error ? "#dc2626" : "#52525b";
+      if (hint.textContent !== nextText) {
+        hint.textContent = nextText;
+      }
+      if (hint.style.color !== nextColor) {
+        hint.style.color = nextColor;
+      }
+
       if (error) {
-        hint.textContent = error;
-        hint.style.color = "#dc2626";
         input.style.borderColor = "#dc2626";
         input.style.boxShadow = "0 0 0 1px #dc2626";
-        input.setAttribute("aria-invalid", "true");
+        if (input.getAttribute("aria-invalid") !== "true") {
+          input.setAttribute("aria-invalid", "true");
+        }
         return false;
       }
 
-      hint.textContent = USERNAME_RULE_HINT;
-      hint.style.color = "#52525b";
-      input.style.borderColor = "";
-      input.style.boxShadow = "";
-      input.removeAttribute("aria-invalid");
+      if (input.style.borderColor) input.style.borderColor = "";
+      if (input.style.boxShadow) input.style.boxShadow = "";
+      if (input.hasAttribute("aria-invalid")) {
+        input.removeAttribute("aria-invalid");
+      }
       return true;
     };
 
@@ -117,9 +126,11 @@ export function ClerkSignUpCard() {
 
     const observer = new MutationObserver(() => {
       const input = findUsernameInput();
-      if (input) {
+      if (!input) return;
+      const parent =
+        input.closest(".cl-formField") ?? input.parentElement ?? container;
+      if (!parent.querySelector(`[${HINT_ATTR}]`)) {
         ensureHintElement(input);
-        if (input.value) syncValidation(false);
       }
     });
 
