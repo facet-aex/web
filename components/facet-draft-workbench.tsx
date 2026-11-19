@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+
+import {
+  PublishRedirectToast,
+  buildMyFacetsRedirectHref,
+} from "@/components/publish-redirect-toast";
 
 import {
   buildDraftSelections,
@@ -121,6 +126,19 @@ export function FacetDraftWorkbench({
   const [activeTab, setActiveTab] = useState<InspectorTab>("general");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [lastPublished, setLastPublished] = useState<{
+    identifier: string;
+    targetHref: string;
+    autoRedirect: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!lastPublished?.autoRedirect) return;
+    const timer = window.setTimeout(() => {
+      window.location.assign(lastPublished.targetHref);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [lastPublished]);
 
   const safeIndex = Math.min(activeIndex, Math.max(items.length - 1, 0));
   const activeItem = items[safeIndex];
@@ -354,6 +372,23 @@ export function FacetDraftWorkbench({
         stage: "PUBLISHED",
         error: null,
       });
+      const allPublished =
+        items.length === 1 ||
+        items.every(
+          (entry, entryIndex) =>
+            entryIndex === index || entry.stage === "PUBLISHED",
+        );
+      setLastPublished({
+        identifier: `${publication.provider}/${publication.facetName}@${publication.version}`,
+        targetHref: buildMyFacetsRedirectHref({
+          provider: publication.provider,
+          facetName: publication.facetName,
+          version: publication.version,
+          status: "PUBLISHED",
+          facetType: "API",
+        }),
+        autoRedirect: allPublished,
+      });
       onAnyPublished?.();
     } catch (error) {
       updateItem(index, {
@@ -382,6 +417,16 @@ export function FacetDraftWorkbench({
 
   return (
     <form className="draft-workbench rapid-hub" onSubmit={createDrafts}>
+      {lastPublished ? (
+        <PublishRedirectToast
+          identifier={lastPublished.identifier}
+          facetType="API"
+          status="PUBLISHED"
+          targetHref={lastPublished.targetHref}
+          redirecting={lastPublished.autoRedirect}
+          onDismiss={() => setLastPublished(null)}
+        />
+      ) : null}
       <header className="draft-workbench-heading">
         <div>
           <p className="eyebrow">API Definition Workspace</p>

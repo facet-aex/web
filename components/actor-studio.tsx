@@ -7,6 +7,10 @@ import { createWalletClient, custom } from "viem";
 import { InputSchemaBuilder } from "@/components/input-schema-builder";
 import { ProviderSelectorBar } from "@/components/provider-selector-bar";
 import {
+  PublishRedirectToast,
+  buildMyFacetsRedirectHref,
+} from "@/components/publish-redirect-toast";
+import {
   StudioStageBar,
   computeStudioProgress,
 } from "@/components/studio-stage-bar";
@@ -159,6 +163,29 @@ export function ActorStudio({
       window.clearInterval(timer);
     };
   }, [published]);
+
+  const publishedIdentifier = published
+    ? `${published.provider}/${published.facetName}@${published.version}`
+    : null;
+  const publishedRedirectHref = published
+    ? buildMyFacetsRedirectHref({
+        provider: published.provider,
+        facetName: published.facetName,
+        version: published.version,
+        status: published.status,
+        facetType: "ACTOR",
+      })
+    : null;
+
+  useEffect(() => {
+    if (!publishedIdentifier || !publishedRedirectHref) return;
+    const timer = window.setTimeout(() => {
+      window.location.assign(publishedRedirectHref);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+    // Intentionally schedule redirect once per submitted Facet identifier.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publishedIdentifier]);
 
   function applyPreset(preset: ActorTemplatePreset) {
     publishKey.current = null;
@@ -479,6 +506,15 @@ export function ActorStudio({
 
   return (
     <div className="actor-studio">
+      {published && publishedIdentifier && publishedRedirectHref ? (
+        <PublishRedirectToast
+          identifier={publishedIdentifier}
+          facetType="ACTOR"
+          status={published.status}
+          targetHref={publishedRedirectHref}
+          redirecting={true}
+        />
+      ) : null}
       <header className="studio-mode-header">
         <div>
           <div className="modality-pill-row">
@@ -1095,6 +1131,9 @@ export function ActorStudio({
                   </li>
                 ))}
               </ul>
+              <Link className="explorer-link" href="/my-facets">
+                Manage all in My Facets ↗
+              </Link>
             </div>
           ) : null}
         </aside>

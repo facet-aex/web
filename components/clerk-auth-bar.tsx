@@ -8,6 +8,26 @@ import {
   useUser,
 } from "@clerk/nextjs";
 
+function MyFacetsIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
+      <rect x="2" y="2.5" width="5" height="5" />
+      <rect x="9" y="2.5" width="5" height="5" />
+      <rect x="2" y="9" width="5" height="5" />
+      <rect x="9" y="9" width="5" height="5" />
+    </svg>
+  );
+}
+
 function SignedInAccountPill() {
   const { user } = useUser();
   const handle =
@@ -60,7 +80,17 @@ function SignedInAccountPill() {
               },
             },
           }}
-        />
+        >
+          <UserButton.MenuItems>
+            <UserButton.Action label="manageAccount" />
+            <UserButton.Link
+              label="My Facets"
+              labelIcon={<MyFacetsIcon />}
+              href="/my-facets"
+            />
+            <UserButton.Action label="signOut" />
+          </UserButton.MenuItems>
+        </UserButton>
       </div>
       <span className="account-chevron" aria-hidden="true">
         ▾

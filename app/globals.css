@@ -2676,6 +2676,280 @@ code {
   color: var(--facet-text-muted);
 }
 
+/* Post-publish Toast & My Facets Page */
+.publish-toast {
+  position: fixed;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(640px, calc(100vw - 2rem));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--facet-surface-raised);
+  border: 1px solid var(--facet-line);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.72);
+}
+
+.publish-toast[data-status="REGISTRATION_PENDING"] {
+  border-color: var(--facet-warning);
+  background: color-mix(
+    in srgb,
+    var(--facet-warning) 10%,
+    var(--facet-surface-raised)
+  );
+}
+
+.publish-toast[data-status="PUBLISHED"] {
+  border-color: var(--facet-success);
+  background: color-mix(
+    in srgb,
+    var(--facet-success) 10%,
+    var(--facet-surface-raised)
+  );
+}
+
+.publish-toast[data-status="FAILED"] {
+  border-color: var(--facet-danger);
+  background: color-mix(
+    in srgb,
+    var(--facet-danger) 10%,
+    var(--facet-surface-raised)
+  );
+}
+
+.publish-toast-copy {
+  display: grid;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: min(280px, 100%);
+}
+
+.publish-toast-copy strong {
+  font-size: 0.96rem;
+}
+
+.publish-toast-copy p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--facet-text-muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.publish-toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.my-facets-page {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.my-facets-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+}
+
+.my-facets-notice[data-status="REGISTRATION_PENDING"] {
+  border-color: var(--facet-warning);
+  background: color-mix(in srgb, var(--facet-warning) 8%, var(--facet-surface));
+}
+
+.my-facets-notice[data-status="PUBLISHED"] {
+  border-color: var(--facet-success);
+  background: color-mix(in srgb, var(--facet-success) 8%, var(--facet-surface));
+}
+
+.my-facets-notice[data-status="FAILED"] {
+  border-color: var(--facet-danger);
+  background: color-mix(in srgb, var(--facet-danger) 8%, var(--facet-surface));
+}
+
+.my-facets-notice-copy {
+  display: grid;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: min(280px, 100%);
+}
+
+.my-facets-notice-copy p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--facet-text-muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.my-facets-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.my-facets-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.my-facets-toolbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.my-facets-list {
+  display: grid;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+}
+
+.my-facet-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.8fr) auto auto auto auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--facet-line);
+}
+
+.my-facet-row:last-child {
+  border-bottom: 0;
+}
+
+.my-facet-row-highlighted {
+  background: color-mix(in srgb, var(--facet-lime) 5%, var(--facet-surface));
+  box-shadow: inset 3px 0 0 var(--facet-lime);
+}
+
+.my-facet-main {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.my-facet-main strong {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.my-facet-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.my-facet-sub code {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+  color: var(--facet-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.my-facet-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.my-facet-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--facet-text-muted);
+}
+
+.my-facet-status-pending {
+  border-color: var(--facet-warning);
+  color: var(--facet-warning);
+}
+
+.my-facet-status-pending .my-facet-status-dot {
+  background: var(--facet-warning);
+  animation: facetPulse 1.4s ease-in-out infinite;
+}
+
+.my-facet-status-published {
+  border-color: var(--facet-success);
+  color: var(--facet-success);
+}
+
+.my-facet-status-published .my-facet-status-dot {
+  background: var(--facet-success);
+}
+
+.my-facet-status-failed {
+  border-color: var(--facet-danger);
+  color: var(--facet-danger);
+}
+
+.my-facet-status-failed .my-facet-status-dot {
+  background: var(--facet-danger);
+}
+
+.my-facet-status-valid {
+  border-color: var(--facet-cyan);
+  color: var(--facet-cyan);
+}
+
+.my-facet-status-valid .my-facet-status-dot {
+  background: var(--facet-cyan);
+}
+
+.my-facet-pricing {
+  display: grid;
+  gap: 0.15rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+}
+
+.my-facet-pricing span {
+  color: var(--facet-text-muted);
+  font-size: 0.64rem;
+}
+
+.my-facet-time {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  color: var(--facet-text-muted);
+  white-space: nowrap;
+}
+
+.my-facet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
 .rapid-source-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
@@ -3772,8 +4046,13 @@ code {
   .schema-field-row-secondary,
   .pricing-mode-cards,
   .draft-fields,
-  .endpoint-fields {
+  .endpoint-fields,
+  .my-facet-row {
     grid-template-columns: 1fr;
+  }
+
+  .my-facet-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -3869,6 +4148,17 @@ code {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes facetPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
   }
 }
 

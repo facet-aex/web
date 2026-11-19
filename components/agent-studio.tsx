@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { AgentIdentityCard } from "@/components/agent-identity-card";
 import { InputSchemaBuilder } from "@/components/input-schema-builder";
 import { ProviderSelectorBar } from "@/components/provider-selector-bar";
+import {
+  PublishRedirectToast,
+  buildMyFacetsRedirectHref,
+} from "@/components/publish-redirect-toast";
 import {
   StudioStageBar,
   computeStudioProgress,
@@ -340,8 +344,40 @@ export function AgentStudio({
     }
   }
 
+  const publishedIdentifier = published
+    ? `${published.provider}/${published.facetName}@${published.version}`
+    : null;
+  const publishedRedirectHref = published
+    ? buildMyFacetsRedirectHref({
+        provider: published.provider,
+        facetName: published.facetName,
+        version: published.version,
+        status: "PUBLISHED",
+        facetType: "AGENT",
+      })
+    : null;
+
+  useEffect(() => {
+    if (!publishedIdentifier || !publishedRedirectHref) return;
+    const timer = window.setTimeout(() => {
+      window.location.assign(publishedRedirectHref);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+    // Intentionally schedule redirect once per published Agent identifier.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publishedIdentifier]);
+
   return (
     <div className="agent-studio">
+      {published && publishedIdentifier && publishedRedirectHref ? (
+        <PublishRedirectToast
+          identifier={publishedIdentifier}
+          facetType="AGENT"
+          status="PUBLISHED"
+          targetHref={publishedRedirectHref}
+          redirecting={true}
+        />
+      ) : null}
       <header className="studio-mode-header">
         <div>
           <div className="modality-pill-row">

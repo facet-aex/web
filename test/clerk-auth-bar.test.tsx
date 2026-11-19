@@ -9,8 +9,9 @@ const clerkMockState = vi.hoisted(() => ({
 }));
 
 vi.mock("@clerk/nextjs", () => {
-  const UserButton = ({
+  const UserButtonBase = ({
     appearance,
+    children,
   }: {
     appearance?: {
       variables?: { colorBackground?: string };
@@ -19,17 +20,48 @@ vi.mock("@clerk/nextjs", () => {
         userButtonPopoverCard?: { width?: string };
       };
     };
+    children?: ReactNode;
   }) => (
-    <button
-      type="button"
-      data-testid="clerk-user-avatar"
-      className={appearance?.elements?.userButtonTrigger}
-      data-bg={appearance?.variables?.colorBackground ?? "light-default"}
-      data-popover-width={appearance?.elements?.userButtonPopoverCard?.width}
-    >
-      avatar
-    </button>
+    <div data-testid="clerk-user-wrapper">
+      <button
+        type="button"
+        data-testid="clerk-user-avatar"
+        className={appearance?.elements?.userButtonTrigger}
+        data-bg={appearance?.variables?.colorBackground ?? "light-default"}
+        data-popover-width={appearance?.elements?.userButtonPopoverCard?.width}
+      >
+        avatar
+      </button>
+      {children ? <div data-testid="clerk-user-menu">{children}</div> : null}
+    </div>
   );
+
+  const MenuItems = ({ children }: { children?: ReactNode }) => (
+    <div data-testid="clerk-menu-items">{children}</div>
+  );
+  const Action = ({ label }: { label: string }) => (
+    <div data-clerk-action={label}>{label}</div>
+  );
+  const Link = ({
+    label,
+    labelIcon,
+    href,
+  }: {
+    label: string;
+    labelIcon?: ReactNode;
+    href: string;
+  }) => (
+    <a href={href} data-clerk-link={label}>
+      {labelIcon}
+      {label}
+    </a>
+  );
+
+  const UserButton = Object.assign(UserButtonBase, {
+    MenuItems,
+    Action,
+    Link,
+  });
 
   return {
     Show: ({ when, children }: { when: string; children: ReactNode }) => {
@@ -80,6 +112,14 @@ describe("ClerkAuthBar", () => {
     expect(markup).toContain("facet-clerk-trigger");
     expect(markup).toContain('data-bg="#ffffff"');
     expect(markup).toContain('data-popover-width="240px"');
+    expect(markup).toContain('href="/my-facets"');
+    expect(markup).toContain("My Facets");
+    const manageIdx = markup.indexOf('data-clerk-action="manageAccount"');
+    const myFacetsIdx = markup.indexOf('href="/my-facets"');
+    const signOutIdx = markup.indexOf('data-clerk-action="signOut"');
+    expect(manageIdx).toBeGreaterThan(-1);
+    expect(myFacetsIdx).toBeGreaterThan(manageIdx);
+    expect(signOutIdx).toBeGreaterThan(myFacetsIdx);
     expect(markup).not.toContain("account-brand-chip");
     expect(markup).not.toContain(">FACET<");
     expect(markup).not.toContain("Facet Store");
