@@ -47,8 +47,10 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
   it("renders an On-Chain Agent Card with Fuji registry details", () => {
     const markup = renderToStaticMarkup(
       <AgentIdentityCard
-        name="VN Market & Macro Analyst Agent"
-        slug="vn-market-analyst-agent"
+        provider="vn-data-labs"
+        facetDisplayName="VN Market & Macro Analyst Agent"
+        facetName="vn-market-analyst-agent"
+        version="1.0.0"
         summary="Synthesizes sourced Vietnamese gold and news datasets."
         erc8004Registry="0x8004A818BFB912233c491871b3d84c89A494BD9e"
         erc8004TokenId="42"
@@ -75,20 +77,14 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
 
   it("auto-generates Input-Schema Form fields including enum, integer, and array JSON fields", () => {
     const actorFacet: PublicFacet = {
-      id: "00000000-0000-4000-8000-000000000010",
-      versionId: "00000000-0000-4000-8000-000000000011",
-      slug: "vn-gold-fx-actor",
-      name: "VN Gold & FX Scraper",
+      provider: "vn-data-labs",
+      facetName: "vn-gold-fx-actor",
+      facetDisplayName: "VN Gold & FX Scraper",
       description: "Vietnamese gold prices",
       category: "vietnamese-data",
       tags: ["vietnam", "gold"],
-      facetType: "HOSTED_ACTOR",
-      provider: {
-        id: "00000000-0000-4000-8000-000000000012",
-        name: "VN Labs",
-        slug: "vn-labs",
-      },
-      displayVersion: "1.0.0",
+      facetType: "ACTOR",
+      version: "1.0.0",
       method: "POST",
       inputSchema: {
         type: "object",

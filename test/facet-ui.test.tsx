@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { ProviderSelectorBar } from "@/components/provider-selector-bar";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import {
@@ -17,6 +18,7 @@ import {
   snowtraceTxUrl,
   truncateMiddle,
 } from "@/lib/facet-ui";
+import { bumpSemver, suggestFacetName } from "@/lib/identifiers";
 
 describe("facet-ui helpers", () => {
   it("formats atomic fUSD values accurately without float drift", () => {
@@ -28,12 +30,18 @@ describe("facet-ui helpers", () => {
     expect(formatAtomicFusd(undefined)).toBe("0.001 fUSD");
   });
 
-  it("slugifies names deterministically into kebab-case", () => {
+  it("suggests deterministic 4-32 char kebab-case facet names and bumps SemVer", () => {
     expect(slugifyName("VN Gold & FX Scraper!")).toBe("vn-gold-fx-scraper");
     expect(slugifyName("  CoinGecko Market Chart  ")).toBe(
-      "coingecko-market-chart",
+      "coin-gecko-market-chart",
     );
     expect(slugifyName("---")).toBe("custom-facet");
+    expect(suggestFacetName("ab")).toBe("ab-fct");
+    expect(suggestFacetName("A".repeat(48)).length).toBe(32);
+
+    expect(bumpSemver("1.0.0", "patch")).toBe("1.0.1");
+    expect(bumpSemver("1.2.3", "minor")).toBe("1.3.0");
+    expect(bumpSemver("1.2.3", "major")).toBe("2.0.0");
   });
 
   it("validates EVM addresses and tx hashes and builds Snowtrace URLs", () => {
@@ -53,35 +61,56 @@ describe("facet-ui helpers", () => {
   });
 
   it("maps each FacetType to canonical metadata, category filters, and studio routes", () => {
-    expect(getFacetTypeMeta("EXTERNAL_HTTP_API")).toMatchObject({
+    expect(getFacetTypeMeta("API")).toMatchObject({
       badge: "API",
       shortLabel: "API",
       fullLabel: "API",
       studioHref: "/studio/api",
     });
-    expect(getFacetTypeMeta("HOSTED_ACTOR")).toMatchObject({
+    expect(getFacetTypeMeta("ACTOR")).toMatchObject({
       badge: "ACTOR",
       shortLabel: "Actor",
       fullLabel: "Actor",
       studioHref: "/studio/actor",
     });
-    expect(getFacetTypeMeta("AUTONOMOUS_AGENT")).toMatchObject({
+    expect(getFacetTypeMeta("AGENT")).toMatchObject({
       badge: "AGENT",
       shortLabel: "Agent",
       fullLabel: "Agent",
       studioHref: "/studio/agent",
     });
 
-    expect(
-      STORE_CATEGORY_FILTERS.EXTERNAL_HTTP_API.map((c) => c.label),
-    ).toEqual(expect.arrayContaining(["Data", "Social"]));
-    expect(STORE_CATEGORY_FILTERS.HOSTED_ACTOR.map((c) => c.label)).toEqual(
+    expect(STORE_CATEGORY_FILTERS.API.map((c) => c.label)).toEqual(
+      expect.arrayContaining(["Data", "Social"]),
+    );
+    expect(STORE_CATEGORY_FILTERS.ACTOR.map((c) => c.label)).toEqual(
       expect.arrayContaining(["Web Scraping", "Vietnamese Data"]),
     );
-    expect(STORE_CATEGORY_FILTERS.AUTONOMOUS_AGENT.map((c) => c.label)).toEqual(
+    expect(STORE_CATEGORY_FILTERS.AGENT.map((c) => c.label)).toEqual(
       expect.arrayContaining(["Market Analysis", "Research"]),
     );
     expect(getStoreCategoriesForType(undefined).length).toBeGreaterThan(2);
+  });
+
+  it("renders a remediation banner when Clerk account fails 409 USERNAME_REQUIRED", () => {
+    const markup = renderToStaticMarkup(
+      <ProviderSelectorBar
+        workspace={{
+          user: null,
+          username: "",
+          walletAddress: null,
+          walletVerified: false,
+          loading: false,
+          authRequired: false,
+          usernameRequired: true,
+          error: "Username required",
+          refresh: async () => null,
+        }}
+      />,
+    );
+    expect(markup).toContain("Username Format Required");
+    expect(markup).toContain("8–16 character kebab-case username");
+    expect(markup).toContain("alice-labs");
   });
 });
 

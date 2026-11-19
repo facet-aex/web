@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import DocsPage from "@/app/docs/page";
-import FacetDetailPage from "@/app/facets/[facetId]/page";
+import FacetDetailPage from "@/app/facets/[provider]/[facetName]/page";
 import HomePage from "@/app/page";
 import StorePage from "@/app/store/page";
 import ActorStudioPage from "@/app/studio/actor/page";
@@ -111,39 +111,35 @@ describe("StorePage catalog", () => {
 
     const apiMarkup = renderToStaticMarkup(
       await StorePage({
-        searchParams: Promise.resolve({ type: "EXTERNAL_HTTP_API" }),
+        searchParams: Promise.resolve({ type: "API" }),
       }),
     );
-    expect(apiMarkup).toContain(
-      'href="/store?type=EXTERNAL_HTTP_API&amp;category=data"',
-    );
-    expect(apiMarkup).toContain(
-      'href="/store?type=EXTERNAL_HTTP_API&amp;category=social"',
-    );
+    expect(apiMarkup).toContain('href="/store?type=API&amp;category=data"');
+    expect(apiMarkup).toContain('href="/store?type=API&amp;category=social"');
     expect(apiMarkup).not.toContain("vietnamese-data");
 
     const actorMarkup = renderToStaticMarkup(
       await StorePage({
-        searchParams: Promise.resolve({ type: "HOSTED_ACTOR" }),
+        searchParams: Promise.resolve({ type: "ACTOR" }),
       }),
     );
     expect(actorMarkup).toContain(
-      'href="/store?type=HOSTED_ACTOR&amp;category=web-scraping"',
+      'href="/store?type=ACTOR&amp;category=web-scraping"',
     );
     expect(actorMarkup).toContain(
-      'href="/store?type=HOSTED_ACTOR&amp;category=vietnamese-data"',
+      'href="/store?type=ACTOR&amp;category=vietnamese-data"',
     );
 
     const agentMarkup = renderToStaticMarkup(
       await StorePage({
-        searchParams: Promise.resolve({ type: "AUTONOMOUS_AGENT" }),
+        searchParams: Promise.resolve({ type: "AGENT" }),
       }),
     );
     expect(agentMarkup).toContain(
-      'href="/store?type=AUTONOMOUS_AGENT&amp;category=market-analysis"',
+      'href="/store?type=AGENT&amp;category=market-analysis"',
     );
     expect(agentMarkup).toContain(
-      'href="/store?type=AUTONOMOUS_AGENT&amp;category=research"',
+      'href="/store?type=AGENT&amp;category=research"',
     );
   });
 });
@@ -198,28 +194,23 @@ describe("DocsPage documentation", () => {
 });
 
 describe("FacetDetailPage modality views", () => {
-  it("renders On-Chain Agent Card and breadcrumb for AUTONOMOUS_AGENT", async () => {
-    const facetId = "019a69b8-1f36-7a12-9ea4-777f09a777ea";
+  it("renders On-Chain Agent Card and breadcrumb for AGENT", async () => {
+    const provider = "vn-data-studio";
+    const facetName = "vn-market-analyst-agent";
     vi.stubEnv("FACET_CONTROL_API_URL", "http://127.0.0.1:4000");
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
         Response.json({
           facet: {
-            id: facetId,
-            versionId: "019a69b8-1f36-7a12-9ea4-777f09a777eb",
-            slug: "vn-market-analyst-agent",
-            name: "VN Market Analyst",
+            provider,
+            facetName,
+            facetDisplayName: "VN Market Analyst",
             description: "Synthesizes sourced datasets.",
             category: "a2a-agents",
             tags: ["a2a"],
-            facetType: "AUTONOMOUS_AGENT",
-            provider: {
-              id: "019a69b8-1f36-7a12-9ea4-777f09a777ec",
-              name: "VN Data Studio",
-              slug: "vn-data-studio",
-            },
-            displayVersion: "1.0.0",
+            facetType: "AGENT",
+            version: "1.0.0",
             method: "POST",
             inputSchema: {
               type: "object",
@@ -247,7 +238,9 @@ describe("FacetDetailPage modality views", () => {
     );
 
     const markup = renderToStaticMarkup(
-      await FacetDetailPage({ params: Promise.resolve({ facetId }) }),
+      await FacetDetailPage({
+        params: Promise.resolve({ provider, facetName }),
+      }),
     );
 
     expect(markup).toContain("ON-CHAIN AGENT IDENTITY");
@@ -255,7 +248,7 @@ describe("FacetDetailPage modality views", () => {
     expect(markup).toContain("#7");
     expect(markup).toContain("vn-market-analysis");
     expect(markup).toContain('href="/store"');
-    expect(markup).toContain('href="/store?type=AUTONOMOUS_AGENT"');
+    expect(markup).toContain('href="/store?type=AGENT"');
     expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 });

@@ -12,7 +12,6 @@ import type { ImportJob } from "@/lib/openapi-import";
 
 const queuedJob: ImportJob = {
   id: "019a69b8-1f36-7a12-9ea4-777f09a777ef",
-  providerId: "019a69b8-1f36-7a12-9ea4-777f09a777ea",
   apiSourceId: "019a69b8-1f36-7a12-9ea4-777f09a777eb",
   sourceVersionId: null,
   status: "queued",
@@ -51,7 +50,7 @@ describe("ApiStudio and FacetDraftWorkbench", () => {
   it("renders the RapidAPI 2-pane endpoint workbench without exposing secrets", () => {
     const markup = renderToStaticMarkup(
       <FacetDraftWorkbench
-        providerId="019a69b8-1f36-7a12-9ea4-777f09a777ea"
+        provider="alice-labs"
         importJobId="019a69b8-1f36-7a12-9ea4-777f09a777ef"
         operations={[
           {

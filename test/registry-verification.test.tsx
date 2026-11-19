@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import FacetDetailPage from "@/app/facets/[facetId]/page";
+import FacetDetailPage from "@/app/facets/[provider]/[facetName]/page";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -10,27 +10,22 @@ afterEach(() => {
 
 describe("published Facet registry verification", () => {
   it("lets a provider verify an already-published Actor after reopening its detail page", async () => {
-    const facetId = "01a1e97b-a5d1-7c25-9a05-4e0e7405d445";
+    const provider = "personal-studio";
+    const facetName = "vn-tech-news-actor";
     vi.stubEnv("FACET_CONTROL_API_URL", "http://127.0.0.1:4000");
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
         Response.json({
           facet: {
-            id: facetId,
-            versionId: "01a1e97b-a5d1-7c2d-a50a-7f231c809d73",
-            slug: "vn-tech-news-actor",
-            name: "VN Tech News Actor",
+            provider,
+            facetName,
+            facetDisplayName: "VN Tech News Actor",
             description: "Extracts sourced articles.",
             category: "vietnamese-data",
             tags: ["vietnam"],
-            facetType: "HOSTED_ACTOR",
-            provider: {
-              id: "provider-1",
-              name: "Personal Studio",
-              slug: "personal-studio",
-            },
-            displayVersion: "1.0.0",
+            facetType: "ACTOR",
+            version: "1.0.0",
             method: "POST",
             inputSchema: { type: "object", properties: {} },
             outputSchema: { type: "array" },
@@ -54,7 +49,9 @@ describe("published Facet registry verification", () => {
     );
 
     const markup = renderToStaticMarkup(
-      await FacetDetailPage({ params: Promise.resolve({ facetId }) }),
+      await FacetDetailPage({
+        params: Promise.resolve({ provider, facetName }),
+      }),
     );
 
     expect(markup).toContain('id="registry-verify-tx"');

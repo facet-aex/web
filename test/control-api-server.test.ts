@@ -2,12 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST as createImport } from "@/app/api/facet/openapi-imports/route";
 import { POST as createActor } from "@/app/api/facet/actors/route";
-import { GET as actorPublishStatus } from "@/app/api/facet/actors/[facetId]/publish-status/route";
+import { GET as actorPublishStatus } from "@/app/api/facet/actors/[provider]/[facetName]/versions/[version]/publish-status/route";
 import { POST as createFacets } from "@/app/api/facet/facets/route";
-import { PUT as configureEndpoint } from "@/app/api/facet/facet-versions/[versionId]/endpoint-config/route";
-import { POST as validateFacetVersion } from "@/app/api/facet/facet-versions/[versionId]/validate/route";
-import { POST as publishFacetVersion } from "@/app/api/facet/facet-versions/[versionId]/publish/route";
-import { POST as createSecret } from "@/app/api/facet/providers/[providerId]/secrets/route";
+import { PUT as configureEndpoint } from "@/app/api/facet/facets/[provider]/[facetName]/versions/[version]/endpoint-config/route";
+import { POST as validateFacetVersion } from "@/app/api/facet/facets/[provider]/[facetName]/versions/[version]/validate/route";
+import { POST as publishFacetVersion } from "@/app/api/facet/facets/[provider]/[facetName]/versions/[version]/publish/route";
+import { POST as createSecret } from "@/app/api/facet/providers/[provider]/secrets/route";
 import { GET as getImportJob } from "@/app/api/facet/openapi-imports/[jobId]/route";
 import {
   proxyControlApi,
@@ -16,6 +16,9 @@ import {
 } from "@/lib/control-api-server";
 
 const validJobId = "019a69b8-1f36-7a12-9ea4-777f09a777ef";
+const validProvider = "alice-labs";
+const validFacetName = "vn-gold-fx";
+const validVersion = "1.0.0";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -52,13 +55,19 @@ describe("Control API server adapter", () => {
     ).toBe("actor-draft-1");
     const status = await actorPublishStatus(
       new Request(
-        `http://localhost:3000/api/facet/actors/${validJobId}/publish-status`,
+        `http://localhost:3000/api/facet/actors/${validProvider}/${validFacetName}/versions/${validVersion}/publish-status`,
       ),
-      { params: Promise.resolve({ facetId: validJobId }) },
+      {
+        params: Promise.resolve({
+          provider: validProvider,
+          facetName: validFacetName,
+          version: validVersion,
+        }),
+      },
     );
     expect(status.status).toBe(202);
     expect(String(upstream.mock.calls[1]?.[0])).toBe(
-      `http://localhost:4000/v1/actors/${validJobId}/publish-status`,
+      `http://localhost:4000/v1/actors/${validProvider}/${validFacetName}/versions/${validVersion}/publish-status`,
     );
   });
   it("forwards JSON to the fixed backend with no caching and local auth", async () => {
@@ -184,14 +193,20 @@ describe("Control API server adapter", () => {
 
     const response = await configureEndpoint(
       new Request(
-        `http://localhost:3000/api/facet/facet-versions/${validJobId}/endpoint-config`,
+        `http://localhost:3000/api/facet/facets/${validProvider}/${validFacetName}/versions/${validVersion}/endpoint-config`,
         {
           method: "PUT",
           headers: { "content-length": "40000" },
           body: "{}",
         },
       ),
-      { params: Promise.resolve({ versionId: validJobId }) },
+      {
+        params: Promise.resolve({
+          provider: validProvider,
+          facetName: validFacetName,
+          version: validVersion,
+        }),
+      },
     );
 
     expect(response.status).toBe(413);
@@ -223,8 +238,6 @@ describe("Control API server adapter", () => {
       Response.json({ ok: true }),
     );
     vi.stubGlobal("fetch", upstream);
-    const providerId = "019a69b8-1f36-7a12-9ea4-777f09a777ea";
-    const versionId = "019a69b8-1f36-7a12-9ea4-777f09a777eb";
 
     const facetResponse = await createFacets(
       new Request("http://localhost:3000/api/facet/facets", {
@@ -234,43 +247,61 @@ describe("Control API server adapter", () => {
     );
     const secretResponse = await createSecret(
       new Request(
-        `http://localhost:3000/api/facet/providers/${providerId}/secrets`,
+        `http://localhost:3000/api/facet/providers/${validProvider}/secrets`,
         {
           method: "POST",
           body: "{}",
         },
       ),
-      { params: Promise.resolve({ providerId }) },
+      { params: Promise.resolve({ provider: validProvider }) },
     );
     const endpointResponse = await configureEndpoint(
       new Request(
-        `http://localhost:3000/api/facet/facet-versions/${versionId}/endpoint-config`,
+        `http://localhost:3000/api/facet/facets/${validProvider}/${validFacetName}/versions/${validVersion}/endpoint-config`,
         {
           method: "PUT",
           body: "{}",
         },
       ),
-      { params: Promise.resolve({ versionId }) },
+      {
+        params: Promise.resolve({
+          provider: validProvider,
+          facetName: validFacetName,
+          version: validVersion,
+        }),
+      },
     );
     const validationResponse = await validateFacetVersion(
       new Request(
-        `http://localhost:3000/api/facet/facet-versions/${versionId}/validate`,
+        `http://localhost:3000/api/facet/facets/${validProvider}/${validFacetName}/versions/${validVersion}/validate`,
         {
           method: "POST",
           body: "{}",
         },
       ),
-      { params: Promise.resolve({ versionId }) },
+      {
+        params: Promise.resolve({
+          provider: validProvider,
+          facetName: validFacetName,
+          version: validVersion,
+        }),
+      },
     );
     const publicationResponse = await publishFacetVersion(
       new Request(
-        `http://localhost:3000/api/facet/facet-versions/${versionId}/publish`,
+        `http://localhost:3000/api/facet/facets/${validProvider}/${validFacetName}/versions/${validVersion}/publish`,
         {
           method: "POST",
           body: "{}",
         },
       ),
-      { params: Promise.resolve({ versionId }) },
+      {
+        params: Promise.resolve({
+          provider: validProvider,
+          facetName: validFacetName,
+          version: validVersion,
+        }),
+      },
     );
 
     expect([
@@ -284,17 +315,23 @@ describe("Control API server adapter", () => {
       upstream.mock.calls.map(([url, init]) => [String(url), init?.method]),
     ).toEqual([
       ["http://localhost:4000/v1/facets", "POST"],
-      [`http://localhost:4000/v1/providers/${providerId}/secrets`, "POST"],
+      [`http://localhost:4000/v1/providers/${validProvider}/secrets`, "POST"],
       [
-        `http://localhost:4000/v1/facet-versions/${versionId}/endpoint-config`,
+        `http://localhost:4000/v1/facets/${validProvider}/${validFacetName}/versions/${validVersion}/endpoint-config`,
         "PUT",
       ],
-      [`http://localhost:4000/v1/facet-versions/${versionId}/validate`, "POST"],
-      [`http://localhost:4000/v1/facet-versions/${versionId}/publish`, "POST"],
+      [
+        `http://localhost:4000/v1/facets/${validProvider}/${validFacetName}/versions/${validVersion}/validate`,
+        "POST",
+      ],
+      [
+        `http://localhost:4000/v1/facets/${validProvider}/${validFacetName}/versions/${validVersion}/publish`,
+        "POST",
+      ],
     ]);
   });
 
-  it("rejects invalid provider and version IDs before proxying", async () => {
+  it("rejects invalid provider, facetName, and version segments before proxying", async () => {
     const upstream = vi.fn();
     vi.stubGlobal("fetch", upstream);
     const invalidProvider = await createSecret(
@@ -302,17 +339,23 @@ describe("Control API server adapter", () => {
         method: "POST",
         body: "{}",
       }),
-      { params: Promise.resolve({ providerId: "nope" }) },
+      { params: Promise.resolve({ provider: "nope" }) },
     );
     const invalidVersion = await configureEndpoint(
       new Request(
-        "http://localhost:3000/api/facet/facet-versions/nope/endpoint-config",
+        `http://localhost:3000/api/facet/facets/${validProvider}/${validFacetName}/versions/v1/endpoint-config`,
         {
           method: "PUT",
           body: "{}",
         },
       ),
-      { params: Promise.resolve({ versionId: "nope" }) },
+      {
+        params: Promise.resolve({
+          provider: validProvider,
+          facetName: validFacetName,
+          version: "v1",
+        }),
+      },
     );
 
     expect(invalidProvider.status).toBe(400);
@@ -329,8 +372,8 @@ describe("Control API server adapter", () => {
     vi.stubGlobal("fetch", upstream);
 
     const response = await proxyControlApi(
-      new Request("https://facet.example/api/facet/providers"),
-      "/v1/me/providers",
+      new Request("https://facet.example/api/facet/me"),
+      "/v1/me",
     );
 
     expect(response.status).toBe(401);

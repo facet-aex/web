@@ -45,8 +45,8 @@ describe("Facet draft workflow helpers", () => {
     expect(buildDraftSelections([operation])).toEqual([
       {
         operationCandidateId: operation.id,
-        slug: "get-repo",
-        name: "Get a repository",
+        facetName: "get-repo",
+        facetDisplayName: "Get a repository",
         summary: "Get a repository",
         description: "Get a repository",
         category: "api",
@@ -81,28 +81,37 @@ describe("Facet draft workflow helpers", () => {
   });
 
   it("rejects malformed draft and validation responses", () => {
-    expect(readFacetDraftsResponse({ facets: [{ id: "bad" }] })).toBeNull();
+    expect(
+      readFacetDraftsResponse({ facets: [{ facetName: "bad" }] }),
+    ).toBeNull();
     expect(readFacetValidationResponse({ facetVersion: {} })).toBeNull();
   });
 
   it("reads safe draft and warning acknowledgement metadata", () => {
-    const versionId = "019a69b8-1f36-7a12-9ea4-777f09a777eb";
     const drafts = readFacetDraftsResponse({
       facets: [
         {
-          id: "019a69b8-1f36-7a12-9ea4-777f09a777ea",
-          slug: "get-repo",
-          draftVersion: { id: versionId, version: 1 },
+          provider: "alice-labs",
+          facetName: "get-repo",
+          facetDisplayName: "Get a repository",
+          draftVersion: { version: "0.1.0", revision: 1 },
         },
       ],
     });
-    expect(drafts?.[0]?.draftVersion.id).toBe(versionId);
+    expect(drafts?.[0]).toEqual({
+      provider: "alice-labs",
+      facetName: "get-repo",
+      facetDisplayName: "Get a repository",
+      draftVersion: { version: "0.1.0", revision: 1 },
+    });
 
     const validation = readFacetValidationResponse({
       facetVersion: {
-        id: versionId,
+        provider: "alice-labs",
+        facetName: "get-repo",
+        version: "0.1.0",
         status: "DRAFT",
-        version: 3,
+        revision: 3,
         validation: {
           status: "INVALID",
           errors: [],
@@ -118,38 +127,44 @@ describe("Facet draft workflow helpers", () => {
       },
     });
     expect(validation).toMatchObject({
+      provider: "alice-labs",
+      facetName: "get-repo",
+      version: "0.1.0",
       status: "DRAFT",
-      version: 3,
+      revision: 3,
       warnings: [{ code: "MISSING_SCHEMA", acknowledged: false }],
     });
   });
 
   it("reads publication metadata without private endpoint data", () => {
-    const versionId = "019a69b8-1f36-7a12-9ea4-777f09a777eb";
     const publication = readFacetPublicationResponse({
       facet: {
-        id: "019a69b8-1f36-7a12-9ea4-777f09a777ea",
+        provider: "alice-labs",
+        facetName: "get-repo",
+        facetDisplayName: "Get a repository",
         status: "PUBLISHED",
         visibility: "PUBLIC",
-        currentPublishedVersionId: versionId,
-        version: 2,
+        currentPublishedVersion: "0.1.0",
+        revision: 2,
       },
       facetVersion: {
-        id: versionId,
-        facetId: "019a69b8-1f36-7a12-9ea4-777f09a777ea",
-        displayVersion: "0.1.0",
+        provider: "alice-labs",
+        facetName: "get-repo",
+        version: "0.1.0",
         status: "PUBLISHED",
         visibility: "PUBLIC",
         contentHash: `sha256:${"a".repeat(64)}`,
         publishedAt: "2026-11-10T00:00:00.000Z",
-        version: 4,
+        revision: 4,
       },
     });
 
     expect(publication).toMatchObject({
-      versionId,
+      provider: "alice-labs",
+      facetName: "get-repo",
+      version: "0.1.0",
       visibility: "PUBLIC",
-      version: 4,
+      revision: 4,
     });
     expect(
       readFacetPublicationResponse({ facet: {}, facetVersion: {} }),

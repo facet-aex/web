@@ -24,13 +24,11 @@ describe("OpenAPI import UI contract", () => {
   it("shapes an HTTPS URL import request", () => {
     expect(
       toImportRequest({
-        providerId: "provider-1",
         name: "Remote API",
         sourceKind: "url",
         sourceValue: "https://api.example.com/openapi.json",
       }),
     ).toEqual({
-      providerId: "provider-1",
       name: "Remote API",
       source: {
         kind: "url",
@@ -44,14 +42,12 @@ describe("OpenAPI import UI contract", () => {
     (sourceKind) => {
       expect(
         toImportRequest({
-          providerId: "provider-1",
           name: "Local API",
           sourceKind,
           sourceValue: '{"openapi":"3.1.0"}',
           mediaType: "application/json",
         }),
       ).toEqual({
-        providerId: "provider-1",
         name: "Local API",
         source: {
           kind: sourceKind,

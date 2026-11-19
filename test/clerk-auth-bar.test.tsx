@@ -43,6 +43,7 @@ vi.mock("@clerk/nextjs", () => {
     },
     SignInButton: ({ children }: { children: ReactNode }) => <>{children}</>,
     SignUpButton: ({ children }: { children: ReactNode }) => <>{children}</>,
+    SignUp: () => <div data-testid="clerk-sign-up" />,
     UserButton,
     useUser: () => ({
       isLoaded: true,
@@ -59,6 +60,7 @@ vi.mock("@clerk/nextjs", () => {
 });
 
 import { ClerkAuthBar } from "@/components/clerk-auth-bar";
+import SignUpPage from "@/app/sign-up/[[...sign-up]]/page";
 
 describe("ClerkAuthBar", () => {
   it("falls back to Avalanche Fuji environment badge when no publishable key is configured", () => {
@@ -92,5 +94,11 @@ describe("ClerkAuthBar", () => {
 
     expect(markup).toContain("Sign in");
     expect(markup).toContain("Sign up");
+  });
+
+  it("renders the username format guide on /sign-up", () => {
+    const markup = renderToStaticMarkup(<SignUpPage />);
+    expect(markup).toContain("8–16 character kebab-case username");
+    expect(markup).toContain("alice-labs");
   });
 });

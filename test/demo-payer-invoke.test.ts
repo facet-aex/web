@@ -2,13 +2,17 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/facet/invoke/route";
 
-const versionId = "019a69b8-1f36-7a12-9ea4-777f09a777ef";
+const provider = "alice-labs";
+const facetName = "sui-token";
+const version = "1.0.0";
 const request = () =>
   new Request("https://facet.example/api/facet/invoke", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      facetVersionId: versionId,
+      provider,
+      facetName,
+      version,
       input: { symbol: "SUI" },
       idempotencyKey: "demo-1",
     }),
@@ -60,7 +64,7 @@ it("uses the authorized version and terms for a bounded gateway request", async 
     String(url).includes("demo-payer/authorize")
       ? Response.json({
           amountAtomic: "1000",
-          payTo: "0x0000000000000000000000000000000000000001",
+          providerPayTo: "0x0000000000000000000000000000000000000001",
           remainingToday: 2,
         })
       : Response.json({ runId: "test-run" }),
@@ -70,6 +74,6 @@ it("uses the authorized version and terms for a bounded gateway request", async 
   expect(result.status).toBe(200);
   expect(upstream).toHaveBeenCalledTimes(2);
   expect(String(upstream.mock.calls[1]?.[0])).toBe(
-    `http://gateway:4020/v1/facet-versions/${versionId}/invoke`,
+    `http://gateway:4020/v1/facets/${provider}/${facetName}/versions/${version}/invoke`,
   );
 });
