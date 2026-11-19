@@ -59,7 +59,6 @@ export function readImportJobResponse(value: unknown): ImportJob | null {
   const job = value.job;
   if (
     typeof job.id !== "string" ||
-    typeof job.providerId !== "string" ||
     typeof job.apiSourceId !== "string" ||
     typeof job.status !== "string" ||
     !importStatuses.has(job.status as ImportStatus) ||
@@ -70,7 +69,6 @@ export function readImportJobResponse(value: unknown): ImportJob | null {
 
   return {
     id: job.id,
-    providerId: job.providerId,
     apiSourceId: job.apiSourceId,
     sourceVersionId:
       typeof job.sourceVersionId === "string" ? job.sourceVersionId : null,

@@ -1,3 +1,4 @@
+import { suggestFacetName } from "@/lib/identifiers";
 import type { OperationCandidate } from "@/lib/openapi-import";
 
 export const SIDE_EFFECT_CLASSES = [
@@ -13,8 +14,8 @@ export type EndpointAuthKind =
 
 export interface DraftSelection {
   operationCandidateId: string;
-  slug: string;
-  name: string;
+  facetName: string;
+  facetDisplayName: string;
   summary: string;
   description: string;
   category: string;
@@ -23,11 +24,12 @@ export interface DraftSelection {
 }
 
 export interface FacetDraft {
-  id: string;
-  slug: string;
+  provider: string;
+  facetName: string;
+  facetDisplayName: string;
   draftVersion: {
-    id: string;
-    version: number;
+    version: string;
+    revision: number;
   };
 }
 
@@ -43,22 +45,25 @@ export interface ValidationWarning extends ValidationIssue {
 }
 
 export interface FacetValidationResult {
-  id: string;
+  provider: string;
+  facetName: string;
+  version: string;
   status: "DRAFT" | "VALID";
-  version: number;
+  revision: number;
   validationStatus: "INVALID" | "VALID";
   errors: ValidationIssue[];
   warnings: ValidationWarning[];
 }
 
 export interface FacetPublicationResult {
-  facetId: string;
-  versionId: string;
+  provider: string;
+  facetName: string;
+  facetDisplayName: string;
+  version: string;
   visibility: "UNLISTED" | "PUBLIC";
-  displayVersion: string;
   contentHash: string;
   publishedAt: string;
-  version: number;
+  revision: number;
 }
 
 export interface EndpointSuggestion {
@@ -71,12 +76,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isStringArray(value: unknown): value is string[] {
-  return (
-    Array.isArray(value) && value.every((item) => typeof item === "string")
-  );
-}
-
 function defaultName(operation: OperationCandidate): string {
   return (
     operation.summary?.trim() ||
@@ -85,29 +84,20 @@ function defaultName(operation: OperationCandidate): string {
   );
 }
 
-function slugify(value: string): string {
-  const slug = value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 63);
-  return slug || "api-operation";
-}
-
 export function buildDraftSelections(
   operations: OperationCandidate[],
 ): DraftSelection[] {
   return operations.map((operation) => {
-    const name = defaultName(operation);
+    const display = defaultName(operation);
     return {
       operationCandidateId: operation.id,
-      slug: slugify(operation.operationId?.trim() || name),
-      name,
-      summary: operation.summary?.trim() || name,
-      description: operation.summary?.trim() || name,
+      facetName: suggestFacetName(
+        operation.operationId?.trim() || display,
+        "api-op",
+      ),
+      facetDisplayName: display,
+      summary: operation.summary?.trim() || display,
+      description: operation.summary?.trim() || display,
       category: "api",
       tags: [],
       sideEffectClass:
@@ -226,12 +216,13 @@ export function requiresManualAuthReview(
 
 function isDraft(value: unknown): value is FacetDraft {
   if (!isRecord(value) || !isRecord(value.draftVersion)) return false;
-  const version = value.draftVersion;
+  const draftVersion = value.draftVersion;
   return (
-    typeof value.id === "string" &&
-    typeof value.slug === "string" &&
-    typeof version.id === "string" &&
-    typeof version.version === "number"
+    typeof value.provider === "string" &&
+    typeof value.facetName === "string" &&
+    typeof value.facetDisplayName === "string" &&
+    typeof draftVersion.version === "string" &&
+    typeof draftVersion.revision === "number"
   );
 }
 
@@ -278,9 +269,11 @@ export function readFacetValidationResponse(
   if (!isRecord(value) || !isRecord(value.facetVersion)) return null;
   const version = value.facetVersion;
   if (
-    typeof version.id !== "string" ||
+    typeof version.provider !== "string" ||
+    typeof version.facetName !== "string" ||
+    typeof version.version !== "string" ||
     (version.status !== "DRAFT" && version.status !== "VALID") ||
-    typeof version.version !== "number" ||
+    typeof version.revision !== "number" ||
     !isRecord(version.validation) ||
     (version.validation.status !== "INVALID" &&
       version.validation.status !== "VALID") ||
@@ -298,9 +291,11 @@ export function readFacetValidationResponse(
     return null;
   }
   return {
-    id: version.id,
-    status: version.status,
+    provider: version.provider,
+    facetName: version.facetName,
     version: version.version,
+    status: version.status,
+    revision: version.revision,
     validationStatus: version.validation.status,
     errors: errors as ValidationIssue[],
     warnings: warnings as ValidationWarning[],
@@ -320,32 +315,34 @@ export function readFacetPublicationResponse(
   const facet = value.facet;
   const version = value.facetVersion;
   if (
-    typeof facet.id !== "string" ||
+    typeof facet.provider !== "string" ||
+    typeof facet.facetName !== "string" ||
+    typeof facet.facetDisplayName !== "string" ||
     facet.status !== "PUBLISHED" ||
     (facet.visibility !== "UNLISTED" && facet.visibility !== "PUBLIC") ||
-    typeof facet.currentPublishedVersionId !== "string" ||
-    typeof facet.version !== "number" ||
-    typeof version.id !== "string" ||
-    typeof version.facetId !== "string" ||
-    version.facetId !== facet.id ||
-    version.id !== facet.currentPublishedVersionId ||
-    typeof version.displayVersion !== "string" ||
+    typeof facet.currentPublishedVersion !== "string" ||
+    typeof facet.revision !== "number" ||
+    version.provider !== facet.provider ||
+    version.facetName !== facet.facetName ||
+    typeof version.version !== "string" ||
+    version.version !== facet.currentPublishedVersion ||
     version.status !== "PUBLISHED" ||
     version.visibility !== facet.visibility ||
     typeof version.contentHash !== "string" ||
     !/^sha256:[a-f0-9]{64}$/u.test(version.contentHash) ||
     typeof version.publishedAt !== "string" ||
-    typeof version.version !== "number"
+    typeof version.revision !== "number"
   ) {
     return null;
   }
   return {
-    facetId: facet.id,
-    versionId: version.id,
+    provider: facet.provider,
+    facetName: facet.facetName,
+    facetDisplayName: facet.facetDisplayName,
+    version: version.version,
     visibility: facet.visibility,
-    displayVersion: version.displayVersion,
     contentHash: version.contentHash,
     publishedAt: version.publishedAt,
-    version: version.version,
+    revision: version.revision,
   };
 }

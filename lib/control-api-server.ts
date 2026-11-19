@@ -1,5 +1,11 @@
 import { verifyToken } from "@clerk/backend";
 
+import {
+  isValidFacetName,
+  isValidSemver,
+  isValidUsername,
+} from "@/lib/identifiers";
+
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 export const MAX_IMPORT_COMMAND_BYTES = 2 * 5 * 1024 * 1024 + 64 * 1024;
@@ -18,7 +24,9 @@ export function validateJobId(value: string): boolean {
   return uuidPattern.test(value);
 }
 
-export const validateResourceId = validateJobId;
+export const validateUsername = isValidUsername;
+export const validateFacetName = isValidFacetName;
+export const validateSemver = isValidSemver;
 
 export function invalidResourceIdResponse(resource: string): Response {
   return Response.json(

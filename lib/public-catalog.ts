@@ -1,20 +1,23 @@
-export type FacetType =
-  "EXTERNAL_HTTP_API" | "HOSTED_ACTOR" | "AUTONOMOUS_AGENT";
+import {
+  isValidFacetName,
+  isValidSemver,
+  isValidUsername,
+  type FacetType,
+  type PricingModel,
+} from "@/lib/identifiers";
 
-export type PricingModel = "PAY_PER_RUN" | "PAY_PER_RESULT";
+export type { FacetType, PricingModel };
 
 export interface PublicFacet {
-  id: string;
-  fullName?: string;
-  versionId: string;
-  slug: string;
-  name: string;
+  provider: string;
+  facetName: string;
+  facetDisplayName: string;
+  version: string;
+  facetType: FacetType;
+  summary?: string;
   description: string;
   category: string;
   tags: string[];
-  facetType?: FacetType;
-  provider: { id: string; name: string; slug: string };
-  displayVersion: string;
   method: string;
   inputSchema: unknown;
   outputSchema: unknown;
@@ -28,6 +31,7 @@ export interface PublicFacet {
   actorMeta?: {
     runtime: string;
     imageDigest: string;
+    runnerOciDigest?: string;
     registryTxHash?: string;
     registryVerified?: boolean;
   };
@@ -43,21 +47,27 @@ export interface PublicFacet {
 }
 
 export async function getPublicFacetByName(
-  username: string,
+  provider: string,
   facetName: string,
+  version?: string,
 ): Promise<PublicFacet | undefined> {
-  if (
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(username) ||
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(facetName)
-  )
+  if (!isValidUsername(provider) || !isValidFacetName(facetName)) {
     return undefined;
+  }
+  if (version !== undefined && !isValidSemver(version)) {
+    return undefined;
+  }
   const baseUrl = process.env.FACET_CONTROL_API_URL;
   if (!baseUrl) return undefined;
   try {
-    const response = await fetch(
-      new URL(`/v1/catalog/facets/${username}/${facetName}`, baseUrl),
-      { cache: "no-store", signal: AbortSignal.timeout(5000) },
-    );
+    const path =
+      version !== undefined
+        ? `/v1/catalog/facets/${encodeURIComponent(provider)}/${encodeURIComponent(facetName)}/versions/${encodeURIComponent(version)}`
+        : `/v1/catalog/facets/${encodeURIComponent(provider)}/${encodeURIComponent(facetName)}`;
+    const response = await fetch(new URL(path, baseUrl), {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
     if (!response.ok) return undefined;
     return ((await response.json()) as { facet: PublicFacet }).facet;
   } catch {
@@ -85,23 +95,5 @@ export async function getPublicFacets(
     return body.facets;
   } catch {
     return [];
-  }
-}
-
-export async function getPublicFacet(
-  id: string,
-): Promise<PublicFacet | undefined> {
-  const baseUrl = process.env.FACET_CONTROL_API_URL;
-  if (!baseUrl) return undefined;
-  try {
-    const response = await fetch(new URL(`/v1/catalog/facets/${id}`, baseUrl), {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) return undefined;
-    const body = (await response.json()) as { facet: PublicFacet };
-    return body.facet;
-  } catch {
-    return undefined;
   }
 }

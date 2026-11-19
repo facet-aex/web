@@ -3,8 +3,8 @@ import { ERC8004_IDENTITY_REGISTRY } from "@/lib/facet-ui";
 export interface ActorTemplatePreset {
   id: string;
   label: string;
-  name: string;
-  slug: string;
+  facetDisplayName: string;
+  facetName: string;
   summary: string;
   category: string;
   tags: string[];
@@ -18,8 +18,8 @@ export interface ActorTemplatePreset {
 export const BLANK_ACTOR_PRESET: ActorTemplatePreset = {
   id: "blank-actor",
   label: "Blank Actor",
-  name: "Custom Data Actor",
-  slug: "custom-data-actor",
+  facetDisplayName: "Custom Data Actor",
+  facetName: "custom-data-actor",
   summary: "Transforms structured JSON input into normalized Dataset rows.",
   category: "data-processing",
   tags: ["actor", "docker", "dataset"],
@@ -59,8 +59,8 @@ export const ACTOR_TEMPLATE_PRESETS: ActorTemplatePreset[] = [
   {
     id: "vn-gold-fx-actor",
     label: "VN Gold & FX Scraper",
-    name: "VN Gold & FX Scraper",
-    slug: "vn-gold-fx-actor",
+    facetDisplayName: "VN Gold & FX Scraper",
+    facetName: "vn-gold-fx-actor",
     summary:
       "Normalizes SJC, DOJI, and PNJ gold quotes with VND FX rates into a Dataset.",
     category: "vietnamese-data",
@@ -107,8 +107,8 @@ export const ACTOR_TEMPLATE_PRESETS: ActorTemplatePreset[] = [
   {
     id: "vn-tech-news-actor",
     label: "VN Tech & Macro News Extractor",
-    name: "VN Tech & Macro News Extractor",
-    slug: "vn-tech-news-actor",
+    facetDisplayName: "VN Tech & Macro News Extractor",
+    facetName: "vn-tech-news-actor",
     summary:
       "Extracts entities, topics, and sentiment from Vietnamese tech/fintech articles.",
     category: "vietnamese-data",
@@ -156,8 +156,8 @@ export const ACTOR_TEMPLATE_PRESETS: ActorTemplatePreset[] = [
 export interface AgentTemplatePreset {
   id: string;
   label: string;
-  name: string;
-  slug: string;
+  facetDisplayName: string;
+  facetName: string;
   summary: string;
   category: string;
   tags: string[];
@@ -173,8 +173,8 @@ export interface AgentTemplatePreset {
 export const AGENT_TEMPLATE_PRESET: AgentTemplatePreset = {
   id: "vn-market-analyst-agent",
   label: "VN Market & Macro Analyst",
-  name: "VN Market & Macro Analyst",
-  slug: "vn-market-analyst-agent",
+  facetDisplayName: "VN Market & Macro Analyst",
+  facetName: "vn-market-analyst-agent",
   summary:
     "Verified on-chain Agent synthesizing sourced Vietnamese gold, FX, and news datasets.",
   category: "a2a-agents",
@@ -243,8 +243,8 @@ export const AGENT_TEMPLATE_PRESET: AgentTemplatePreset = {
 export const CUSTOM_AGENT_PRESET: AgentTemplatePreset = {
   id: "custom-agent",
   label: "Custom Agent",
-  name: "Custom Agent",
-  slug: "custom-agent",
+  facetDisplayName: "Custom Agent",
+  facetName: "custom-agent",
   summary: "On-chain Agent ready for verifiable x402 task delegation.",
   category: "a2a-agents",
   tags: ["agent", "fusd"],

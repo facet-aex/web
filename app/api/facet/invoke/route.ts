@@ -7,10 +7,13 @@ import {
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 import { proxyControlApi } from "@/lib/control-api-server";
+import {
+  isValidFacetName,
+  isValidSemver,
+  isValidUsername,
+} from "@/lib/identifiers";
 
 const FUSD_ASSET = "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f";
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 function errorResponse(code: string, message: string, status: number) {
   return Response.json({ error: { code, message } }, { status });
@@ -20,7 +23,9 @@ export async function POST(request: Request): Promise<Response> {
   const gatewayUrl = process.env.FACET_GATEWAY_URL ?? "http://127.0.0.1:4020";
 
   let payload: {
-    facetVersionId?: unknown;
+    provider?: unknown;
+    facetName?: unknown;
+    version?: unknown;
     input?: unknown;
     idempotencyKey?: unknown;
   };
@@ -31,10 +36,18 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (
-    typeof payload.facetVersionId !== "string" ||
-    !UUID_RE.test(payload.facetVersionId)
+    typeof payload.provider !== "string" ||
+    !isValidUsername(payload.provider) ||
+    typeof payload.facetName !== "string" ||
+    !isValidFacetName(payload.facetName) ||
+    typeof payload.version !== "string" ||
+    !isValidSemver(payload.version)
   ) {
-    return errorResponse("INPUT_INVALID", "Invalid facetVersionId.", 400);
+    return errorResponse(
+      "INPUT_INVALID",
+      "Invalid provider, facetName, or SemVer version.",
+      400,
+    );
   }
 
   if (
@@ -55,19 +68,21 @@ export async function POST(request: Request): Promise<Response> {
   const allowance = await proxyControlApi(request, "/v1/demo-payer/authorize", {
     method: "POST",
     body: JSON.stringify({
-      facetVersionId: payload.facetVersionId,
+      provider: payload.provider,
+      facetName: payload.facetName,
+      version: payload.version,
       idempotencyKey,
     }),
   });
   if (!allowance.ok) return allowance;
   const grant = (await allowance.json().catch(() => null)) as {
     amountAtomic?: unknown;
-    payTo?: unknown;
+    providerPayTo?: unknown;
   } | null;
   if (
     grant?.amountAtomic !== "1000" ||
-    typeof grant.payTo !== "string" ||
-    !/^0x[a-f0-9]{40}$/iu.test(grant.payTo)
+    typeof grant.providerPayTo !== "string" ||
+    !/^0x[a-f0-9]{40}$/iu.test(grant.providerPayTo)
   ) {
     return errorResponse(
       "DEMO_ALLOWANCE_INVALID",
@@ -77,7 +92,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const invokeUrl = new URL(
-    `/v1/facet-versions/${payload.facetVersionId}/invoke`,
+    `/v1/facets/${encodeURIComponent(payload.provider)}/${encodeURIComponent(payload.facetName)}/versions/${encodeURIComponent(payload.version)}/invoke`,
     gatewayUrl,
   );
   const baseHeaders = {
@@ -125,7 +140,7 @@ export async function POST(request: Request): Promise<Response> {
     const required = decodePaymentRequiredHeader(challengeHeader);
     const option = required.accepts[0];
     const expectedRecipient =
-      process.env.FACET_FEE_SPLIT_ADDRESS ?? grant.payTo;
+      process.env.FACET_FEE_SPLIT_ADDRESS ?? grant.providerPayTo;
     if (
       required.x402Version !== 2 ||
       !option ||

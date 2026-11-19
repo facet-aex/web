@@ -1,4 +1,4 @@
-import type { FacetType } from "@/lib/public-catalog";
+import { suggestFacetName, type FacetType } from "@/lib/identifiers";
 
 export const FUJI_CHAIN_ID = 43113 as const;
 
@@ -30,8 +30,8 @@ export interface FacetTypeMeta {
 }
 
 export const FACET_TYPE_META: Record<FacetType, FacetTypeMeta> = {
-  EXTERNAL_HTTP_API: {
-    type: "EXTERNAL_HTTP_API",
+  API: {
+    type: "API",
     badge: "API",
     shortLabel: "API",
     fullLabel: "API",
@@ -39,13 +39,13 @@ export const FACET_TYPE_META: Record<FacetType, FacetTypeMeta> = {
     accentClass: "modality-api",
     glyph: "⇄",
     actionLabel: "Inspect API",
-    storeHref: "/store?type=EXTERNAL_HTTP_API",
+    storeHref: "/store?type=API",
     studioHref: "/studio/api",
     description:
       "REST endpoints and OpenAPI specs packaged as a Facet with Gateway SSRF pinning, encrypted upstream secrets, and x402 billing.",
   },
-  HOSTED_ACTOR: {
-    type: "HOSTED_ACTOR",
+  ACTOR: {
+    type: "ACTOR",
     badge: "ACTOR",
     shortLabel: "Actor",
     fullLabel: "Actor",
@@ -53,13 +53,13 @@ export const FACET_TYPE_META: Record<FacetType, FacetTypeMeta> = {
     accentClass: "modality-actor",
     glyph: "▣",
     actionLabel: "Run Actor",
-    storeHref: "/store?type=HOSTED_ACTOR",
+    storeHref: "/store?type=ACTOR",
     studioHref: "/studio/actor",
     description:
       "Isolated Node.js 22 Docker modules packaged as a Facet returning structured Datasets with deterministic on-chain imageDigest verification.",
   },
-  AUTONOMOUS_AGENT: {
-    type: "AUTONOMOUS_AGENT",
+  AGENT: {
+    type: "AGENT",
     badge: "AGENT",
     shortLabel: "Agent",
     fullLabel: "Agent",
@@ -67,7 +67,7 @@ export const FACET_TYPE_META: Record<FacetType, FacetTypeMeta> = {
     accentClass: "modality-agent",
     glyph: "◈",
     actionLabel: "Delegate to Agent",
-    storeHref: "/store?type=AUTONOMOUS_AGENT",
+    storeHref: "/store?type=AGENT",
     studioHref: "/studio/agent",
     description:
       "On-chain Agent identity on Avalanche Fuji packaged as a Facet with verifiable task contracts, citations, and settlement.",
@@ -78,7 +78,7 @@ export function getFacetTypeMeta(facetType?: FacetType): FacetTypeMeta {
   if (facetType && facetType in FACET_TYPE_META) {
     return FACET_TYPE_META[facetType];
   }
-  return FACET_TYPE_META.EXTERNAL_HTTP_API;
+  return FACET_TYPE_META.API;
 }
 
 export interface CategoryFilterOption {
@@ -98,7 +98,7 @@ export const STORE_CATEGORY_FILTERS: Record<
     { slug: "vietnamese-data", label: "Vietnamese Data" },
     { slug: "a2a-agents", label: "Multi-Task" },
   ],
-  EXTERNAL_HTTP_API: [
+  API: [
     { slug: "", label: "All" },
     { slug: "data", label: "Data" },
     { slug: "social", label: "Social" },
@@ -106,7 +106,7 @@ export const STORE_CATEGORY_FILTERS: Record<
     { slug: "ai", label: "AI & Search" },
     { slug: "developer-tools", label: "Developer Tools" },
   ],
-  HOSTED_ACTOR: [
+  ACTOR: [
     { slug: "", label: "All" },
     { slug: "web-scraping", label: "Web Scraping" },
     { slug: "vietnamese-data", label: "Vietnamese Data" },
@@ -114,7 +114,7 @@ export const STORE_CATEGORY_FILTERS: Record<
     { slug: "ecommerce", label: "E-commerce" },
     { slug: "social", label: "Social & News" },
   ],
-  AUTONOMOUS_AGENT: [
+  AGENT: [
     { slug: "", label: "All" },
     { slug: "a2a-agents", label: "Multi-Task" },
     { slug: "market-analysis", label: "Market Analysis" },
@@ -144,16 +144,7 @@ export function formatAtomicFusd(atomic?: string): string {
 }
 
 export function slugifyName(value: string): string {
-  const slug = value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/gu, "")
-    .replace(/đ/gu, "d")
-    .replace(/Đ/gu, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, "-")
-    .replace(/^-+|-+$/gu, "")
-    .slice(0, 63);
-  return slug || "custom-facet";
+  return suggestFacetName(value);
 }
 
 export function truncateMiddle(value: string, head = 8, tail = 6): string {

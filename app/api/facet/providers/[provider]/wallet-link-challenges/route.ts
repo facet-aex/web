@@ -1,24 +1,24 @@
 import {
   invalidResourceIdResponse,
   proxyControlApi,
-  validateResourceId,
+  validateUsername,
 } from "@/lib/control-api-server";
 
 interface RouteContext {
-  params: Promise<{ providerId: string }>;
+  params: Promise<{ provider: string }>;
 }
 
 export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<Response> {
-  const { providerId } = await context.params;
-  if (!validateResourceId(providerId)) {
+  const { provider } = await context.params;
+  if (!validateUsername(provider)) {
     return invalidResourceIdResponse("provider");
   }
   return proxyControlApi(
     request,
-    `/v1/providers/${providerId}/wallet-link-challenges`,
+    `/v1/providers/${encodeURIComponent(provider)}/wallet-link-challenges`,
     { method: "POST", body: "{}" },
   );
 }

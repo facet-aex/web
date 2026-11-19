@@ -4,19 +4,25 @@ import {
   proxyControlApi,
   readBoundedRequestBody,
   requestTooLargeResponse,
-  validateResourceId,
+  validateFacetName,
+  validateSemver,
+  validateUsername,
 } from "@/lib/control-api-server";
 
 interface RouteContext {
-  params: Promise<{ versionId: string }>;
+  params: Promise<{ provider: string; facetName: string; version: string }>;
 }
 
 export async function PUT(
   request: Request,
   context: RouteContext,
 ): Promise<Response> {
-  const { versionId } = await context.params;
-  if (!validateResourceId(versionId)) {
+  const { provider, facetName, version } = await context.params;
+  if (
+    !validateUsername(provider) ||
+    !validateFacetName(facetName) ||
+    !validateSemver(version)
+  ) {
     return invalidResourceIdResponse("Facet Version");
   }
   let body: string;
@@ -30,7 +36,7 @@ export async function PUT(
   }
   return proxyControlApi(
     request,
-    `/v1/facet-versions/${versionId}/endpoint-config`,
+    `/v1/facets/${encodeURIComponent(provider)}/${encodeURIComponent(facetName)}/versions/${encodeURIComponent(version)}/endpoint-config`,
     { method: "PUT", body },
   );
 }

@@ -13,7 +13,6 @@ export type ImportStatus =
 
 export interface ImportJob {
   id: string;
-  providerId: string;
   apiSourceId: string;
   sourceVersionId: string | null;
   status: ImportStatus;
@@ -42,7 +41,6 @@ export type ImportWorkspaceState =
   | { phase: "failed"; job: ImportJob | null; error: string };
 
 interface CreateImportInput {
-  providerId: string;
   name: string;
   sourceKind: ImportSourceKind;
   sourceValue: string;
@@ -50,7 +48,6 @@ interface CreateImportInput {
 }
 
 export type CreateImportRequest = {
-  providerId: string;
   name: string;
   source:
     | { kind: "url"; url: string }
@@ -68,14 +65,12 @@ export function isTerminalImportStatus(status: ImportStatus): boolean {
 export function toImportRequest(input: CreateImportInput): CreateImportRequest {
   if (input.sourceKind === "url") {
     return {
-      providerId: input.providerId,
       name: input.name,
       source: { kind: "url", url: input.sourceValue },
     };
   }
 
   return {
-    providerId: input.providerId,
     name: input.name,
     source: {
       kind: input.sourceKind,

@@ -4,32 +4,36 @@ import {
   proxyControlApi,
   readBoundedRequestBody,
   requestTooLargeResponse,
-  validateResourceId,
+  validateUsername,
 } from "@/lib/control-api-server";
 
 interface RouteContext {
-  params: Promise<{ providerId: string }>;
+  params: Promise<{ provider: string }>;
 }
 
 export async function POST(
   request: Request,
   context: RouteContext,
 ): Promise<Response> {
-  const { providerId } = await context.params;
-  if (!validateResourceId(providerId)) {
+  const { provider } = await context.params;
+  if (!validateUsername(provider)) {
     return invalidResourceIdResponse("provider");
   }
   let body: string;
   try {
-    body = await readBoundedRequestBody(request, 20 * 1024);
+    body = await readBoundedRequestBody(request, 2 * 1024);
   } catch (error) {
     if (isRequestBodyLimitError(error)) {
-      return requestTooLargeResponse("secret creation");
+      return requestTooLargeResponse("wallet link");
     }
     throw error;
   }
-  return proxyControlApi(request, `/v1/providers/${providerId}/secrets`, {
-    method: "POST",
-    body,
-  });
+  return proxyControlApi(
+    request,
+    `/v1/providers/${encodeURIComponent(provider)}/wallet-link`,
+    {
+      method: "POST",
+      body,
+    },
+  );
 }
