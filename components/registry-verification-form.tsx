@@ -3,12 +3,16 @@
 import { useState, type FormEvent } from "react";
 
 interface RegistryVerificationFormProps {
-  facetId: string;
+  provider: string;
+  facetName: string;
+  version: string;
   initialTxHash?: string;
 }
 
 export function RegistryVerificationForm({
-  facetId,
+  provider,
+  facetName,
+  version,
   initialTxHash = "",
 }: RegistryVerificationFormProps) {
   const [txHash, setTxHash] = useState(initialTxHash);
@@ -27,7 +31,7 @@ export function RegistryVerificationForm({
     setVerifying(true);
     try {
       const response = await fetch(
-        `/api/facet/facets/${encodeURIComponent(facetId)}/verify-registry`,
+        `/api/facet/facets/${encodeURIComponent(provider)}/${encodeURIComponent(facetName)}/versions/${encodeURIComponent(version)}/verify-registry`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },

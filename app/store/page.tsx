@@ -22,33 +22,29 @@ const TYPE_TABS: Array<{
   },
   {
     label: "API",
-    value: "EXTERNAL_HTTP_API",
+    value: "API",
     badge: "API",
-    contextTitle: FACET_TYPE_META.EXTERNAL_HTTP_API.facetTag,
-    hint: FACET_TYPE_META.EXTERNAL_HTTP_API.description,
+    contextTitle: FACET_TYPE_META.API.facetTag,
+    hint: FACET_TYPE_META.API.description,
   },
   {
     label: "Actor",
-    value: "HOSTED_ACTOR",
+    value: "ACTOR",
     badge: "ACTOR",
-    contextTitle: FACET_TYPE_META.HOSTED_ACTOR.facetTag,
-    hint: FACET_TYPE_META.HOSTED_ACTOR.description,
+    contextTitle: FACET_TYPE_META.ACTOR.facetTag,
+    hint: FACET_TYPE_META.ACTOR.description,
   },
   {
     label: "Agent",
-    value: "AUTONOMOUS_AGENT",
+    value: "AGENT",
     badge: "AGENT",
-    contextTitle: FACET_TYPE_META.AUTONOMOUS_AGENT.facetTag,
-    hint: FACET_TYPE_META.AUTONOMOUS_AGENT.description,
+    contextTitle: FACET_TYPE_META.AGENT.facetTag,
+    hint: FACET_TYPE_META.AGENT.description,
   },
 ];
 
 function isFacetType(value: string): value is FacetType {
-  return (
-    value === "HOSTED_ACTOR" ||
-    value === "AUTONOMOUS_AGENT" ||
-    value === "EXTERNAL_HTTP_API"
-  );
+  return value === "ACTOR" || value === "AGENT" || value === "API";
 }
 
 export default async function StorePage({
@@ -240,7 +236,10 @@ export default async function StorePage({
               </span>
             </div>
             {facets.map((facet) => (
-              <FacetRow facet={facet} key={facet.id} />
+              <FacetRow
+                facet={facet}
+                key={`${facet.provider}/${facet.facetName}@${facet.version}`}
+              />
             ))}
             {facets.length === 0 ? (
               <div className="empty-catalog">

@@ -14,15 +14,20 @@ import {
 import {
   STORE_CATEGORY_FILTERS,
   formatAtomicFusd,
-  slugifyName,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
+import {
+  FACET_NAME_PATTERN,
+  SEMVER_PATTERN,
+  bumpSemver,
+  suggestFacetName,
+} from "@/lib/identifiers";
 import {
   parseInputSchemaText,
   schemaToVisualFields,
 } from "@/lib/input-schema-builder";
 import { readErrorEnvelope } from "@/lib/openapi-import";
-import { useProviderWorkspace } from "@/lib/use-provider-workspace";
+import { useAccountWorkspace } from "@/lib/use-account-workspace";
 
 type ActorEditorTab = "source" | "schema" | "pricing";
 
@@ -36,16 +41,18 @@ export function ActorStudio({
 }: {
   publishableKey?: string | undefined;
 }) {
-  const workspace = useProviderWorkspace();
+  const workspace = useAccountWorkspace();
   const initialPreset = ACTOR_TEMPLATE_PRESETS[0]!;
 
   const [activePresetId, setActivePresetId] = useState(initialPreset.id);
   const [editorTab, setEditorTab] = useState<ActorEditorTab>("source");
 
-  const [name, setName] = useState(initialPreset.name);
-  const [slug, setSlug] = useState(initialPreset.slug);
-  const [displayVersion, setDisplayVersion] = useState("v1");
-  const [slugLocked, setSlugLocked] = useState(true);
+  const [facetDisplayName, setFacetDisplayName] = useState(
+    initialPreset.facetDisplayName,
+  );
+  const [facetName, setFacetName] = useState(initialPreset.facetName);
+  const [version, setVersion] = useState("1.0.0");
+  const [facetNameLocked, setFacetNameLocked] = useState(true);
   const [summary, setSummary] = useState(initialPreset.summary);
   const [category, setCategory] = useState(initialPreset.category);
   const [tagsText, setTagsText] = useState(initialPreset.tags.join(", "));
@@ -65,9 +72,10 @@ export function ActorStudio({
   const publishKey = useRef<string | null>(null);
   const [ownedActors, setOwnedActors] = useState<
     Array<{
-      id: string;
-      fullName: string;
-      displayVersion: string;
+      provider: string;
+      facetName: string;
+      facetDisplayName: string;
+      version: string;
       status: string;
     }>
   >([]);
@@ -75,24 +83,22 @@ export function ActorStudio({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<{
-    id: string;
-    versionId: string;
-    slug: string;
+    provider: string;
+    facetName: string;
+    facetDisplayName: string;
+    version: string;
     imageDigest: string;
-    status: "REGISTRATION_PENDING" | "PUBLISHED" | "REGISTRATION_FAILED";
+    status: "REGISTRATION_PENDING" | "PUBLISHED" | "FAILED";
     registryTxHash?: string;
     errorCode?: string;
   } | null>(null);
 
-  const currentProvider = workspace.memberships.find(
-    (membership) => membership.provider.id === workspace.providerId,
-  )?.provider;
   const payoutWallet =
     verifiedWallet ??
-    (currentProvider?.walletVerifiedAt ? currentProvider.walletAddress : null);
+    (workspace.walletVerified ? workspace.walletAddress : null);
 
   useEffect(() => {
-    if (!workspace.providerId) return;
+    if (!workspace.username) return;
     const controller = new AbortController();
     void fetch("/api/facet/actors/mine", {
       cache: "no-store",
@@ -108,7 +114,7 @@ export function ActorStudio({
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [workspace.providerId, published?.status]);
+  }, [workspace.username, published?.status]);
 
   useEffect(() => {
     if (!published || published.status !== "REGISTRATION_PENDING") return;
@@ -116,7 +122,7 @@ export function ActorStudio({
     const timer = window.setInterval(async () => {
       try {
         const response = await fetch(
-          `/api/facet/actors/${published.id}/publish-status`,
+          `/api/facet/actors/${encodeURIComponent(published.provider)}/${encodeURIComponent(published.facetName)}/versions/${encodeURIComponent(published.version)}/publish-status`,
           { cache: "no-store", signal: controller.signal },
         );
         if (!response.ok) return;
@@ -125,15 +131,12 @@ export function ActorStudio({
           registryTxHash?: string;
           errorCode?: string;
         };
-        if (
-          status.status === "PUBLISHED" ||
-          status.status === "REGISTRATION_FAILED"
-        ) {
+        if (status.status === "PUBLISHED" || status.status === "FAILED") {
           setPublished((previous) =>
             previous
               ? {
                   ...previous,
-                  status: status.status as "PUBLISHED" | "REGISTRATION_FAILED",
+                  status: status.status as "PUBLISHED" | "FAILED",
                   ...(status.registryTxHash
                     ? { registryTxHash: status.registryTxHash }
                     : {}),
@@ -155,9 +158,9 @@ export function ActorStudio({
   function applyPreset(preset: ActorTemplatePreset) {
     publishKey.current = null;
     setActivePresetId(preset.id);
-    setName(preset.name);
-    setSlug(preset.slug);
-    setSlugLocked(true);
+    setFacetDisplayName(preset.facetDisplayName);
+    setFacetName(preset.facetName);
+    setFacetNameLocked(true);
     setSummary(preset.summary);
     setCategory(preset.category);
     setTagsText(preset.tags.join(", "));
@@ -183,8 +186,8 @@ export function ActorStudio({
     setError(null);
     setLinkingWallet(true);
     try {
-      const providerId = (await workspace.ensureProvider()).providerId;
-      if (!providerId)
+      const account = workspace.user ?? (await workspace.refresh());
+      if (!account?.username)
         throw new Error("Sign in before linking a payout wallet.");
       const injected = (
         window as Window & {
@@ -204,7 +207,7 @@ export function ActorStudio({
       const [address] = await wallet.requestAddresses();
       if (!address) throw new Error("Select a payout address in your wallet.");
       const challengeResponse = await fetch(
-        `/api/facet/providers/${providerId}/wallet-link-challenges`,
+        `/api/facet/providers/${encodeURIComponent(account.username)}/wallet-link-challenges`,
         { method: "POST" },
       );
       const challenge = (await challengeResponse.json()) as {
@@ -219,7 +222,7 @@ export function ActorStudio({
         message: challenge.message,
       });
       const confirmation = await fetch(
-        `/api/facet/providers/${providerId}/wallet-link`,
+        `/api/facet/providers/${encodeURIComponent(account.username)}/wallet-link`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -237,6 +240,7 @@ export function ActorStudio({
       if (!confirmation.ok || !linked.walletAddress)
         throw new Error(linked.error?.message ?? "Wallet link failed.");
       setVerifiedWallet(linked.walletAddress);
+      await workspace.refresh();
     } catch (error) {
       setError(
         error instanceof Error
@@ -252,8 +256,9 @@ export function ActorStudio({
     setError(null);
     setPreviewing(true);
     try {
-      const providerId = (await workspace.ensureProvider()).providerId;
-      if (!providerId) throw new Error("Sign in before previewing an Actor.");
+      const account = workspace.user ?? (await workspace.refresh());
+      if (!account?.username)
+        throw new Error("Sign in before previewing an Actor.");
       if (!parsedSchema.schema)
         throw new Error(parsedSchema.error ?? "Input schema is invalid.");
       const input = JSON.parse(previewInput) as unknown;
@@ -263,7 +268,6 @@ export function ActorStudio({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          providerId,
           code,
           inputSchema: parsedSchema.schema,
           input,
@@ -329,13 +333,12 @@ export function ActorStudio({
 
     setSubmitting(true);
     try {
-      const ensured = await workspace.ensureProvider();
-      if (!ensured.providerId) {
+      const account = workspace.user ?? (await workspace.refresh());
+      if (!account?.username) {
         throw new Error(
-          ensured.authRequired
+          workspace.authRequired
             ? "Sign in with Clerk to publish capabilities under your account."
-            : (ensured.error ??
-                "Your provider workspace could not be initialized."),
+            : (workspace.error ?? "Your FACET account is not ready."),
         );
       }
 
@@ -346,10 +349,9 @@ export function ActorStudio({
           "idempotency-key": (publishKey.current ??= crypto.randomUUID()),
         },
         body: JSON.stringify({
-          providerId: ensured.providerId,
-          name: name.trim(),
-          slug: slug.trim(),
-          displayVersion,
+          facetName: facetName.trim(),
+          facetDisplayName: facetDisplayName.trim(),
+          version: version.trim(),
           ...(summary.trim() ? { summary: summary.trim() } : {}),
           description: description.trim(),
           category: category.trim(),
@@ -362,11 +364,12 @@ export function ActorStudio({
       });
       const body = (await response.json().catch(() => null)) as {
         facet?: {
-          id: string;
-          versionId: string;
-          slug: string;
+          provider: string;
+          facetName: string;
+          facetDisplayName: string;
+          version: string;
           imageDigest?: string;
-          status?: "REGISTRATION_PENDING" | "PUBLISHED";
+          status?: "REGISTRATION_PENDING" | "PUBLISHED" | "FAILED";
         };
         error?: { message?: string };
       } | null;
@@ -380,9 +383,10 @@ export function ActorStudio({
       }
 
       setPublished({
-        id: body.facet.id,
-        versionId: body.facet.versionId,
-        slug: body.facet.slug,
+        provider: body.facet.provider,
+        facetName: body.facet.facetName,
+        facetDisplayName: body.facet.facetDisplayName,
+        version: body.facet.version,
         imageDigest: body.facet.imageDigest ?? "sha256:computed",
         status: body.facet.status ?? "REGISTRATION_PENDING",
       });
@@ -442,43 +446,63 @@ export function ActorStudio({
         <div className="studio-editor-pane">
           <div className="studio-identity-bar">
             <div className="form-field">
-              <label htmlFor="actor-name">Actor Name</label>
+              <label htmlFor="actor-name">Actor Title</label>
               <input
                 id="actor-name"
-                value={name}
+                value={facetDisplayName}
                 onChange={(e) => {
                   const nextName = e.target.value;
-                  setName(nextName);
-                  if (!slugLocked) setSlug(slugifyName(nextName));
+                  setFacetDisplayName(nextName);
+                  if (!facetNameLocked) {
+                    setFacetName(suggestFacetName(nextName));
+                  }
                 }}
                 maxLength={120}
                 required
               />
             </div>
             <div className="form-field">
-              <label htmlFor="actor-slug">Slug</label>
+              <label htmlFor="actor-slug">Facet Name (kebab-case)</label>
               <input
                 id="actor-slug"
-                value={slug}
+                value={facetName}
                 onChange={(e) => {
-                  setSlugLocked(true);
-                  setSlug(e.target.value);
+                  setFacetNameLocked(true);
+                  setFacetName(e.target.value);
                 }}
-                pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                minLength={2}
-                maxLength={80}
+                pattern={FACET_NAME_PATTERN}
+                minLength={4}
+                maxLength={32}
                 required
               />
             </div>
             <div className="form-field">
-              <label htmlFor="actor-version">Version</label>
-              <input
-                id="actor-version"
-                value={displayVersion}
-                onChange={(event) => setDisplayVersion(event.target.value)}
-                pattern="^v?[0-9]+(\.[0-9]+\.[0-9]+)?$"
-                required
-              />
+              <label htmlFor="actor-version">Version (SemVer)</label>
+              <div className="verify-tx-row">
+                <input
+                  id="actor-version"
+                  value={version}
+                  onChange={(event) => setVersion(event.target.value)}
+                  pattern={SEMVER_PATTERN}
+                  required
+                />
+                <button
+                  type="button"
+                  className="preset-chip"
+                  onClick={() => setVersion((v) => bumpSemver(v, "patch"))}
+                  title="Bump patch version"
+                >
+                  +patch
+                </button>
+                <button
+                  type="button"
+                  className="preset-chip"
+                  onClick={() => setVersion((v) => bumpSemver(v, "minor"))}
+                  title="Bump minor version"
+                >
+                  +minor
+                </button>
+              </div>
             </div>
             <div className="form-field">
               <label htmlFor="actor-category">Category</label>
@@ -491,7 +515,7 @@ export function ActorStudio({
                 required
               />
               <datalist id="actor-category-presets">
-                {STORE_CATEGORY_FILTERS.HOSTED_ACTOR.filter(
+                {STORE_CATEGORY_FILTERS.ACTOR.filter(
                   (option) => option.slug,
                 ).map((option) => (
                   <option key={option.slug} value={option.slug}>
@@ -712,12 +736,16 @@ export function ActorStudio({
           <div className="inspector-card">
             <p className="eyebrow">Publish Readiness</p>
             <ul className="readiness-list">
-              <li data-ok={!workspace.authRequired}>
+              <li
+                data-ok={!workspace.authRequired && !workspace.usernameRequired}
+              >
                 {workspace.authRequired
                   ? "○ Sign in with Clerk required to publish"
-                  : workspace.providerId
-                    ? "✓ Account provider workspace ready"
-                    : "✓ Publishes under signed-in account"}
+                  : workspace.usernameRequired
+                    ? "○ Valid 8–16 char kebab-case username required"
+                    : workspace.username
+                      ? `✓ Account @${workspace.username} ready`
+                      : "✓ Publishes under signed-in account"}
               </li>
               <li data-ok={hasEntrypointExport}>
                 {hasEntrypointExport
@@ -768,18 +796,20 @@ export function ActorStudio({
               <p className="eyebrow">
                 {published.status === "PUBLISHED"
                   ? "Actor Published"
-                  : published.status === "REGISTRATION_FAILED"
+                  : published.status === "FAILED"
                     ? "Fuji Registration Failed"
                     : "Fuji Registration Pending"}
               </p>
-              <strong>{published.slug}</strong>
+              <strong>
+                {published.provider}/{published.facetName}@{published.version}
+              </strong>
               <p className="mono-detail">
                 imageDigest: {published.imageDigest}
               </p>
               {published.status === "PUBLISHED" ? (
                 <Link
                   className="button button-primary import-submit"
-                  href={`/facets/${currentProvider?.slug ?? "provider"}/${published.slug}`}
+                  href={`/facets/${encodeURIComponent(published.provider)}/${encodeURIComponent(published.facetName)}`}
                 >
                   Open &amp; Run in Playground <span aria-hidden="true">↗</span>
                 </Link>
@@ -804,16 +834,20 @@ export function ActorStudio({
               <p className="eyebrow">Your Actors</p>
               <ul className="readiness-list">
                 {ownedActors.map((actor) => (
-                  <li key={actor.id}>
+                  <li
+                    key={`${actor.provider}/${actor.facetName}@${actor.version}`}
+                  >
                     {actor.status === "PUBLISHED" ? (
-                      <Link href={`/facets/${actor.fullName}`}>
-                        {actor.fullName}
+                      <Link
+                        href={`/facets/${encodeURIComponent(actor.provider)}/${encodeURIComponent(actor.facetName)}`}
+                      >
+                        {actor.provider}/{actor.facetName}
                       </Link>
                     ) : (
-                      actor.fullName
+                      `${actor.provider}/${actor.facetName}`
                     )}
-                    {" · "}
-                    {actor.displayVersion}
+                    {" · v"}
+                    {actor.version}
                     {" · "}
                     {actor.status}
                   </li>

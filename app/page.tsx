@@ -12,7 +12,7 @@ import { FACET_TYPE_META } from "@/lib/facet-ui";
 const MODALITIES = [
   {
     index: "01",
-    meta: FACET_TYPE_META.EXTERNAL_HTTP_API,
+    meta: FACET_TYPE_META.API,
     runtimeSubtitle: "Managed Gateway · Instant Monetization",
     description:
       "Turn any REST endpoint or OpenAPI spec into a pay-per-call Facet with encrypted secret injection, rate-limit controls, and automatic stablecoin billing.",
@@ -24,7 +24,7 @@ const MODALITIES = [
   },
   {
     index: "02",
-    meta: FACET_TYPE_META.HOSTED_ACTOR,
+    meta: FACET_TYPE_META.ACTOR,
     runtimeSubtitle: "Serverless Containers · Structured Datasets",
     description:
       "Deploy web scrapers, data pipelines, and compute modules as isolated Actors returning verified structured datasets with immutable runtime digests.",
@@ -36,7 +36,7 @@ const MODALITIES = [
   },
   {
     index: "03",
-    meta: FACET_TYPE_META.AUTONOMOUS_AGENT,
+    meta: FACET_TYPE_META.AGENT,
     runtimeSubtitle: "On-Chain Identity · Peer Delegation",
     description:
       "Expose specialized AI Agents with portable on-chain identity, bounded task contracts, and verified execution reputation across every client.",

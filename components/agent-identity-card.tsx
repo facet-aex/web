@@ -15,8 +15,10 @@ import {
 import type { PricingModel } from "@/lib/public-catalog";
 
 export interface AgentIdentityCardProps {
-  name: string;
-  slug: string;
+  facetDisplayName: string;
+  facetName: string;
+  provider?: string;
+  version?: string;
   summary: string;
   erc8004Registry?: string;
   erc8004TokenId: string;
@@ -27,12 +29,13 @@ export interface AgentIdentityCardProps {
   registryVerified?: boolean;
   registryTxHash?: string;
   inputFields?: string[];
-  facetId?: string;
 }
 
 export function AgentIdentityCard({
-  name,
-  slug,
+  facetDisplayName,
+  facetName,
+  provider,
+  version,
   summary,
   erc8004Registry = ERC8004_IDENTITY_REGISTRY,
   erc8004TokenId,
@@ -43,7 +46,6 @@ export function AgentIdentityCard({
   registryVerified,
   registryTxHash,
   inputFields = [],
-  facetId,
 }: AgentIdentityCardProps) {
   const [showJson, setShowJson] = useState(false);
 
@@ -69,9 +71,10 @@ export function AgentIdentityCard({
 
   const agentCardPayload = {
     schemaVersion: "facet.a2a-card/v1",
-    ...(facetId ? { facetId } : {}),
-    name: name.trim() || "Untitled Agent",
-    slug: slug.trim() || "autonomous-agent",
+    ...(provider ? { provider } : {}),
+    facetName: facetName.trim() || "autonomous-agent",
+    facetDisplayName: facetDisplayName.trim() || "Untitled Agent",
+    ...(version ? { version } : {}),
     summary: summary.trim(),
     onChainIdentity: {
       chainId: FUJI_CHAIN_ID,
@@ -114,13 +117,15 @@ export function AgentIdentityCard({
 
       <div className="agent-card-identity">
         <div className="agent-monogram" aria-hidden="true">
-          {(name.trim()[0] ?? "A").toUpperCase()}
-          {(slug.trim()[1] ?? "2").toUpperCase()}
+          {(facetDisplayName.trim()[0] ?? "A").toUpperCase()}
+          {(facetName.trim()[1] ?? "2").toUpperCase()}
         </div>
         <div className="agent-card-title-block">
-          <h3>{name.trim() || "Untitled Agent"}</h3>
+          <h3>{facetDisplayName.trim() || "Untitled Agent"}</h3>
           <p className="agent-card-handle">
-            @{slug.trim() || "agent-slug"} ·{" "}
+            {provider ? `${provider}/` : "@"}
+            {facetName.trim() || "agent-name"}
+            {version ? `@${version}` : ""} ·{" "}
             <span>{taskKind.trim() || "vn-market-analysis"}</span>
           </p>
         </div>

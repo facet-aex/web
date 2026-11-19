@@ -4,7 +4,7 @@ import { FACET_TYPE_META } from "@/lib/facet-ui";
 
 const WORKFLOW_CARDS = [
   {
-    meta: FACET_TYPE_META.EXTERNAL_HTTP_API,
+    meta: FACET_TYPE_META.API,
     inspiration: "Gateway Proxy Console",
     steps: [
       "Define a GET endpoint or import an OpenAPI 3.0/3.1 spec",
@@ -14,7 +14,7 @@ const WORKFLOW_CARDS = [
     ctaLabel: "Open API Studio",
   },
   {
-    meta: FACET_TYPE_META.HOSTED_ACTOR,
+    meta: FACET_TYPE_META.ACTOR,
     inspiration: "Isolated Container Runner",
     steps: [
       "Load a starter template or write ESM main.mjs run(input)",
@@ -24,7 +24,7 @@ const WORKFLOW_CARDS = [
     ctaLabel: "Open Actor Studio",
   },
   {
-    meta: FACET_TYPE_META.AUTONOMOUS_AGENT,
+    meta: FACET_TYPE_META.AGENT,
     inspiration: "On-Chain Agent Card",
     steps: [
       "Bind an Avalanche Fuji Agent Identity Token ID (#1+)",

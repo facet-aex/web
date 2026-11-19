@@ -11,16 +11,19 @@ function priceLabel(facet: PublicFacet): string {
 
 export function FacetRow({ facet }: { facet: PublicFacet }) {
   const meta = getFacetTypeMeta(facet.facetType);
+  const titleId = `${facet.provider}-${facet.facetName}-title`;
 
   return (
     <article
       className={`facet-row ${meta.accentClass}`}
-      aria-labelledby={`${facet.id}-title`}
+      aria-labelledby={titleId}
     >
       <div className="facet-index" aria-hidden="true">
         <span className="facet-type-glyph">{meta.glyph}</span>
         <span className="facet-type-code">{meta.badge}</span>
-        <span className="facet-short-id">{facet.id.slice(-2)}</span>
+        <span className="facet-short-id">
+          {facet.facetName.slice(-2).toUpperCase()}
+        </span>
       </div>
       <div className="facet-main">
         <div className="facet-kicker">
@@ -28,7 +31,7 @@ export function FacetRow({ facet }: { facet: PublicFacet }) {
             {meta.facetTag}
           </span>
           <span className="kicker-chip">{facet.category}</span>
-          {facet.facetType === "HOSTED_ACTOR" && facet.actorMeta ? (
+          {facet.facetType === "ACTOR" && facet.actorMeta ? (
             <>
               <span className="kicker-chip">{facet.actorMeta.runtime}</span>
               <span className="badge-digest">
@@ -36,7 +39,7 @@ export function FacetRow({ facet }: { facet: PublicFacet }) {
                 {facet.actorMeta.registryVerified ? " ✓" : ""}
               </span>
             </>
-          ) : facet.facetType === "AUTONOMOUS_AGENT" && facet.agentMeta ? (
+          ) : facet.facetType === "AGENT" && facet.agentMeta ? (
             <>
               <span className="badge-trust">
                 Identity #{facet.agentMeta.erc8004TokenId}
@@ -50,17 +53,17 @@ export function FacetRow({ facet }: { facet: PublicFacet }) {
             </>
           )}
         </div>
-        <h3 id={`${facet.id}-title`}>{facet.name}</h3>
+        <h3 id={titleId}>{facet.facetDisplayName}</h3>
         <p>{facet.description}</p>
       </div>
       <dl className="facet-meta">
         <div>
           <dt>Provider</dt>
-          <dd>{facet.provider.name}</dd>
+          <dd>{facet.provider}</dd>
         </div>
         <div>
-          <dt>Interface</dt>
-          <dd>v{facet.displayVersion}</dd>
+          <dt>Version</dt>
+          <dd>v{facet.version}</dd>
         </div>
         <div>
           <dt>x402 Price</dt>
@@ -75,8 +78,8 @@ export function FacetRow({ facet }: { facet: PublicFacet }) {
       </dl>
       <Link
         className="row-action"
-        href={`/facets/${facet.id}`}
-        aria-label={`Inspect ${facet.name}`}
+        href={`/facets/${encodeURIComponent(facet.provider)}/${encodeURIComponent(facet.facetName)}`}
+        aria-label={`Inspect ${facet.facetDisplayName}`}
       >
         <span>{meta.actionLabel}</span>
         <span aria-hidden="true">↗</span>

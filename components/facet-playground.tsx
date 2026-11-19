@@ -15,7 +15,9 @@ interface SchemaProperty {
 
 interface InvokeSuccessPayload {
   runId: string;
-  facetVersionId: string;
+  provider: string;
+  facetName: string;
+  version: string;
   facetType?: string;
   result: unknown;
   dataset?: Record<string, unknown>[];
@@ -30,6 +32,7 @@ interface InvokeSuccessPayload {
     transaction: string;
     network: string;
     amountAtomic?: string;
+    providerPayTo?: string;
     payTo?: string;
   };
   receipt?: {
@@ -230,7 +233,9 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          facetVersionId: facet.versionId,
+          provider: facet.provider,
+          facetName: facet.facetName,
+          version: facet.version,
           input: inputPayload,
         }),
       });

@@ -25,7 +25,7 @@ import {
   readImportJobResponse,
   validateOpenApiUpload,
 } from "@/lib/openapi-import-client";
-import { useProviderWorkspace } from "@/lib/use-provider-workspace";
+import { useAccountWorkspace } from "@/lib/use-account-workspace";
 
 type EntryMode = "openapi" | "quick";
 
@@ -97,9 +97,8 @@ export function ApiStudio({
 }: {
   publishableKey?: string | undefined;
 }) {
-  const providerWorkspace = useProviderWorkspace();
-  const [resolvedProviderId, setResolvedProviderId] = useState("");
-  const providerId = resolvedProviderId || providerWorkspace.providerId;
+  const accountWorkspace = useAccountWorkspace();
+  const provider = accountWorkspace.username;
 
   const [entryMode, setEntryMode] = useState<EntryMode>("openapi");
   const [sourceKind, setSourceKind] = useState<ImportSourceKind>("url");
@@ -219,24 +218,7 @@ export function ApiStudio({
     setWorkspace({ phase: "submitting", job: null, error: null });
 
     try {
-      const targetProviderId =
-        providerId ||
-        (await (async () => {
-          const ensured = await providerWorkspace.ensureProvider();
-          if (!ensured.providerId) {
-            throw new Error(
-              ensured.authRequired
-                ? "Sign in with Clerk to import and publish APIs under your account."
-                : (ensured.error ??
-                    "Your provider workspace could not be initialized."),
-            );
-          }
-          setResolvedProviderId(ensured.providerId);
-          return ensured.providerId;
-        })());
-
       const request = toImportRequest({
-        providerId: targetProviderId,
         name: params.name,
         sourceKind: params.kind,
         sourceValue: params.value,
@@ -419,7 +401,7 @@ export function ApiStudio({
       </header>
 
       <ProviderSelectorBar
-        workspace={providerWorkspace}
+        workspace={accountWorkspace}
         publishableKey={publishableKey}
       />
 
@@ -552,7 +534,11 @@ export function ApiStudio({
             <button
               className="button button-primary import-submit"
               type="submit"
-              disabled={isBusy || providerWorkspace.authRequired}
+              disabled={
+                isBusy ||
+                accountWorkspace.authRequired ||
+                accountWorkspace.usernameRequired
+              }
             >
               {workspace.phase === "submitting"
                 ? "Queueing Import…"
@@ -696,7 +682,11 @@ export function ApiStudio({
             <button
               className="button button-primary import-submit"
               type="submit"
-              disabled={isBusy || providerWorkspace.authRequired}
+              disabled={
+                isBusy ||
+                accountWorkspace.authRequired ||
+                accountWorkspace.usernameRequired
+              }
             >
               {isBusy
                 ? "Building & Importing…"
@@ -719,9 +709,11 @@ export function ApiStudio({
             <p>
               {workspace.job
                 ? `Job ${workspace.job.id} is ${workspace.job.status}.`
-                : providerWorkspace.authRequired
+                : accountWorkspace.authRequired
                   ? "Sign in with Clerk to import endpoints."
-                  : "Ready for an OpenAPI source or quick GET endpoint."}
+                  : accountWorkspace.usernameRequired
+                    ? "Set a Clerk username (8–16 lowercase kebab-case) to import endpoints."
+                    : "Ready for an OpenAPI source or quick GET endpoint."}
             </p>
           </div>
 
@@ -817,7 +809,7 @@ export function ApiStudio({
           key={selectedOperationCandidates
             .map((operation) => operation.id)
             .join(":")}
-          providerId={providerId}
+          provider={provider}
           importJobId={workspace.job.id}
           operations={selectedOperationCandidates}
           onDraftsCreated={() => setSelectionLocked(true)}

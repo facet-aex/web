@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { AgentIdentityCard } from "@/components/agent-identity-card";
 import { FacetPlayground } from "@/components/facet-playground";
@@ -11,7 +10,7 @@ import {
   getFacetTypeMeta,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
-import { getPublicFacet, type PublicFacet } from "@/lib/public-catalog";
+import type { PublicFacet } from "@/lib/public-catalog";
 
 function extractInputFieldNames(schema: unknown): string[] {
   if (
@@ -24,19 +23,6 @@ function extractInputFieldNames(schema: unknown): string[] {
     return [];
   }
   return Object.keys(schema.properties);
-}
-
-export default async function FacetDetailPage({
-  params,
-}: {
-  params: Promise<{ facetId: string }>;
-}) {
-  const { facetId } = await params;
-  if (!/^[0-9a-f-]{36}$/iu.test(facetId)) notFound();
-  const facet = await getPublicFacet(facetId);
-  if (!facet) notFound();
-
-  return <FacetDetailView facet={facet} />;
 }
 
 export function FacetDetailView({ facet }: { facet: PublicFacet }) {
@@ -59,16 +45,15 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
             {meta.shortLabel}
           </Link>
           <span aria-hidden="true">/</span>
-          <span>{facet.name}</span>
+          <span>{facet.facetDisplayName}</span>
         </nav>
 
         <div className="detail-header">
           <div>
             <p className="eyebrow">
-              {meta.glyph} {meta.facetTag} · {facet.provider.name} ·{" "}
-              {facet.category}
+              {meta.glyph} {meta.facetTag} · {facet.provider} · {facet.category}
             </p>
-            <h1>{facet.name}</h1>
+            <h1>{facet.facetDisplayName}</h1>
             <p className="detail-description">{facet.description}</p>
           </div>
           <span className={`badge-type badge-${meta.accentClass}`}>
@@ -76,11 +61,12 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
           </span>
         </div>
 
-        {facet.facetType === "AUTONOMOUS_AGENT" && facet.agentMeta ? (
+        {facet.facetType === "AGENT" && facet.agentMeta ? (
           <AgentIdentityCard
-            facetId={facet.id}
-            name={facet.name}
-            slug={facet.slug}
+            provider={facet.provider}
+            facetName={facet.facetName}
+            facetDisplayName={facet.facetDisplayName}
+            version={facet.version}
             summary={facet.description}
             erc8004Registry={facet.agentMeta.erc8004Registry}
             erc8004TokenId={facet.agentMeta.erc8004TokenId}
@@ -101,11 +87,7 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
         <dl className="detail-meta-grid">
           <div>
             <dt>Version</dt>
-            <dd>
-              {facet.displayVersion.startsWith("v")
-                ? facet.displayVersion
-                : `v${facet.displayVersion}`}
-            </dd>
+            <dd>v{facet.version}</dd>
           </div>
           <div>
             <dt>Invocation Method</dt>
@@ -116,8 +98,10 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
             <dd>{priceFusd}</dd>
           </div>
           <div>
-            <dt>Facet ID</dt>
-            <dd>{facet.id}</dd>
+            <dt>Facet Identifier</dt>
+            <dd>
+              {facet.provider}/{facet.facetName}
+            </dd>
           </div>
           {facet.actorMeta ? (
             <>
@@ -132,6 +116,12 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
                 <dt>On-Chain Image Digest</dt>
                 <dd>{facet.actorMeta.imageDigest}</dd>
               </div>
+              {facet.actorMeta.runnerOciDigest ? (
+                <div>
+                  <dt>Runner Image Pin</dt>
+                  <dd>{facet.actorMeta.runnerOciDigest}</dd>
+                </div>
+              ) : null}
             </>
           ) : null}
           {!facet.actorMeta && !facet.agentMeta ? (
@@ -176,7 +166,9 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
           facet.actorMeta?.registryVerified ?? facet.agentMeta?.registryVerified
         ) ? (
           <RegistryVerificationForm
-            facetId={facet.id}
+            provider={facet.provider}
+            facetName={facet.facetName}
+            version={facet.version}
             initialTxHash={
               facet.actorMeta?.registryTxHash ??
               facet.agentMeta?.registryTxHash ??
@@ -188,17 +180,13 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
         <FacetPlayground facet={facet} />
 
         <div className="schema-pair">
-          <div>
-            <h2>Input schema</h2>
-            <pre className="json-pre">
-              {JSON.stringify(facet.inputSchema, null, 2)}
-            </pre>
+          <div className="schema-box">
+            <h2>Input Schema (JSON Schema)</h2>
+            <pre>{JSON.stringify(facet.inputSchema, null, 2)}</pre>
           </div>
-          <div>
-            <h2>Output schema</h2>
-            <pre className="json-pre">
-              {JSON.stringify(facet.outputSchema, null, 2)}
-            </pre>
+          <div className="schema-box">
+            <h2>Output Schema (JSON Schema)</h2>
+            <pre>{JSON.stringify(facet.outputSchema, null, 2)}</pre>
           </div>
         </div>
       </main>

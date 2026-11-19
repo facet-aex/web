@@ -18,13 +18,14 @@ import {
   type FacetValidationResult,
 } from "@/lib/facet-draft-workflow";
 import { STORE_CATEGORY_FILTERS } from "@/lib/facet-ui";
+import { FACET_NAME_PATTERN, suggestFacetName } from "@/lib/identifiers";
 import {
   readErrorEnvelope,
   type OperationCandidate,
 } from "@/lib/openapi-import";
 
 interface FacetDraftWorkbenchProps {
-  providerId: string;
+  provider: string;
   importJobId: string;
   operations: OperationCandidate[];
   onDraftsCreated?: () => void;
@@ -54,7 +55,7 @@ interface WorkbenchItem {
   secretReference: string | null;
   authReviewRequired: boolean;
   draft: FacetDraft | null;
-  version: number | null;
+  revision: number | null;
   validation: FacetValidationResult | null;
   publication: FacetPublicationResult | null;
   publicationVisibility: "PUBLIC" | "UNLISTED";
@@ -72,12 +73,12 @@ function createItems(operations: OperationCandidate[]): WorkbenchItem[] {
       baseUrl: suggestion.baseUrl,
       authKind: suggestion.authKind,
       parameterName: suggestion.parameterName ?? "",
-      secretLabel: `${selections[index]!.name} upstream credential`,
+      secretLabel: `${selections[index]!.facetDisplayName} upstream credential`,
       secretValue: "",
       secretReference: null,
       authReviewRequired: requiresManualAuthReview(operation),
       draft: null,
-      version: null,
+      revision: null,
       validation: null,
       publication: null,
       publicationVisibility: "PUBLIC",
@@ -100,14 +101,14 @@ function readSecretId(value: unknown): string | null {
   return typeof value.secret.id === "string" ? value.secret.id : null;
 }
 
-function readConfiguredVersion(value: unknown): number | null {
+function readConfiguredRevision(value: unknown): number | null {
   if (!isRecord(value) || !isRecord(value.endpointConfig)) return null;
-  const version = value.endpointConfig.facetVersionVersion;
-  return typeof version === "number" ? version : null;
+  const revision = value.endpointConfig.facetVersionRevision;
+  return typeof revision === "number" ? revision : null;
 }
 
 export function FacetDraftWorkbench({
-  providerId,
+  provider,
   importJobId,
   operations,
   onDraftsCreated,
@@ -153,7 +154,6 @@ export function FacetDraftWorkbench({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          providerId,
           importJobId,
           selections: items.map((item) => item.selection),
         }),
@@ -168,7 +168,7 @@ export function FacetDraftWorkbench({
         current.map((item, index) => ({
           ...item,
           draft: drafts[index]!,
-          version: drafts[index]!.draftVersion.version,
+          revision: drafts[index]!.draftVersion.revision,
           stage: "DRAFT",
           error: null,
         })),
@@ -188,7 +188,7 @@ export function FacetDraftWorkbench({
 
   async function configure(index: number) {
     const item = items[index];
-    if (!item?.draft || item.version === null) return;
+    if (!item?.draft || item.revision === null) return;
     updateItem(index, { stage: "CONFIGURING", error: null });
 
     try {
@@ -198,8 +198,9 @@ export function FacetDraftWorkbench({
           throw new Error("Enter the upstream secret value.");
         }
         if (!secretRefId) {
+          const targetProvider = provider || item.draft.provider;
           const secretResponse = await fetch(
-            `/api/facet/providers/${encodeURIComponent(providerId)}/secrets`,
+            `/api/facet/providers/${encodeURIComponent(targetProvider)}/secrets`,
             {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -228,12 +229,12 @@ export function FacetDraftWorkbench({
       }
 
       const configResponse = await fetch(
-        `/api/facet/facet-versions/${encodeURIComponent(item.draft.draftVersion.id)}/endpoint-config`,
+        `/api/facet/facets/${encodeURIComponent(item.draft.provider)}/${encodeURIComponent(item.draft.facetName)}/versions/${encodeURIComponent(item.draft.draftVersion.version)}/endpoint-config`,
         {
           method: "PUT",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            version: item.version,
+            revision: item.revision,
             baseUrl: item.baseUrl.trim(),
             auth: {
               kind: item.authKind,
@@ -252,12 +253,12 @@ export function FacetDraftWorkbench({
       if (!configResponse.ok) {
         throw new Error(readErrorEnvelope(configBody));
       }
-      const nextVersion = readConfiguredVersion(configBody);
-      if (nextVersion === null) {
+      const nextRevision = readConfiguredRevision(configBody);
+      if (nextRevision === null) {
         throw new Error("The Control API returned invalid endpoint metadata.");
       }
       updateItem(index, {
-        version: nextVersion,
+        revision: nextRevision,
         stage: "CONFIGURED",
         error: null,
       });
@@ -275,7 +276,7 @@ export function FacetDraftWorkbench({
 
   async function validate(index: number, acknowledgeWarnings: boolean) {
     const item = items[index];
-    if (!item?.draft || item.version === null) return;
+    if (!item?.draft || item.revision === null) return;
     updateItem(index, { stage: "VALIDATING", error: null });
 
     try {
@@ -286,12 +287,12 @@ export function FacetDraftWorkbench({
           }))
         : [];
       const response = await fetch(
-        `/api/facet/facet-versions/${encodeURIComponent(item.draft.draftVersion.id)}/validate`,
+        `/api/facet/facets/${encodeURIComponent(item.draft.provider)}/${encodeURIComponent(item.draft.facetName)}/versions/${encodeURIComponent(item.draft.draftVersion.version)}/validate`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            version: item.version,
+            revision: item.revision,
             warningAcknowledgements,
           }),
         },
@@ -305,7 +306,7 @@ export function FacetDraftWorkbench({
         );
       }
       updateItem(index, {
-        version: validation.version,
+        revision: validation.revision,
         validation,
         stage: validation.status === "VALID" ? "VALID" : "CONFIGURED",
         error: null,
@@ -323,17 +324,18 @@ export function FacetDraftWorkbench({
 
   async function publish(index: number) {
     const item = items[index];
-    if (!item?.draft || item.version === null || item.stage !== "VALID") return;
+    if (!item?.draft || item.revision === null || item.stage !== "VALID")
+      return;
     updateItem(index, { stage: "PUBLISHING", error: null });
 
     try {
       const response = await fetch(
-        `/api/facet/facet-versions/${encodeURIComponent(item.draft.draftVersion.id)}/publish`,
+        `/api/facet/facets/${encodeURIComponent(item.draft.provider)}/${encodeURIComponent(item.draft.facetName)}/versions/${encodeURIComponent(item.draft.draftVersion.version)}/publish`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            version: item.version,
+            revision: item.revision,
             visibility: item.publicationVisibility,
           }),
         },
@@ -348,7 +350,7 @@ export function FacetDraftWorkbench({
       }
       updateItem(index, {
         publication,
-        version: publication.version,
+        revision: publication.revision,
         stage: "PUBLISHED",
         error: null,
       });
@@ -434,7 +436,7 @@ export function FacetDraftWorkbench({
                     <strong className="rapid-endpoint-path">
                       {item.operation.path}
                     </strong>
-                    <small>{item.selection.name}</small>
+                    <small>{item.selection.facetDisplayName}</small>
                   </button>
                 </li>
               );
@@ -532,28 +534,40 @@ export function FacetDraftWorkbench({
               ) : null}
               <div className="draft-fields">
                 <div className="form-field">
-                  <label htmlFor={`draft-name-${prefix}`}>Facet Name</label>
+                  <label htmlFor={`draft-name-${prefix}`}>
+                    Facet Display Name
+                  </label>
                   <input
                     id={`draft-name-${prefix}`}
-                    value={activeItem.selection.name}
-                    onChange={(event) =>
-                      updateSelection(safeIndex, { name: event.target.value })
-                    }
+                    value={activeItem.selection.facetDisplayName}
+                    onChange={(event) => {
+                      const nextDisplay = event.target.value;
+                      updateSelection(safeIndex, {
+                        facetDisplayName: nextDisplay,
+                        facetName: suggestFacetName(nextDisplay, "api-op"),
+                      });
+                    }}
                     disabled={draftsCreated}
                     maxLength={160}
                     required
                   />
                 </div>
                 <div className="form-field">
-                  <label htmlFor={`draft-slug-${prefix}`}>Slug</label>
+                  <label htmlFor={`draft-slug-${prefix}`}>
+                    Facet Name (kebab-case, 4–32 chars)
+                  </label>
                   <input
                     id={`draft-slug-${prefix}`}
-                    value={activeItem.selection.slug}
+                    value={activeItem.selection.facetName}
                     onChange={(event) =>
-                      updateSelection(safeIndex, { slug: event.target.value })
+                      updateSelection(safeIndex, {
+                        facetName: event.target.value,
+                      })
                     }
                     disabled={draftsCreated}
-                    pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                    pattern={FACET_NAME_PATTERN}
+                    minLength={4}
+                    maxLength={32}
                     required
                   />
                 </div>
@@ -572,7 +586,7 @@ export function FacetDraftWorkbench({
                     required
                   />
                   <datalist id={`api-category-presets-${prefix}`}>
-                    {STORE_CATEGORY_FILTERS.EXTERNAL_HTTP_API.filter(
+                    {STORE_CATEGORY_FILTERS.API.filter(
                       (option) => option.slug,
                     ).map((option) => (
                       <option key={option.slug} value={option.slug}>
@@ -910,14 +924,14 @@ export function FacetDraftWorkbench({
                     <div className="published-banner" role="status">
                       <div>
                         <strong>
-                          Published v{activeItem.publication.displayVersion} (
+                          Published v{activeItem.publication.version} (
                           {activeItem.publication.visibility.toLowerCase()})
                         </strong>
                         <p>{activeItem.publication.contentHash}</p>
                       </div>
                       <Link
                         className="button button-primary"
-                        href={`/facets/${activeItem.publication.facetId}`}
+                        href={`/facets/${encodeURIComponent(activeItem.publication.provider)}/${encodeURIComponent(activeItem.publication.facetName)}`}
                       >
                         Open in Facet Store <span aria-hidden="true">↗</span>
                       </Link>

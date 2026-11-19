@@ -42,7 +42,7 @@ facet grant create --agent my-agent --max-per-call 0.05 --budget 5.00
 
 # 3. Search & inspect capabilities in the catalog
 facet search "market data"
-facet inspect <facetId>`,
+facet inspect <provider> <facetName>`,
   },
   {
     id: "mcp",
@@ -75,7 +75,12 @@ const facet = new FacetClient({
 });
 
 const [tool] = await facet.searchFacets({ query: "gold price" });
-const run = await facet.invokeFacet(tool.versionId, { brand: "SJC" });
+const run = await facet.invokeFacet(
+  tool.provider,
+  tool.facetName,
+  tool.version,
+  { brand: "SJC" },
+);
 console.log(run.dataset, run.receiptTxHash);`,
   },
   {

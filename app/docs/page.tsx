@@ -35,30 +35,34 @@ const client = new FacetClient({
 // 1. Discover Actors, Agents, or APIs
 const facets = await client.searchFacets({
   query: "gold price",
-  type: "HOSTED_ACTOR",
+  type: "ACTOR",
 });
 
 // 2. Inspect pinned inputSchema & x402 pricing
-const detail = await client.getFacet(facets[0].id);`;
+const detail = await client.getFacet(
+  facets[0].provider,
+  facets[0].facetName,
+  facets[0].version,
+);`;
 
 const CLI_SNIPPET = `# Search across all Facets or filter by type
-facet search "vietnam" --type HOSTED_ACTOR
+facet search "vietnam" --type ACTOR
 
 # Inspect full schema, imageDigest, or Agent Identity Token ID
-facet inspect <facetId>
+facet inspect <provider> <facetName>
 
 # Publish an Actor manifest from CLI
 facet publish-actor --file ./actor-manifest.json`;
 
 const X402_HTTP_SNIPPET = `# 1. Request execution without payment to receive the x402 v2 quote
-curl -i -X POST http://127.0.0.1:4020/v1/facet-versions/<versionId>/invoke \\
+curl -i -X POST https://api.facet.example/v1/facets/<provider>/<facetName>/versions/<version>/invoke \\
   -H "content-type: application/json" \\
   -H "idempotency-key: $(uuidgen)" \\
   -d '{"input": {"brand": "SJC"}}'
 # -> HTTP 402 Payment Required + PAYMENT-REQUIRED header (Fuji fUSD)
 
 # 2. Sign EIP-3009 authorization via @x402/evm and retry with same Idempotency-Key
-curl -X POST http://127.0.0.1:4020/v1/facet-versions/<versionId>/invoke \\
+curl -X POST https://api.facet.example/v1/facets/<provider>/<facetName>/versions/<version>/invoke \\
   -H "content-type: application/json" \\
   -H "idempotency-key: <same-idempotency-key>" \\
   -H "PAYMENT-SIGNATURE: <base64-x402-payload>" \\
@@ -83,7 +87,7 @@ const FUJI_DEPLOYMENT_ROWS = [
   {
     name: "FacetActorRegistry",
     address: FUJI_CONTRACTS.actorRegistry,
-    role: "Anchors facetId, facetType, imageDigest, pricing, payTo, and Agent Identity tokenId.",
+    role: "Anchors facetKey, facetType, imageDigest, pricing, providerPayTo, and Agent Identity tokenId.",
   },
   {
     name: "FacetFeeSplitAndEscrow",
@@ -98,7 +102,7 @@ const FUJI_DEPLOYMENT_ROWS = [
   {
     name: "Fuji Agent Identity Registry",
     address: ERC8004_IDENTITY_REGISTRY,
-    role: "Canonical Avalanche Fuji identity registry bound to AUTONOMOUS_AGENT Facets.",
+    role: "Canonical Avalanche Fuji identity registry bound to AGENT Facets.",
   },
   {
     name: "Fuji Agent Reputation Registry",
@@ -180,7 +184,7 @@ export default function DocsPage() {
                   <tbody>
                     <tr>
                       <td>
-                        <strong>API</strong> (<code>EXTERNAL_HTTP_API</code>)
+                        <strong>API</strong> (<code>API</code>)
                       </td>
                       <td>
                         Gateway HTTPS proxy with DNS/IP pinning &amp; secret
@@ -194,7 +198,7 @@ export default function DocsPage() {
                     </tr>
                     <tr>
                       <td>
-                        <strong>Actor</strong> (<code>HOSTED_ACTOR</code>)
+                        <strong>Actor</strong> (<code>ACTOR</code>)
                       </td>
                       <td>
                         Isolated <code>facet/node-actor-runner:1.0</code> Docker
@@ -208,7 +212,7 @@ export default function DocsPage() {
                     </tr>
                     <tr>
                       <td>
-                        <strong>Agent</strong> (<code>AUTONOMOUS_AGENT</code>)
+                        <strong>Agent</strong> (<code>AGENT</code>)
                       </td>
                       <td>
                         Executor delegating multi-step tasks with cited datasets
@@ -236,12 +240,13 @@ export default function DocsPage() {
                 <li>
                   <strong>Discover (`search_facets`):</strong> Search published
                   capabilities by intent, optional <code>type</code> (
-                  <code>HOSTED_ACTOR</code>, <code>AUTONOMOUS_AGENT</code>,{" "}
-                  <code>EXTERNAL_HTTP_API</code>), or <code>category</code>.
+                  <code>ACTOR</code>, <code>AGENT</code>, <code>API</code>), or{" "}
+                  <code>category</code>.
                 </li>
                 <li>
                   <strong>Inspect (`get_facet`):</strong> Read the pinned{" "}
-                  <code>versionId</code>, <code>inputSchema</code>,{" "}
+                  <code>provider</code>, <code>facetName</code>, SemVer{" "}
+                  <code>version</code>, <code>inputSchema</code>,{" "}
                   <code>pricing</code>, and on-chain identity / digest
                   provenance metadata.
                 </li>
@@ -282,7 +287,8 @@ export default function DocsPage() {
                 <article className="docs-tool-card">
                   <code>get_facet</code>
                   <p>
-                    Inputs: <code>facetId</code> (UUID). Returns full{" "}
+                    Inputs: <code>provider</code>, <code>facetName</code>,
+                    optional SemVer <code>version</code>. Returns full{" "}
                     <code>inputSchema</code>, pricing, and on-chain provenance
                     metadata.
                   </p>
@@ -290,9 +296,10 @@ export default function DocsPage() {
                 <article className="docs-tool-card">
                   <code>invoke_facet</code>
                   <p>
-                    Inputs: <code>facetVersionId</code>, <code>input</code>,
-                    optional <code>idempotencyKey</code>. Pays x402 &amp;
-                    returns dataset + receipt.
+                    Inputs: <code>provider</code>, <code>facetName</code>,{" "}
+                    <code>version</code>, <code>input</code>, optional{" "}
+                    <code>idempotencyKey</code>. Pays x402 &amp; returns dataset
+                    + receipt.
                   </p>
                 </article>
               </div>
@@ -337,8 +344,9 @@ export default function DocsPage() {
                   <p>
                     Verifies x402 authorization, executes once, persists
                     result/dataset, and settles via{" "}
-                    <code>FacetFeeSplitAndEscrow</code> (95% directly to creator{" "}
-                    <code>payTo</code>, 5% platform treasury).
+                    <code>FacetFeeSplitAndEscrow</code> (95% directly to
+                    provider payout <code>providerPayTo</code>, 5% platform
+                    treasury).
                   </p>
                 </article>
                 <article className="docs-tool-card">
@@ -346,7 +354,7 @@ export default function DocsPage() {
                   <p>
                     Locks <code>unitPrice × 20</code> max deposit before run,
                     verifies the runner&apos;s signed <code>itemCount</code>,
-                    pays creator for exact dataset items returned, and refunds
+                    pays provider for exact dataset items returned, and refunds
                     unused <code>fUSD</code> automatically.
                   </p>
                 </article>

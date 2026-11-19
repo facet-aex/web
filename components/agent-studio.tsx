@@ -17,37 +17,41 @@ import {
   formatAtomicFusd,
   isValidEvmAddress,
   isValidTxHash,
-  slugifyName,
   snowtraceAddressUrl,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
+import {
+  FACET_NAME_PATTERN,
+  SEMVER_PATTERN,
+  suggestFacetName,
+} from "@/lib/identifiers";
 import {
   parseInputSchemaText,
   schemaToVisualFields,
 } from "@/lib/input-schema-builder";
 import { readErrorEnvelope } from "@/lib/openapi-import";
-import { useProviderWorkspace } from "@/lib/use-provider-workspace";
+import { useAccountWorkspace } from "@/lib/use-account-workspace";
 
 const AGENT_PRESETS: AgentTemplatePreset[] = [
   AGENT_TEMPLATE_PRESET,
   CUSTOM_AGENT_PRESET,
 ];
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-
 export function AgentStudio({
   publishableKey,
 }: {
   publishableKey?: string | undefined;
 }) {
-  const workspace = useProviderWorkspace();
+  const workspace = useAccountWorkspace();
   const initialPreset = AGENT_TEMPLATE_PRESET;
 
   const [activePresetId, setActivePresetId] = useState(initialPreset.id);
-  const [name, setName] = useState(initialPreset.name);
-  const [slug, setSlug] = useState(initialPreset.slug);
-  const [slugLocked, setSlugLocked] = useState(true);
+  const [facetDisplayName, setFacetDisplayName] = useState(
+    initialPreset.facetDisplayName,
+  );
+  const [facetName, setFacetName] = useState(initialPreset.facetName);
+  const [facetNameLocked, setFacetNameLocked] = useState(true);
+  const [version, setVersion] = useState("1.0.0");
   const [summary, setSummary] = useState(initialPreset.summary);
   const [category, setCategory] = useState(initialPreset.category);
   const [tagsText, setTagsText] = useState(initialPreset.tags.join(", "));
@@ -67,14 +71,15 @@ export function AgentStudio({
   );
 
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [explicitFacetId, setExplicitFacetId] = useState("");
   const [registryTxHash, setRegistryTxHash] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<{
-    id: string;
-    slug: string;
+    provider: string;
+    facetName: string;
+    facetDisplayName: string;
+    version: string;
     erc8004TokenId: string;
     erc8004Registry: string;
     registryVerified: boolean;
@@ -87,9 +92,10 @@ export function AgentStudio({
 
   function applyPreset(preset: AgentTemplatePreset) {
     setActivePresetId(preset.id);
-    setName(preset.name);
-    setSlug(preset.slug);
-    setSlugLocked(true);
+    setFacetDisplayName(preset.facetDisplayName);
+    setFacetName(preset.facetName);
+    setFacetNameLocked(true);
+    setVersion("1.0.0");
     setSummary(preset.summary);
     setCategory(preset.category);
     setTagsText(preset.tags.join(", "));
@@ -139,17 +145,9 @@ export function AgentStudio({
       setError("Agent payout wallet payTo must be a valid 0x EVM address.");
       return;
     }
-    if (registryTxHash.trim()) {
-      if (!isValidTxHash(registryTxHash)) {
-        setError("Registry transaction hash must be a 0x 64-hex string.");
-        return;
-      }
-      if (!UUID_PATTERN.test(explicitFacetId.trim())) {
-        setError(
-          "Supplying a pre-anchored registryTxHash requires a matching explicit Facet UUID.",
-        );
-        return;
-      }
+    if (registryTxHash.trim() && !isValidTxHash(registryTxHash)) {
+      setError("Registry transaction hash must be a 0x 64-hex string.");
+      return;
     }
 
     const tags = tagsText
@@ -160,24 +158,13 @@ export function AgentStudio({
 
     setSubmitting(true);
     try {
-      const ensured = await workspace.ensureProvider(payTo);
-      if (!ensured.providerId) {
-        throw new Error(
-          ensured.authRequired
-            ? "Sign in with Clerk to publish an Agent under your account."
-            : (ensured.error ??
-                "Your provider workspace could not be initialized."),
-        );
-      }
-
       const response = await fetch("/api/facet/agent-facets", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          ...(explicitFacetId.trim() ? { id: explicitFacetId.trim() } : {}),
-          providerId: ensured.providerId,
-          name: name.trim(),
-          slug: slug.trim(),
+          facetName: facetName.trim(),
+          facetDisplayName: facetDisplayName.trim(),
+          version: version.trim() || "1.0.0",
           ...(summary.trim() ? { summary: summary.trim() } : {}),
           description: description.trim(),
           category: category.trim(),
@@ -197,8 +184,10 @@ export function AgentStudio({
 
       const body = (await response.json().catch(() => null)) as {
         facet?: {
-          id: string;
-          slug: string;
+          provider: string;
+          facetName: string;
+          facetDisplayName?: string;
+          version: string;
           erc8004TokenId?: string;
           erc8004Registry?: string;
           registryVerified?: boolean;
@@ -215,8 +204,11 @@ export function AgentStudio({
       }
 
       setPublished({
-        id: body.facet.id,
-        slug: body.facet.slug,
+        provider: body.facet.provider,
+        facetName: body.facet.facetName,
+        facetDisplayName:
+          body.facet.facetDisplayName ?? facetDisplayName.trim(),
+        version: body.facet.version,
         erc8004TokenId: body.facet.erc8004TokenId ?? erc8004TokenId.trim(),
         erc8004Registry:
           body.facet.erc8004Registry ?? ERC8004_IDENTITY_REGISTRY,
@@ -239,7 +231,7 @@ export function AgentStudio({
     setVerifying(true);
     try {
       const response = await fetch(
-        `/api/facet/facets/${encodeURIComponent(published.id)}/verify-registry`,
+        `/api/facet/facets/${encodeURIComponent(published.provider)}/${encodeURIComponent(published.facetName)}/versions/${encodeURIComponent(published.version)}/verify-registry`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -390,17 +382,6 @@ export function AgentStudio({
               {showAdvanced ? (
                 <div className="studio-grid advanced-fields">
                   <div className="form-field">
-                    <label htmlFor="agent-explicit-id">
-                      Explicit Facet UUID (optional)
-                    </label>
-                    <input
-                      id="agent-explicit-id"
-                      value={explicitFacetId}
-                      onChange={(e) => setExplicitFacetId(e.target.value)}
-                      placeholder="019a69b8-..."
-                    />
-                  </div>
-                  <div className="form-field">
                     <label htmlFor="agent-registry-tx">
                       Pre-Anchored Registry Tx Hash (optional)
                     </label>
@@ -420,31 +401,45 @@ export function AgentStudio({
             <legend>02 · Agent Profile &amp; x402 Pricing</legend>
             <div className="studio-grid">
               <div className="form-field">
-                <label htmlFor="agent-name">Agent Name</label>
+                <label htmlFor="agent-display-name">Agent Display Name</label>
                 <input
-                  id="agent-name"
-                  value={name}
+                  id="agent-display-name"
+                  value={facetDisplayName}
                   onChange={(e) => {
                     const nextName = e.target.value;
-                    setName(nextName);
-                    if (!slugLocked) setSlug(slugifyName(nextName));
+                    setFacetDisplayName(nextName);
+                    if (!facetNameLocked) {
+                      setFacetName(suggestFacetName(nextName));
+                    }
                   }}
                   maxLength={120}
                   required
                 />
               </div>
               <div className="form-field">
-                <label htmlFor="agent-slug">Slug</label>
+                <label htmlFor="agent-facet-name">
+                  Facet Name (kebab-case, 4–32 chars)
+                </label>
                 <input
-                  id="agent-slug"
-                  value={slug}
+                  id="agent-facet-name"
+                  value={facetName}
                   onChange={(e) => {
-                    setSlugLocked(true);
-                    setSlug(e.target.value);
+                    setFacetNameLocked(true);
+                    setFacetName(e.target.value);
                   }}
-                  pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                  minLength={2}
-                  maxLength={80}
+                  pattern={FACET_NAME_PATTERN}
+                  minLength={4}
+                  maxLength={32}
+                  required
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="agent-version">Version (SemVer)</label>
+                <input
+                  id="agent-version"
+                  value={version}
+                  onChange={(e) => setVersion(e.target.value)}
+                  pattern={SEMVER_PATTERN}
                   required
                 />
               </div>
@@ -459,7 +454,7 @@ export function AgentStudio({
                   required
                 />
                 <datalist id="agent-category-presets">
-                  {STORE_CATEGORY_FILTERS.AUTONOMOUS_AGENT.filter(
+                  {STORE_CATEGORY_FILTERS.AGENT.filter(
                     (option) => option.slug,
                   ).map((option) => (
                     <option key={option.slug} value={option.slug}>
@@ -555,7 +550,9 @@ export function AgentStudio({
           <button
             type="submit"
             className="button button-primary"
-            disabled={submitting || workspace.authRequired}
+            disabled={
+              submitting || workspace.authRequired || workspace.usernameRequired
+            }
           >
             {submitting ? "Publishing Agent…" : "Publish Agent"}
             <span aria-hidden="true">↗</span>
@@ -567,9 +564,10 @@ export function AgentStudio({
           aria-label="Live On-Chain Agent Card preview"
         >
           <AgentIdentityCard
-            {...(published?.id ? { facetId: published.id } : {})}
-            name={name}
-            slug={slug}
+            {...(workspace.username ? { provider: workspace.username } : {})}
+            facetDisplayName={facetDisplayName}
+            facetName={facetName}
+            version={version}
             summary={summary || description}
             erc8004Registry={ERC8004_IDENTITY_REGISTRY}
             erc8004TokenId={erc8004TokenId}
@@ -588,11 +586,12 @@ export function AgentStudio({
             <div className="published-card" role="status">
               <p className="eyebrow">Agent Published</p>
               <strong>
-                {published.slug} · Identity #{published.erc8004TokenId}
+                {published.provider}/{published.facetName}@{published.version} ·
+                Identity #{published.erc8004TokenId}
               </strong>
               <Link
                 className="button button-primary import-submit"
-                href={`/facets/${published.id}`}
+                href={`/facets/${encodeURIComponent(published.provider)}/${encodeURIComponent(published.facetName)}`}
               >
                 Open Playground <span aria-hidden="true">↗</span>
               </Link>
