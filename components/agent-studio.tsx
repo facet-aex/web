@@ -7,6 +7,10 @@ import { AgentIdentityCard } from "@/components/agent-identity-card";
 import { InputSchemaBuilder } from "@/components/input-schema-builder";
 import { ProviderSelectorBar } from "@/components/provider-selector-bar";
 import {
+  StudioStageBar,
+  computeStudioProgress,
+} from "@/components/studio-stage-bar";
+import {
   AGENT_TEMPLATE_PRESET,
   CUSTOM_AGENT_PRESET,
   type AgentTemplatePreset,
@@ -23,6 +27,9 @@ import {
 import {
   FACET_NAME_PATTERN,
   SEMVER_PATTERN,
+  bumpSemver,
+  isValidFacetName,
+  isValidSemver,
   suggestFacetName,
 } from "@/lib/identifiers";
 import {
@@ -46,6 +53,8 @@ export function AgentStudio({
   const initialPreset = AGENT_TEMPLATE_PRESET;
 
   const [activePresetId, setActivePresetId] = useState(initialPreset.id);
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1);
+  const [completedUpTo, setCompletedUpTo] = useState(0);
   const [facetDisplayName, setFacetDisplayName] = useState(
     initialPreset.facetDisplayName,
   );
@@ -92,6 +101,8 @@ export function AgentStudio({
 
   function applyPreset(preset: AgentTemplatePreset) {
     setActivePresetId(preset.id);
+    setActiveStep(1);
+    setCompletedUpTo(0);
     setFacetDisplayName(preset.facetDisplayName);
     setFacetName(preset.facetName);
     setFacetNameLocked(true);
@@ -124,8 +135,75 @@ export function AgentStudio({
         ? Object.keys(parsedSchema.schema.properties)
         : [];
 
+  const step1BlockReason = !/^[1-9][0-9]*$/u.test(erc8004TokenId.trim())
+    ? "Agent Identity Token ID must be a positive nonzero integer."
+    : !taskKind.trim()
+      ? "Enter a Task Kind before continuing."
+      : payTo.trim() && !isValidEvmAddress(payTo)
+        ? "Agent payout wallet payTo must be a valid 0x EVM address."
+        : registryTxHash.trim() && !isValidTxHash(registryTxHash)
+          ? "Registry transaction hash must be a 0x 64-hex string."
+          : null;
+  const step1Valid = step1BlockReason === null;
+
+  const step2BlockReason = !facetDisplayName.trim()
+    ? "Enter an Agent Display Name before continuing."
+    : !isValidFacetName(facetName.trim())
+      ? "Facet Name must be 4–32 lowercase letters, numbers, or hyphens."
+      : !isValidSemver(version.trim())
+        ? "Version must follow SemVer (for example, 1.0.0)."
+        : !category.trim()
+          ? "Select or enter a Category before continuing."
+          : !description.trim()
+            ? "Enter Capabilities & Delegation Scope before continuing."
+            : !/^[1-9][0-9]*$/u.test(priceAtomic.trim())
+              ? "Price must be a positive integer in atomic fUSD."
+              : null;
+  const step2Valid = step2BlockReason === null;
+
+  const step3Valid = Boolean(parsedSchema.schema);
+  const step3BlockReason = step3Valid
+    ? null
+    : (parsedSchema.error ?? "Fix JSON Schema syntax before continuing.");
+
+  const progress = computeStudioProgress({
+    activeStep,
+    completedUpTo,
+    stepValidities: [step1Valid, step2Valid, step3Valid],
+    finished: Boolean(published),
+  });
+  const currentStep = progress.clampedActiveStep;
+
+  const stageSteps = [
+    {
+      step: 1 as const,
+      code: "01",
+      label: "On-Chain Identity",
+      state: progress.getState(1),
+    },
+    {
+      step: 2 as const,
+      code: "02",
+      label: "Profile & Pricing",
+      state: progress.getState(2),
+    },
+    {
+      step: 3 as const,
+      code: "03",
+      label: `Task Input Schema (${inputFieldNames.length})`,
+      state: progress.getState(3),
+    },
+    {
+      step: 4 as const,
+      code: "04",
+      label: "Review & Publish",
+      state: progress.getState(4),
+    },
+  ];
+
   async function handlePublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (currentStep !== 4) return;
     setError(null);
     setPublished(null);
     setVerifiedTxHash(null);
@@ -300,263 +378,474 @@ export function AgentStudio({
         publishableKey={publishableKey}
       />
 
+      <StudioStageBar
+        ariaLabel="Agent onboarding pipeline"
+        accent="agent"
+        steps={stageSteps}
+        onSelectStep={(step) => {
+          setError(null);
+          setActiveStep(step);
+        }}
+      />
+
       <form className="studio-workbench-grid" onSubmit={handlePublish}>
         <div className="studio-editor-pane">
-          <fieldset className="studio-section-box">
-            <legend>01 · On-Chain Agent Identity (Avalanche Fuji)</legend>
-            <div className="studio-grid">
-              <div className="form-field">
-                <label htmlFor="agent-identity-id">
-                  Agent Identity Token ID (Fuji)
-                </label>
-                <input
-                  id="agent-identity-id"
-                  value={erc8004TokenId}
-                  onChange={(e) => setErc8004TokenId(e.target.value)}
-                  pattern="^[1-9][0-9]*$"
-                  required
-                />
-                <small>
-                  Positive nonzero token ID minted on the Fuji Agent Identity
-                  Registry.
-                </small>
+          {currentStep === 1 ? (
+            <fieldset className="studio-section-box">
+              <legend>01 · On-Chain Agent Identity (Avalanche Fuji)</legend>
+              <div className="studio-step-header">
+                <span className="studio-step-kicker studio-step-kicker-agent">
+                  Step 01 of 04 · On-Chain Identity
+                </span>
+                <h2 className="studio-step-title">
+                  Bind your Agent identity token and task kind
+                </h2>
               </div>
-              <div className="form-field">
-                <label htmlFor="agent-identity-registry">
-                  Agent Identity Registry (Fuji 43113)
-                </label>
-                <input
-                  id="agent-identity-registry"
-                  value={ERC8004_IDENTITY_REGISTRY}
-                  readOnly
-                />
-                <small>
-                  <a
-                    className="explorer-link"
-                    href={snowtraceAddressUrl(ERC8004_IDENTITY_REGISTRY)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Inspect contract on Snowtrace ↗
-                  </a>
-                </small>
-              </div>
-              <div className="form-field">
-                <label htmlFor="agent-task-kind">Task Kind</label>
-                <input
-                  id="agent-task-kind"
-                  value={taskKind}
-                  onChange={(e) => setTaskKind(e.target.value)}
-                  maxLength={80}
-                  required
-                />
-                <small>
-                  Use <code>vn-market-analysis</code> for live execution on the
-                  built-in Fuji runner.
-                </small>
-              </div>
-              <div className="form-field">
-                <label htmlFor="agent-payto">
-                  Agent Payout Wallet payTo (optional)
-                </label>
-                <input
-                  id="agent-payto"
-                  value={payTo}
-                  onChange={(e) => setPayTo(e.target.value)}
-                  placeholder="0x... (defaults to provider wallet)"
-                />
-              </div>
-            </div>
 
-            <div className="advanced-toggle-box">
-              <button
-                type="button"
-                className="preset-chip"
-                onClick={() => setShowAdvanced((prev) => !prev)}
-                aria-expanded={showAdvanced}
-              >
-                {showAdvanced
-                  ? "Hide Pre-Anchor Options"
-                  : "Advanced: Pre-Anchored FacetActorRegistry Tx"}
-              </button>
-              {showAdvanced ? (
-                <div className="studio-grid advanced-fields">
-                  <div className="form-field">
-                    <label htmlFor="agent-registry-tx">
-                      Pre-Anchored Registry Tx Hash (optional)
-                    </label>
-                    <input
-                      id="agent-registry-tx"
-                      value={registryTxHash}
-                      onChange={(e) => setRegistryTxHash(e.target.value)}
-                      placeholder="0x..."
-                    />
-                  </div>
+              <div className="studio-grid">
+                <div className="form-field">
+                  <label htmlFor="agent-identity-id">
+                    Agent Identity Token ID (Fuji)
+                  </label>
+                  <input
+                    id="agent-identity-id"
+                    value={erc8004TokenId}
+                    onChange={(e) => setErc8004TokenId(e.target.value)}
+                    pattern="^[1-9][0-9]*$"
+                    required
+                  />
+                  <small>
+                    Positive nonzero token ID minted on the Fuji Agent Identity
+                    Registry.
+                  </small>
                 </div>
-              ) : null}
-            </div>
-          </fieldset>
+                <div className="form-field">
+                  <label htmlFor="agent-identity-registry">
+                    Agent Identity Registry (Fuji 43113)
+                  </label>
+                  <input
+                    id="agent-identity-registry"
+                    value={ERC8004_IDENTITY_REGISTRY}
+                    readOnly
+                  />
+                  <small>
+                    <a
+                      className="explorer-link"
+                      href={snowtraceAddressUrl(ERC8004_IDENTITY_REGISTRY)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Inspect contract on Snowtrace ↗
+                    </a>
+                  </small>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-task-kind">Task Kind</label>
+                  <input
+                    id="agent-task-kind"
+                    value={taskKind}
+                    onChange={(e) => setTaskKind(e.target.value)}
+                    maxLength={80}
+                    required
+                  />
+                  <small>
+                    Use <code>vn-market-analysis</code> for live execution on
+                    the built-in Fuji runner.
+                  </small>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-payto">
+                    Agent Payout Wallet payTo (optional)
+                  </label>
+                  <input
+                    id="agent-payto"
+                    value={payTo}
+                    onChange={(e) => setPayTo(e.target.value)}
+                    placeholder="0x... (defaults to provider wallet)"
+                  />
+                </div>
+              </div>
 
-          <fieldset className="studio-section-box">
-            <legend>02 · Agent Profile &amp; x402 Pricing</legend>
-            <div className="studio-grid">
-              <div className="form-field">
-                <label htmlFor="agent-display-name">Agent Display Name</label>
-                <input
-                  id="agent-display-name"
-                  value={facetDisplayName}
-                  onChange={(e) => {
-                    const nextName = e.target.value;
-                    setFacetDisplayName(nextName);
-                    if (!facetNameLocked) {
-                      setFacetName(suggestFacetName(nextName));
-                    }
-                  }}
-                  maxLength={120}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label htmlFor="agent-facet-name">
-                  Facet Name (kebab-case, 4–32 chars)
-                </label>
-                <input
-                  id="agent-facet-name"
-                  value={facetName}
-                  onChange={(e) => {
-                    setFacetNameLocked(true);
-                    setFacetName(e.target.value);
-                  }}
-                  pattern={FACET_NAME_PATTERN}
-                  minLength={4}
-                  maxLength={32}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label htmlFor="agent-version">Version (SemVer)</label>
-                <input
-                  id="agent-version"
-                  value={version}
-                  onChange={(e) => setVersion(e.target.value)}
-                  pattern={SEMVER_PATTERN}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label htmlFor="agent-category">Category</label>
-                <input
-                  id="agent-category"
-                  list="agent-category-presets"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  maxLength={80}
-                  required
-                />
-                <datalist id="agent-category-presets">
-                  {STORE_CATEGORY_FILTERS.AGENT.filter(
-                    (option) => option.slug,
-                  ).map((option) => (
-                    <option key={option.slug} value={option.slug}>
-                      {option.label}
-                    </option>
-                  ))}
-                </datalist>
-              </div>
-              <div className="form-field">
-                <label htmlFor="agent-tags">Tags (comma-separated)</label>
-                <input
-                  id="agent-tags"
-                  value={tagsText}
-                  onChange={(e) => setTagsText(e.target.value)}
-                  placeholder="vietnam, agent, analytics"
-                />
-              </div>
-              <div className="form-field">
-                <label htmlFor="agent-pricing-model">x402 Settlement</label>
-                <select
-                  id="agent-pricing-model"
-                  value={pricingModel}
-                  onChange={(e) =>
-                    setPricingModel(
-                      e.target.value as "PAY_PER_RUN" | "PAY_PER_RESULT",
-                    )
-                  }
+              <div className="advanced-toggle-box">
+                <button
+                  type="button"
+                  className="preset-chip"
+                  onClick={() => setShowAdvanced((prev) => !prev)}
+                  aria-expanded={showAdvanced}
                 >
-                  <option value="PAY_PER_RUN">
-                    PAY_PER_RUN (Instant FeeSplit)
-                  </option>
-                  <option value="PAY_PER_RESULT">
-                    PAY_PER_RESULT (TaskEscrow per citation)
-                  </option>
-                </select>
+                  {showAdvanced
+                    ? "Hide Pre-Anchor Options"
+                    : "Advanced: Pre-Anchored FacetActorRegistry Tx"}
+                </button>
+                {showAdvanced ? (
+                  <div className="studio-grid advanced-fields">
+                    <div className="form-field">
+                      <label htmlFor="agent-registry-tx">
+                        Pre-Anchored Registry Tx Hash (optional)
+                      </label>
+                      <input
+                        id="agent-registry-tx"
+                        value={registryTxHash}
+                        onChange={(e) => setRegistryTxHash(e.target.value)}
+                        placeholder="0x..."
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              <div className="form-field">
-                <label htmlFor="agent-price">
-                  Price (atomic fUSD · {formatAtomicFusd(priceAtomic)})
-                </label>
-                <input
-                  id="agent-price"
-                  value={priceAtomic}
-                  onChange={(e) => setPriceAtomic(e.target.value)}
-                  pattern="^[1-9][0-9]*$"
-                  required
-                />
+
+              <div className="studio-step-footer">
+                {step1BlockReason ? (
+                  <span className="studio-step-hint">{step1BlockReason}</span>
+                ) : null}
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    disabled={!step1Valid}
+                    onClick={() => {
+                      setError(null);
+                      setCompletedUpTo((prev) => Math.max(prev, 1));
+                      setActiveStep(2);
+                    }}
+                  >
+                    Continue to Profile &amp; Pricing →
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="agent-summary">Agent Card Headline</label>
-              <input
-                id="agent-summary"
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                maxLength={280}
-                placeholder="One-line mission displayed on the Agent Card"
-              />
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="agent-description">
-                Capabilities &amp; Delegation Scope
-              </label>
-              <input
-                id="agent-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={10000}
-                required
-              />
-            </div>
-          </fieldset>
-
-          <fieldset className="studio-section-box">
-            <legend>03 · A2A Task Input Schema</legend>
-            <InputSchemaBuilder
-              value={inputSchemaText}
-              onChange={setInputSchemaText}
-              disabled={submitting}
-              idPrefix="agent-schema"
-            />
-          </fieldset>
-
-          {error ? (
-            <div className="error-banner" role="alert">
-              <strong>Registration error</strong>
-              <p>{error}</p>
-            </div>
+            </fieldset>
           ) : null}
 
-          <button
-            type="submit"
-            className="button button-primary"
-            disabled={
-              submitting || workspace.authRequired || workspace.usernameRequired
-            }
-          >
-            {submitting ? "Publishing Agent…" : "Publish Agent"}
-            <span aria-hidden="true">↗</span>
-          </button>
+          {currentStep === 2 ? (
+            <fieldset className="studio-section-box">
+              <legend>02 · Agent Profile &amp; x402 Pricing</legend>
+              <div className="studio-step-header">
+                <span className="studio-step-kicker studio-step-kicker-agent">
+                  Step 02 of 04 · Profile &amp; Pricing
+                </span>
+                <h2 className="studio-step-title">
+                  Configure Agent identity slug, SemVer, and x402 quote
+                </h2>
+              </div>
+
+              <div className="studio-grid">
+                <div className="form-field">
+                  <label htmlFor="agent-display-name">Agent Display Name</label>
+                  <input
+                    id="agent-display-name"
+                    value={facetDisplayName}
+                    onChange={(e) => {
+                      const nextName = e.target.value;
+                      setFacetDisplayName(nextName);
+                      if (!facetNameLocked) {
+                        setFacetName(suggestFacetName(nextName));
+                      }
+                    }}
+                    maxLength={120}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-facet-name">
+                    Facet Name (kebab-case, 4–32 chars)
+                  </label>
+                  <input
+                    id="agent-facet-name"
+                    value={facetName}
+                    onChange={(e) => {
+                      setFacetNameLocked(true);
+                      setFacetName(e.target.value);
+                    }}
+                    pattern={FACET_NAME_PATTERN}
+                    minLength={4}
+                    maxLength={32}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-version">Version (SemVer)</label>
+                  <div className="version-input-row">
+                    <input
+                      id="agent-version"
+                      value={version}
+                      onChange={(e) => setVersion(e.target.value)}
+                      pattern={SEMVER_PATTERN}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="preset-chip"
+                      onClick={() => setVersion((v) => bumpSemver(v, "patch"))}
+                      title="Bump patch version"
+                    >
+                      +patch
+                    </button>
+                    <button
+                      type="button"
+                      className="preset-chip"
+                      onClick={() => setVersion((v) => bumpSemver(v, "minor"))}
+                      title="Bump minor version"
+                    >
+                      +minor
+                    </button>
+                  </div>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-category">Category</label>
+                  <input
+                    id="agent-category"
+                    list="agent-category-presets"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    maxLength={80}
+                    required
+                  />
+                  <datalist id="agent-category-presets">
+                    {STORE_CATEGORY_FILTERS.AGENT.filter(
+                      (option) => option.slug,
+                    ).map((option) => (
+                      <option key={option.slug} value={option.slug}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-tags">Tags (comma-separated)</label>
+                  <input
+                    id="agent-tags"
+                    value={tagsText}
+                    onChange={(e) => setTagsText(e.target.value)}
+                    placeholder="vietnam, agent, analytics"
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-pricing-model">x402 Settlement</label>
+                  <select
+                    id="agent-pricing-model"
+                    value={pricingModel}
+                    onChange={(e) =>
+                      setPricingModel(
+                        e.target.value as "PAY_PER_RUN" | "PAY_PER_RESULT",
+                      )
+                    }
+                  >
+                    <option value="PAY_PER_RUN">
+                      PAY_PER_RUN (Instant FeeSplit)
+                    </option>
+                    <option value="PAY_PER_RESULT">
+                      PAY_PER_RESULT (TaskEscrow per citation)
+                    </option>
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="agent-price">
+                    Price (atomic fUSD · {formatAtomicFusd(priceAtomic)})
+                  </label>
+                  <input
+                    id="agent-price"
+                    value={priceAtomic}
+                    onChange={(e) => setPriceAtomic(e.target.value)}
+                    pattern="^[1-9][0-9]*$"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="agent-summary">Agent Card Headline</label>
+                <input
+                  id="agent-summary"
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  maxLength={280}
+                  placeholder="One-line mission displayed on the Agent Card"
+                />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="agent-description">
+                  Capabilities &amp; Delegation Scope
+                </label>
+                <input
+                  id="agent-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={10000}
+                  required
+                />
+              </div>
+
+              <div className="studio-step-footer">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => {
+                    setError(null);
+                    setActiveStep(1);
+                  }}
+                >
+                  ← Back
+                </button>
+                {step2BlockReason ? (
+                  <span className="studio-step-hint">{step2BlockReason}</span>
+                ) : null}
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    disabled={!step2Valid}
+                    onClick={() => {
+                      setError(null);
+                      setCompletedUpTo((prev) => Math.max(prev, 2));
+                      setActiveStep(3);
+                    }}
+                  >
+                    Continue to Task Input Schema →
+                  </button>
+                </div>
+              </div>
+            </fieldset>
+          ) : null}
+
+          {currentStep === 3 ? (
+            <fieldset className="studio-section-box">
+              <legend>03 · A2A Task Input Schema</legend>
+              <div className="studio-step-header">
+                <span className="studio-step-kicker studio-step-kicker-agent">
+                  Step 03 of 04 · Task Input Schema
+                </span>
+                <h2 className="studio-step-title">
+                  Define structured delegation inputs
+                </h2>
+              </div>
+
+              <InputSchemaBuilder
+                value={inputSchemaText}
+                onChange={setInputSchemaText}
+                disabled={submitting}
+                idPrefix="agent-schema"
+              />
+
+              <div className="studio-step-footer">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => {
+                    setError(null);
+                    setActiveStep(2);
+                  }}
+                >
+                  ← Back
+                </button>
+                {step3BlockReason ? (
+                  <span className="studio-step-hint">{step3BlockReason}</span>
+                ) : null}
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    disabled={!step3Valid}
+                    onClick={() => {
+                      setError(null);
+                      setCompletedUpTo((prev) => Math.max(prev, 3));
+                      setActiveStep(4);
+                    }}
+                  >
+                    Continue to Review &amp; Publish →
+                  </button>
+                </div>
+              </div>
+            </fieldset>
+          ) : null}
+
+          {currentStep === 4 ? (
+            <fieldset className="studio-section-box">
+              <legend>04 · Review &amp; Publish</legend>
+              <div className="studio-step-header">
+                <span className="studio-step-kicker studio-step-kicker-agent">
+                  Step 04 of 04 · Review &amp; Publish
+                </span>
+                <h2 className="studio-step-title">
+                  Review Agent configuration and publish to Fuji
+                </h2>
+              </div>
+
+              <dl className="inspector-specs">
+                <div>
+                  <dt>Target Facet</dt>
+                  <dd>
+                    {workspace.username ?? "your-account"}/{facetName}@{version}
+                  </dd>
+                </div>
+                <div>
+                  <dt>On-Chain Identity</dt>
+                  <dd>
+                    #{erc8004TokenId} · {taskKind}
+                  </dd>
+                </div>
+                <div>
+                  <dt>x402 Pricing</dt>
+                  <dd>
+                    {pricingModel} · {formatAtomicFusd(priceAtomic)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Payout Wallet</dt>
+                  <dd>
+                    {payTo.trim() ||
+                      workspace.walletAddress ||
+                      "Provider linked wallet"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Input Contract</dt>
+                  <dd>
+                    {inputFieldNames.length} field
+                    {inputFieldNames.length === 1 ? "" : "s"} (
+                    {inputFieldNames.join(", ") || "none"})
+                  </dd>
+                </div>
+              </dl>
+
+              {error ? (
+                <div className="error-banner" role="alert">
+                  <strong>Registration error</strong>
+                  <p>{error}</p>
+                </div>
+              ) : null}
+
+              <div className="studio-step-footer">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => {
+                    setError(null);
+                    setActiveStep(3);
+                  }}
+                >
+                  ← Back
+                </button>
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="submit"
+                    className="button button-primary"
+                    disabled={
+                      submitting ||
+                      workspace.authRequired ||
+                      workspace.usernameRequired ||
+                      !step1Valid ||
+                      !step2Valid ||
+                      !step3Valid
+                    }
+                  >
+                    {submitting ? "Publishing Agent…" : "Publish Agent"}
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+              </div>
+            </fieldset>
+          ) : null}
         </div>
 
         <aside
@@ -581,6 +870,54 @@ export function AgentStudio({
               : {})}
             inputFields={inputFieldNames}
           />
+
+          <div className="inspector-card">
+            <p className="eyebrow">
+              Publish Readiness · Step 0{currentStep} of 04
+            </p>
+            <ul className="readiness-list">
+              <li
+                data-ok={Boolean(
+                  workspace.username &&
+                  !workspace.authRequired &&
+                  !workspace.usernameRequired,
+                )}
+              >
+                {workspace.authRequired
+                  ? "○ Sign in with Clerk required to publish"
+                  : workspace.usernameRequired
+                    ? "○ Valid 8–16 char kebab-case username required"
+                    : workspace.username
+                      ? `✓ Account @${workspace.username} ready`
+                      : workspace.error
+                        ? `○ ${workspace.error}`
+                        : "○ Checking signed-in account…"}
+              </li>
+              <li data-ok={step1Valid}>
+                {step1Valid
+                  ? `✓ 01 On-Chain Identity (#${erc8004TokenId} · ${taskKind})`
+                  : "○ Complete 01 On-Chain Identity"}
+              </li>
+              <li data-ok={step2Valid}>
+                {step2Valid
+                  ? `✓ 02 Profile & Pricing (${facetName}@${version})`
+                  : "○ Complete 02 Profile & Pricing"}
+              </li>
+              <li data-ok={step3Valid}>
+                {step3Valid
+                  ? `✓ 03 Task Input Schema (${inputFieldNames.length} fields)`
+                  : "○ Fix JSON Schema syntax"}
+              </li>
+            </ul>
+
+            <p className="readiness-step-hint">
+              {currentStep < 4
+                ? "Complete steps 01–03 in order to unlock Publish Agent."
+                : workspace.authRequired || workspace.usernameRequired
+                  ? "Sign in with a valid account to Publish Agent."
+                  : "All checks passed — ready to Publish Agent."}
+            </p>
+          </div>
 
           {published ? (
             <div className="published-card" role="status">

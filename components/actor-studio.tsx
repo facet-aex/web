@@ -7,6 +7,10 @@ import { createWalletClient, custom } from "viem";
 import { InputSchemaBuilder } from "@/components/input-schema-builder";
 import { ProviderSelectorBar } from "@/components/provider-selector-bar";
 import {
+  StudioStageBar,
+  computeStudioProgress,
+} from "@/components/studio-stage-bar";
+import {
   ACTOR_TEMPLATE_PRESETS,
   BLANK_ACTOR_PRESET,
   type ActorTemplatePreset,
@@ -20,6 +24,8 @@ import {
   FACET_NAME_PATTERN,
   SEMVER_PATTERN,
   bumpSemver,
+  isValidFacetName,
+  isValidSemver,
   suggestFacetName,
 } from "@/lib/identifiers";
 import {
@@ -28,8 +34,6 @@ import {
 } from "@/lib/input-schema-builder";
 import { readErrorEnvelope } from "@/lib/openapi-import";
 import { useAccountWorkspace } from "@/lib/use-account-workspace";
-
-type ActorEditorTab = "source" | "schema" | "pricing";
 
 const ALL_ACTOR_PRESETS: ActorTemplatePreset[] = [
   BLANK_ACTOR_PRESET,
@@ -45,7 +49,8 @@ export function ActorStudio({
   const initialPreset = ACTOR_TEMPLATE_PRESETS[0]!;
 
   const [activePresetId, setActivePresetId] = useState(initialPreset.id);
-  const [editorTab, setEditorTab] = useState<ActorEditorTab>("source");
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1);
+  const [completedUpTo, setCompletedUpTo] = useState(0);
 
   const [facetDisplayName, setFacetDisplayName] = useState(
     initialPreset.facetDisplayName,
@@ -158,6 +163,8 @@ export function ActorStudio({
   function applyPreset(preset: ActorTemplatePreset) {
     publishKey.current = null;
     setActivePresetId(preset.id);
+    setActiveStep(1);
+    setCompletedUpTo(0);
     setFacetDisplayName(preset.facetDisplayName);
     setFacetName(preset.facetName);
     setFacetNameLocked(true);
@@ -181,6 +188,66 @@ export function ActorStudio({
       code.trim(),
     );
   const codeLineCount = Math.max(code.split("\n").length, 1);
+
+  const step1BlockReason = !facetDisplayName.trim()
+    ? "Enter an Actor Title before continuing."
+    : !isValidFacetName(facetName.trim())
+      ? "Facet Name must be 4–32 lowercase letters, numbers, or hyphens."
+      : !isValidSemver(version.trim())
+        ? "Version must follow SemVer (for example, 1.0.0)."
+        : !category.trim()
+          ? "Select or enter a Category before continuing."
+          : !description.trim()
+            ? "Enter a Full Description before continuing."
+            : !hasEntrypointExport
+              ? "Code must export a default function or named run(input)."
+              : null;
+  const step1Valid = step1BlockReason === null;
+
+  const step2Valid = Boolean(parsedSchema.schema);
+  const step2BlockReason = step2Valid
+    ? null
+    : (parsedSchema.error ?? "Fix JSON Schema syntax before continuing.");
+
+  const step3Valid = Boolean(previewResult);
+  const step3BlockReason = step3Valid
+    ? null
+    : "Run a successful Docker preview before continuing to Pricing & Payout.";
+
+  const progress = computeStudioProgress({
+    activeStep,
+    completedUpTo,
+    stepValidities: [step1Valid, step2Valid, step3Valid],
+    finished: published?.status === "PUBLISHED",
+  });
+  const currentStep = progress.clampedActiveStep;
+
+  const stageSteps = [
+    {
+      step: 1 as const,
+      code: "01",
+      label: "Source & Metadata",
+      state: progress.getState(1),
+    },
+    {
+      step: 2 as const,
+      code: "02",
+      label: `Input Schema (${extractedFields.fields.length})`,
+      state: progress.getState(2),
+    },
+    {
+      step: 3 as const,
+      code: "03",
+      label: "Docker Preview",
+      state: progress.getState(3),
+    },
+    {
+      step: 4 as const,
+      code: "04",
+      label: "Pricing & Payout",
+      state: progress.getState(4),
+    },
+  ];
 
   async function handleLinkWallet() {
     setError(null);
@@ -315,6 +382,7 @@ export function ActorStudio({
 
   async function handlePublish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (currentStep !== 4) return;
     setError(null);
     setPublished(null);
 
@@ -448,6 +516,16 @@ export function ActorStudio({
         publishableKey={publishableKey}
       />
 
+      <StudioStageBar
+        ariaLabel="Actor onboarding pipeline"
+        accent="actor"
+        steps={stageSteps}
+        onSelectStep={(step) => {
+          setError(null);
+          setActiveStep(step);
+        }}
+      />
+
       <form
         className="studio-workbench-grid"
         onSubmit={handlePublish}
@@ -456,125 +534,97 @@ export function ActorStudio({
         }}
       >
         <div className="studio-editor-pane">
-          <div className="studio-identity-bar">
-            <div className="form-field">
-              <label htmlFor="actor-name">Actor Title</label>
-              <input
-                id="actor-name"
-                value={facetDisplayName}
-                onChange={(e) => {
-                  const nextName = e.target.value;
-                  setFacetDisplayName(nextName);
-                  if (!facetNameLocked) {
-                    setFacetName(suggestFacetName(nextName));
-                  }
-                }}
-                maxLength={120}
-                required
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor="actor-slug">Facet Name (kebab-case)</label>
-              <input
-                id="actor-slug"
-                value={facetName}
-                onChange={(e) => {
-                  setFacetNameLocked(true);
-                  setFacetName(e.target.value);
-                }}
-                pattern={FACET_NAME_PATTERN}
-                minLength={4}
-                maxLength={32}
-                required
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor="actor-version">Version (SemVer)</label>
-              <div className="verify-tx-row">
-                <input
-                  id="actor-version"
-                  value={version}
-                  onChange={(event) => setVersion(event.target.value)}
-                  pattern={SEMVER_PATTERN}
-                  required
-                />
-                <button
-                  type="button"
-                  className="preset-chip"
-                  onClick={() => setVersion((v) => bumpSemver(v, "patch"))}
-                  title="Bump patch version"
-                >
-                  +patch
-                </button>
-                <button
-                  type="button"
-                  className="preset-chip"
-                  onClick={() => setVersion((v) => bumpSemver(v, "minor"))}
-                  title="Bump minor version"
-                >
-                  +minor
-                </button>
-              </div>
-            </div>
-            <div className="form-field">
-              <label htmlFor="actor-category">Category</label>
-              <input
-                id="actor-category"
-                list="actor-category-presets"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                maxLength={80}
-                required
-              />
-              <datalist id="actor-category-presets">
-                {STORE_CATEGORY_FILTERS.ACTOR.filter(
-                  (option) => option.slug,
-                ).map((option) => (
-                  <option key={option.slug} value={option.slug}>
-                    {option.label}
-                  </option>
-                ))}
-              </datalist>
-            </div>
-          </div>
-
-          <div
-            className="studio-tabs studio-workspace-tabs"
-            role="tablist"
-            aria-label="Actor workspace sections"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={editorTab === "source"}
-              className={`tab-button ${editorTab === "source" ? "tab-active" : ""}`}
-              onClick={() => setEditorTab("source")}
-            >
-              01 · Source &amp; Metadata
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={editorTab === "schema"}
-              className={`tab-button ${editorTab === "schema" ? "tab-active" : ""}`}
-              onClick={() => setEditorTab("schema")}
-            >
-              02 · Input Schema ({extractedFields.fields.length})
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={editorTab === "pricing"}
-              className={`tab-button ${editorTab === "pricing" ? "tab-active" : ""}`}
-              onClick={() => setEditorTab("pricing")}
-            >
-              03 · Pricing &amp; Payout
-            </button>
-          </div>
-
-          {editorTab === "source" ? (
+          {currentStep === 1 ? (
             <div className="studio-tab-panel">
+              <div className="studio-step-header">
+                <span className="studio-step-kicker">
+                  Step 01 of 04 · Source &amp; Metadata
+                </span>
+                <h2 className="studio-step-title">
+                  Configure Actor identity and ESM entrypoint
+                </h2>
+              </div>
+
               <div className="studio-grid">
+                <div className="form-field">
+                  <label htmlFor="actor-name">Actor Title</label>
+                  <input
+                    id="actor-name"
+                    value={facetDisplayName}
+                    onChange={(e) => {
+                      const nextName = e.target.value;
+                      setFacetDisplayName(nextName);
+                      if (!facetNameLocked) {
+                        setFacetName(suggestFacetName(nextName));
+                      }
+                    }}
+                    maxLength={120}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="actor-slug">Facet Name (kebab-case)</label>
+                  <input
+                    id="actor-slug"
+                    value={facetName}
+                    onChange={(e) => {
+                      setFacetNameLocked(true);
+                      setFacetName(e.target.value);
+                    }}
+                    pattern={FACET_NAME_PATTERN}
+                    minLength={4}
+                    maxLength={32}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="actor-version">Version (SemVer)</label>
+                  <div className="version-input-row">
+                    <input
+                      id="actor-version"
+                      value={version}
+                      onChange={(event) => setVersion(event.target.value)}
+                      pattern={SEMVER_PATTERN}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="preset-chip"
+                      onClick={() => setVersion((v) => bumpSemver(v, "patch"))}
+                      title="Bump patch version"
+                    >
+                      +patch
+                    </button>
+                    <button
+                      type="button"
+                      className="preset-chip"
+                      onClick={() => setVersion((v) => bumpSemver(v, "minor"))}
+                      title="Bump minor version"
+                    >
+                      +minor
+                    </button>
+                  </div>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="actor-category">Category</label>
+                  <input
+                    id="actor-category"
+                    list="actor-category-presets"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    maxLength={80}
+                    required
+                  />
+                  <datalist id="actor-category-presets">
+                    {STORE_CATEGORY_FILTERS.ACTOR.filter(
+                      (option) => option.slug,
+                    ).map((option) => (
+                      <option key={option.slug} value={option.slug}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
                 <div className="form-field">
                   <label htmlFor="actor-summary">Short Summary</label>
                   <input
@@ -633,6 +683,7 @@ export function ActorStudio({
                     onChange={(e) => {
                       setCode(e.target.value);
                       setPreviewResult(null);
+                      setCompletedUpTo((prev) => Math.min(prev, 2));
                     }}
                     rows={Math.max(codeLineCount, 12)}
                     spellCheck={false}
@@ -644,6 +695,101 @@ export function ActorStudio({
                   Viewer automatically, or return a single Object.
                 </small>
               </div>
+
+              <div className="studio-step-footer">
+                {step1BlockReason ? (
+                  <span className="studio-step-hint">{step1BlockReason}</span>
+                ) : null}
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    disabled={!step1Valid}
+                    onClick={() => {
+                      setError(null);
+                      setCompletedUpTo((prev) => Math.max(prev, 1));
+                      setActiveStep(2);
+                    }}
+                  >
+                    Continue to Input Schema →
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {currentStep === 2 ? (
+            <div className="studio-tab-panel">
+              <div className="studio-step-header">
+                <span className="studio-step-kicker">
+                  Step 02 of 04 · Input Schema ({extractedFields.fields.length}{" "}
+                  fields)
+                </span>
+                <h2 className="studio-step-title">
+                  Define the JSON Schema 2020-12 input contract
+                </h2>
+              </div>
+              <p className="panel-intro">
+                The Store automatically generates an interactive form from this
+                schema, and the Gateway validates every paid request against it.
+              </p>
+              <InputSchemaBuilder
+                value={inputSchemaText}
+                onChange={(value) => {
+                  setInputSchemaText(value);
+                  setPreviewResult(null);
+                  setCompletedUpTo((prev) => Math.min(prev, 2));
+                }}
+                disabled={submitting}
+                idPrefix="actor-schema"
+              />
+              <div className="studio-step-footer">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => {
+                    setError(null);
+                    setActiveStep(1);
+                  }}
+                >
+                  ← Back
+                </button>
+                {step2BlockReason ? (
+                  <span className="studio-step-hint">{step2BlockReason}</span>
+                ) : null}
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    disabled={!step2Valid}
+                    onClick={() => {
+                      setError(null);
+                      setCompletedUpTo((prev) => Math.max(prev, 2));
+                      setActiveStep(3);
+                    }}
+                  >
+                    Continue to Docker Preview →
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {currentStep === 3 ? (
+            <div className="studio-tab-panel">
+              <div className="studio-step-header">
+                <span className="studio-step-kicker">
+                  Step 03 of 04 · Docker Preview
+                </span>
+                <h2 className="studio-step-title">
+                  Verify execution inside the isolated runner
+                </h2>
+              </div>
+              <p className="panel-intro">
+                Run a dry-run inside <code>facet/node-actor-runner:1.0</code>{" "}
+                with <code>--network=none</code> and confirm structured dataset
+                output before unlocking Pricing &amp; Payout.
+              </p>
               <div className="form-field">
                 <label htmlFor="actor-preview-input">
                   Docker preview input (JSON)
@@ -665,6 +811,12 @@ export function ActorStudio({
                     : "Run Docker preview"}
                 </button>
               </div>
+              {error ? (
+                <div className="error-banner" role="alert">
+                  <strong>Preview error</strong>
+                  <p>{error}</p>
+                </div>
+              ) : null}
               {previewResult ? (
                 <div className="actor-preview-result-box">
                   <span className="eyebrow">Docker preview output</span>
@@ -676,35 +828,76 @@ export function ActorStudio({
                   </pre>
                 </div>
               ) : null}
+              <div className="studio-step-footer">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => {
+                    setError(null);
+                    setActiveStep(2);
+                  }}
+                >
+                  ← Back
+                </button>
+                {step3BlockReason ? (
+                  <span className="studio-step-hint">{step3BlockReason}</span>
+                ) : null}
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    disabled={!step3Valid}
+                    onClick={() => {
+                      setError(null);
+                      setCompletedUpTo((prev) => Math.max(prev, 3));
+                      setActiveStep(4);
+                    }}
+                  >
+                    Continue to Pricing &amp; Payout →
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
 
-          {editorTab === "schema" ? (
+          {currentStep === 4 ? (
             <div className="studio-tab-panel">
-              <p className="panel-intro">
-                Define the Actor&apos;s JSON Schema 2020-12 input contract. The
-                Store automatically generates an interactive form from this
-                schema, and the Gateway validates every paid request against it.
-              </p>
-              <InputSchemaBuilder
-                value={inputSchemaText}
-                onChange={(value) => {
-                  setInputSchemaText(value);
-                  setPreviewResult(null);
-                }}
-                disabled={submitting}
-                idPrefix="actor-schema"
-              />
-            </div>
-          ) : null}
-
-          {editorTab === "pricing" ? (
-            <div className="studio-tab-panel">
+              <div className="studio-step-header">
+                <span className="studio-step-kicker">
+                  Step 04 of 04 · Pricing &amp; Payout
+                </span>
+                <h2 className="studio-step-title">
+                  Confirm payout wallet and publish Actor
+                </h2>
+              </div>
               <p>
                 PAY_PER_RUN · 1,000 atomic fUSD ({formatAtomicFusd(priceAtomic)}
                 ) on Avalanche Fuji. The verified wallet below receives the
                 creator payout.
               </p>
+              <dl className="inspector-specs">
+                <div>
+                  <dt>Target Facet</dt>
+                  <dd>
+                    {workspace.username ?? "your-account"}/{facetName}@{version}
+                  </dd>
+                </div>
+                <div>
+                  <dt>ESM Entrypoint</dt>
+                  <dd>{codeLineCount} lines · export verified</dd>
+                </div>
+                <div>
+                  <dt>Input Contract</dt>
+                  <dd>
+                    {extractedFields.fields.length} visual fields · JSON Schema
+                    valid
+                  </dd>
+                </div>
+                <div>
+                  <dt>Docker Preview</dt>
+                  <dd className="mono-accent">Verified ✓</dd>
+                </div>
+              </dl>
               <p className="mono-detail">
                 {payoutWallet ?? "No payout wallet linked"}
               </p>
@@ -720,6 +913,42 @@ export function ActorStudio({
                     ? "Change verified payout wallet"
                     : "Link payout wallet"}
               </button>
+              {error ? (
+                <div className="error-banner" role="alert">
+                  <strong>Publish error</strong>
+                  <p>{error}</p>
+                </div>
+              ) : null}
+              <div className="studio-step-footer">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => {
+                    setError(null);
+                    setActiveStep(3);
+                  }}
+                >
+                  ← Back
+                </button>
+                <div className="studio-step-footer-actions">
+                  <button
+                    type="submit"
+                    className="button button-primary"
+                    disabled={
+                      submitting ||
+                      workspace.authRequired ||
+                      workspace.usernameRequired ||
+                      !payoutWallet ||
+                      !previewResult ||
+                      !step1Valid ||
+                      !step2Valid
+                    }
+                  >
+                    {submitting ? "Publishing Actor…" : "Publish Actor"}
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+              </div>
             </div>
           ) : null}
         </div>
@@ -752,7 +981,9 @@ export function ActorStudio({
           </div>
 
           <div className="inspector-card">
-            <p className="eyebrow">Publish Readiness</p>
+            <p className="eyebrow">
+              Publish Readiness · Step 0{currentStep} of 04
+            </p>
             <ul className="readiness-list">
               <li
                 data-ok={Boolean(
@@ -781,38 +1012,25 @@ export function ActorStudio({
                   ? `✓ Valid JSON Schema (${extractedFields.fields.length} visual fields)`
                   : "○ Fix JSON Schema syntax"}
               </li>
-              <li data-ok={Boolean(payoutWallet)}>
-                {payoutWallet
-                  ? "✓ Payout wallet verified"
-                  : "○ Link payout wallet"}
-              </li>
               <li data-ok={Boolean(previewResult)}>
                 {previewResult
                   ? "✓ Docker preview completed"
                   : "○ Run Docker preview"}
               </li>
+              <li data-ok={Boolean(payoutWallet)}>
+                {payoutWallet
+                  ? "✓ Payout wallet verified"
+                  : "○ Link payout wallet"}
+              </li>
             </ul>
 
-            {error ? (
-              <div className="error-banner" role="alert">
-                <strong>Publish error</strong>
-                <p>{error}</p>
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              className="button button-primary import-submit"
-              disabled={
-                submitting ||
-                workspace.authRequired ||
-                !payoutWallet ||
-                !previewResult
-              }
-            >
-              {submitting ? "Publishing Actor…" : "Publish Actor"}
-              <span aria-hidden="true">↗</span>
-            </button>
+            <p className="readiness-step-hint">
+              {currentStep < 4
+                ? "Complete steps 01–03 in order to unlock Publish Actor."
+                : !payoutWallet
+                  ? "Verify a payout wallet in Step 04 to Publish Actor."
+                  : "All checks passed — ready to Publish Actor."}
+            </p>
           </div>
 
           {published ? (
