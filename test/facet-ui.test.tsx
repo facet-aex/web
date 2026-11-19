@@ -109,8 +109,11 @@ describe("facet-ui helpers", () => {
       />,
     );
     expect(markup).toContain("Username Format Required");
-    expect(markup).toContain("8–16 character kebab-case username");
+    expect(markup).toContain(
+      "lowercase letters (a–z), numbers (0–9), and hyphens (-)",
+    );
     expect(markup).toContain("alice-labs");
+    expect(markup).not.toContain("^[a-z0-9]");
   });
 });
 

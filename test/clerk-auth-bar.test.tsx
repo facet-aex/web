@@ -60,6 +60,7 @@ vi.mock("@clerk/nextjs", () => {
 });
 
 import { ClerkAuthBar } from "@/components/clerk-auth-bar";
+import { getUsernameValidationError } from "@/components/clerk-sign-up-card";
 import SignUpPage from "@/app/sign-up/[[...sign-up]]/page";
 
 describe("ClerkAuthBar", () => {
@@ -96,9 +97,22 @@ describe("ClerkAuthBar", () => {
     expect(markup).toContain("Sign up");
   });
 
-  it("renders the username format guide on /sign-up", () => {
+  it("renders a single centered sign-up card without the regex banner and validates usernames live", () => {
     const markup = renderToStaticMarkup(<SignUpPage />);
-    expect(markup).toContain("8–16 character kebab-case username");
-    expect(markup).toContain("alice-labs");
+    expect(markup).toContain('data-testid="clerk-sign-up"');
+    expect(markup).not.toContain("Provider Handle Format");
+    expect(markup).not.toContain("^[a-z0-9]");
+
+    expect(getUsernameValidationError("pg30_cs3244")).toContain(
+      "Only lowercase letters (a–z), numbers (0–9), and hyphens (-) are allowed.",
+    );
+    expect(getUsernameValidationError("short")).toContain(
+      "between 8 and 16 characters",
+    );
+    expect(getUsernameValidationError("-alice-labs")).toContain(
+      "cannot start or end with a hyphen",
+    );
+    expect(getUsernameValidationError("alice-labs")).toBeNull();
+    expect(getUsernameValidationError("taihungg")).toBeNull();
   });
 });

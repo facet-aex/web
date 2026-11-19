@@ -187,8 +187,17 @@ export function ActorStudio({
     setLinkingWallet(true);
     try {
       const account = workspace.user ?? (await workspace.refresh());
-      if (!account?.username)
+      if (!account?.username) {
+        if (workspace.usernameRequired) {
+          throw new Error(
+            "Update your Clerk username to 8–16 lowercase letters, numbers, and hyphens (-) before linking a payout wallet.",
+          );
+        }
+        if (workspace.error && !workspace.authRequired) {
+          throw new Error(workspace.error);
+        }
         throw new Error("Sign in before linking a payout wallet.");
+      }
       const injected = (
         window as Window & {
           ethereum?: {
@@ -256,9 +265,12 @@ export function ActorStudio({
     setError(null);
     setPreviewing(true);
     try {
-      const account = workspace.user ?? (await workspace.refresh());
-      if (!account?.username)
+      if (workspace.authRequired)
         throw new Error("Sign in before previewing an Actor.");
+      if (workspace.usernameRequired)
+        throw new Error(
+          "Update your Clerk username to 8–16 lowercase letters, numbers, and hyphens (-) before previewing an Actor.",
+        );
       if (!parsedSchema.schema)
         throw new Error(parsedSchema.error ?? "Input schema is invalid.");
       const input = JSON.parse(previewInput) as unknown;
@@ -737,7 +749,11 @@ export function ActorStudio({
             <p className="eyebrow">Publish Readiness</p>
             <ul className="readiness-list">
               <li
-                data-ok={!workspace.authRequired && !workspace.usernameRequired}
+                data-ok={Boolean(
+                  workspace.username &&
+                  !workspace.authRequired &&
+                  !workspace.usernameRequired,
+                )}
               >
                 {workspace.authRequired
                   ? "○ Sign in with Clerk required to publish"
@@ -745,7 +761,9 @@ export function ActorStudio({
                     ? "○ Valid 8–16 char kebab-case username required"
                     : workspace.username
                       ? `✓ Account @${workspace.username} ready`
-                      : "✓ Publishes under signed-in account"}
+                      : workspace.error
+                        ? `○ ${workspace.error}`
+                        : "○ Checking signed-in account…"}
               </li>
               <li data-ok={hasEntrypointExport}>
                 {hasEntrypointExport

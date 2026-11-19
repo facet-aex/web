@@ -1,6 +1,7 @@
-import { SignUp } from "@clerk/nextjs";
 import Link from "next/link";
 import { Suspense } from "react";
+
+import { ClerkSignUpCard } from "@/components/clerk-sign-up-card";
 
 export default function SignUpPage() {
   return (
@@ -17,23 +18,8 @@ export default function SignUpPage() {
         </Link>
       </div>
       <div className="auth-card-slot">
-        <section
-          className="provider-bar provider-bar-auth"
-          aria-label="FACET username format guide"
-        >
-          <div>
-            <p className="eyebrow">Provider Handle Format</p>
-            <strong>Choose an 8–16 character kebab-case username</strong>
-            <p className="provider-bar-sub">
-              Your Clerk username becomes your public FACET{" "}
-              <code>provider</code> namespace and must match{" "}
-              <code>^[a-z0-9](?:[a-z0-9-]&#123;6,14&#125;[a-z0-9])$</code> (for
-              example, <code>alice-labs</code>).
-            </p>
-          </div>
-        </section>
         <Suspense fallback={<p className="empty-state">Loading sign-up…</p>}>
-          <SignUp />
+          <ClerkSignUpCard />
         </Suspense>
       </div>
     </main>

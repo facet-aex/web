@@ -19,13 +19,25 @@ export function ProviderSelectorBar({
       <section className="provider-bar provider-bar-auth" role="alert">
         <div>
           <p className="eyebrow">Username Format Required</p>
-          <strong>Set an 8–16 character kebab-case username to publish</strong>
+          <strong>Update your username to publish on FACET</strong>
           <p className="provider-bar-sub">
-            Your Clerk username must match{" "}
-            <code>^[a-z0-9](?:[a-z0-9-]&#123;6,14&#125;[a-z0-9])$</code> (for
-            example, <code>alice-labs</code>). Update your username in your
-            Clerk profile menu and reload Studio.
+            Use 8–16 lowercase letters (a–z), numbers (0–9), and hyphens (-)
+            only (for example, <code>alice-labs</code>; underscores are not
+            allowed). Update your username in your Clerk profile menu and
+            reload.
           </p>
+        </div>
+      </section>
+    );
+  }
+
+  if (workspace.error && !workspace.authRequired) {
+    return (
+      <section className="provider-bar provider-bar-auth" role="alert">
+        <div>
+          <p className="eyebrow">Account Sync Error</p>
+          <strong>Could not load your FACET account</strong>
+          <p className="provider-bar-sub">{workspace.error}</p>
         </div>
       </section>
     );
