@@ -85,7 +85,9 @@ export function StudioFacetPreviewCard({
         <span className={`badge-type badge-${meta.accentClass}`}>
           {meta.glyph} {meta.facetTag}
         </span>
-        <span className="kicker-chip">{getCategoryLabel(category)}</span>
+        <span className="kicker-chip">
+          {getCategoryLabel(category, facetType)}
+        </span>
       </div>
 
       <div className="studio-preview-identity">

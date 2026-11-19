@@ -534,11 +534,13 @@ export function AgentStudio({
                     onChange={(e) => setCategory(e.target.value)}
                     required
                   >
-                    {getCategoryOptionsWithCurrent(category).map((option) => (
-                      <option key={option.slug} value={option.slug}>
-                        {option.label}
-                      </option>
-                    ))}
+                    {getCategoryOptionsWithCurrent("AGENT", category).map(
+                      (option) => (
+                        <option key={option.slug} value={option.slug}>
+                          {option.label}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </div>
                 <div className="form-field">
@@ -774,7 +776,7 @@ export function AgentStudio({
                 </div>
                 <div>
                   <dt>Category</dt>
-                  <dd>{getCategoryLabel(category)}</dd>
+                  <dd>{getCategoryLabel(category, "AGENT")}</dd>
                 </div>
                 <div>
                   <dt>On-Chain Identity</dt>

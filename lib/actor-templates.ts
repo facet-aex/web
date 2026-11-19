@@ -18,41 +18,19 @@ export interface ActorTemplatePreset {
 export const BLANK_ACTOR_PRESET: ActorTemplatePreset = {
   id: "blank-actor",
   label: "Blank Actor",
-  facetDisplayName: "Custom Data Actor",
-  facetName: "custom-data-actor",
-  summary: "Transforms structured JSON input into normalized Dataset rows.",
-  category: "data-processing",
-  tags: ["actor", "docker", "dataset"],
-  description:
-    "Node.js 22 Actor running inside an isolated container returning structured Dataset items.",
+  facetDisplayName: "",
+  facetName: "",
+  summary: "",
+  category: "",
+  tags: [],
+  description: "",
   pricingModel: "PAY_PER_RUN",
   priceAtomic: "1000",
   inputSchema: {
     type: "object",
-    required: ["query"],
-    properties: {
-      query: {
-        type: "string",
-        default: "avalanche fuji",
-        description: "Primary task input parameter",
-      },
-      limit: {
-        type: "integer",
-        default: 5,
-        description: "Maximum items to return",
-      },
-    },
+    properties: {},
   },
-  code: `export default async function run(input) {
-  const query = String(input?.query ?? "facet").trim();
-  const limit = Math.min(Math.max(Number(input?.limit ?? 5), 1), 50);
-  return Array.from({ length: Math.min(limit, 3) }, (_, index) => ({
-    index: index + 1,
-    query,
-    status: "ok",
-    processedAt: new Date().toISOString(),
-  }));
-}`,
+  code: "",
 };
 
 export const ACTOR_TEMPLATE_PRESETS: ActorTemplatePreset[] = [

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ProviderSelectorBar } from "@/components/provider-selector-bar";
 import {
   formatAtomicFusd,
+  getCategoryLabel,
   getFacetTypeMeta,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
@@ -164,7 +165,7 @@ export function MyFacetsView({
                 facetDisplayName: actor.facetDisplayName,
                 facetType: "ACTOR",
                 version: actor.version,
-                category: "actor",
+                category: "others",
                 visibility: actor.status === "PUBLISHED" ? "PUBLIC" : "PRIVATE",
                 status: actor.status,
                 pricingModel: "PAY_PER_RUN",
@@ -407,7 +408,9 @@ export function MyFacetsView({
                   <strong>{item.facetDisplayName}</strong>
                   <div className="my-facet-sub">
                     <code>{id}</code>
-                    <span className="kicker-chip">{item.category}</span>
+                    <span className="kicker-chip">
+                      {getCategoryLabel(item.category, item.facetType)}
+                    </span>
                     {item.errorCode ? (
                       <span className="field-warning">{item.errorCode}</span>
                     ) : null}

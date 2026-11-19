@@ -108,6 +108,7 @@ describe("StorePage catalog", () => {
     expect(allMarkup).not.toContain("A2A Agents");
     expect(allMarkup).not.toContain("<span>VN</span>");
     expect(allMarkup).toContain("store-category-bar");
+    expect(allMarkup).toContain('href="/store?category=others"');
 
     const apiMarkup = renderToStaticMarkup(
       await StorePage({
@@ -116,6 +117,7 @@ describe("StorePage catalog", () => {
     );
     expect(apiMarkup).toContain('href="/store?type=API&amp;category=data"');
     expect(apiMarkup).toContain('href="/store?type=API&amp;category=social"');
+    expect(apiMarkup).toContain('href="/store?type=API&amp;category=others"');
     expect(apiMarkup).not.toContain("vietnamese-data");
 
     const actorMarkup = renderToStaticMarkup(
@@ -129,6 +131,9 @@ describe("StorePage catalog", () => {
     expect(actorMarkup).toContain(
       'href="/store?type=ACTOR&amp;category=vietnamese-data"',
     );
+    expect(actorMarkup).toContain(
+      'href="/store?type=ACTOR&amp;category=others"',
+    );
 
     const agentMarkup = renderToStaticMarkup(
       await StorePage({
@@ -141,11 +146,14 @@ describe("StorePage catalog", () => {
     expect(agentMarkup).toContain(
       'href="/store?type=AGENT&amp;category=research"',
     );
+    expect(agentMarkup).toContain(
+      'href="/store?type=AGENT&amp;category=others"',
+    );
   });
 });
 
 describe("Studio pages", () => {
-  it("renders Studio overview and API, Actor, Agent studios using canonical Facet taxonomy without sub-navbar or overview back links", () => {
+  it("renders Studio overview and API, Actor, and Coming Soon Agent studios without sub-navbar or overview back links", () => {
     const hub = renderToStaticMarkup(<StudioHubPage />);
     const api = renderToStaticMarkup(<ApiStudioPage />);
     const actor = renderToStaticMarkup(<ActorStudioPage />);
@@ -156,6 +164,8 @@ describe("Studio pages", () => {
     expect(api).toContain("API Studio");
     expect(actor).toContain("Actor Studio");
     expect(agent).toContain("Agent Studio");
+    expect(agent).toMatch(/coming soon/i);
+    expect(agent).not.toContain('id="agent-display-name"');
 
     expect(api).not.toContain("HTTP API Studio");
     expect(actor).not.toContain("Hosted Actor Studio");

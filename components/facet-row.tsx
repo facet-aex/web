@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-import { formatAtomicFusd, getFacetTypeMeta } from "@/lib/facet-ui";
+import {
+  formatAtomicFusd,
+  getCategoryLabel,
+  getFacetTypeMeta,
+} from "@/lib/facet-ui";
 import type { PublicFacet } from "@/lib/public-catalog";
 
 function priceLabel(facet: PublicFacet): string {
@@ -30,7 +34,9 @@ export function FacetRow({ facet }: { facet: PublicFacet }) {
           <span className={`badge-type badge-${meta.accentClass}`}>
             {meta.facetTag}
           </span>
-          <span className="kicker-chip">{facet.category}</span>
+          <span className="kicker-chip">
+            {getCategoryLabel(facet.category, facet.facetType)}
+          </span>
           {facet.facetType === "ACTOR" && facet.actorMeta ? (
             <>
               <span className="kicker-chip">{facet.actorMeta.runtime}</span>

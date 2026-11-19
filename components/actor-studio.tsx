@@ -52,13 +52,39 @@ const ALL_ACTOR_PRESETS: ActorTemplatePreset[] = [
   ...ACTOR_TEMPLATE_PRESETS,
 ];
 
+function buildDefaultPreviewInput(schema: Record<string, unknown>): string {
+  const properties = schema.properties;
+  if (
+    typeof properties !== "object" ||
+    properties === null ||
+    Array.isArray(properties)
+  ) {
+    return "{}";
+  }
+  const sample: Record<string, unknown> = {};
+  for (const [key, rawField] of Object.entries(properties)) {
+    if (
+      typeof rawField === "object" &&
+      rawField !== null &&
+      !Array.isArray(rawField) &&
+      "default" in rawField &&
+      rawField.default !== undefined
+    ) {
+      sample[key] = rawField.default;
+    }
+  }
+  return Object.keys(sample).length > 0
+    ? JSON.stringify(sample, null, 2)
+    : "{}";
+}
+
 export function ActorStudio({
   publishableKey,
 }: {
   publishableKey?: string | undefined;
 }) {
   const workspace = useAccountWorkspace();
-  const initialPreset = ACTOR_TEMPLATE_PRESETS[0]!;
+  const initialPreset = BLANK_ACTOR_PRESET;
 
   const [activePresetId, setActivePresetId] = useState(initialPreset.id);
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1);
@@ -69,7 +95,9 @@ export function ActorStudio({
   );
   const [facetName, setFacetName] = useState(initialPreset.facetName);
   const [version, setVersion] = useState("1.0.0");
-  const [facetNameLocked, setFacetNameLocked] = useState(true);
+  const [facetNameLocked, setFacetNameLocked] = useState(
+    Boolean(initialPreset.facetName),
+  );
   const [summary, setSummary] = useState(initialPreset.summary);
   const [category, setCategory] = useState(initialPreset.category);
   const [tagsText, setTagsText] = useState(initialPreset.tags.join(", "));
@@ -86,7 +114,9 @@ export function ActorStudio({
 
   const [verifiedWallet, setVerifiedWallet] = useState<string | null>(null);
   const [linkingWallet, setLinkingWallet] = useState(false);
-  const [previewInput, setPreviewInput] = useState('{"query":"example"}');
+  const [previewInput, setPreviewInput] = useState(() =>
+    buildDefaultPreviewInput(initialPreset.inputSchema),
+  );
   const [previewResult, setPreviewResult] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const publishKey = useRef<string | null>(null);
@@ -180,13 +210,15 @@ export function ActorStudio({
     setCompletedUpTo(0);
     setFacetDisplayName(preset.facetDisplayName);
     setFacetName(preset.facetName);
-    setFacetNameLocked(true);
+    setVersion("1.0.0");
+    setFacetNameLocked(Boolean(preset.facetName));
     setSummary(preset.summary);
     setCategory(preset.category);
     setTagsText(preset.tags.join(", "));
     setDescription(preset.description);
     setPriceFusdText(atomicToFusdInput(preset.priceAtomic));
     setInputSchemaText(JSON.stringify(preset.inputSchema, null, 2));
+    setPreviewInput(buildDefaultPreviewInput(preset.inputSchema));
     setCode(preset.code);
     setError(null);
     setPublished(null);
@@ -201,7 +233,7 @@ export function ActorStudio({
     /(export\s+default\b|export\s+(?:async\s+)?function\s+run\b)/u.test(
       code.trim(),
     );
-  const codeLineCount = Math.max(code.split("\n").length, 1);
+  const codeLineCount = code.length === 0 ? 0 : code.split("\n").length;
 
   const identityConflict = checkFacetIdentityConflict(ownedFacets, {
     facetName,
@@ -607,9 +639,12 @@ export function ActorStudio({
                       const nextName = e.target.value;
                       setFacetDisplayName(nextName);
                       if (!facetNameLocked) {
-                        setFacetName(suggestFacetName(nextName));
+                        setFacetName(
+                          nextName.trim() ? suggestFacetName(nextName) : "",
+                        );
                       }
                     }}
+                    placeholder="e.g. HTML Product Extractor"
                     maxLength={120}
                     required
                   />
@@ -623,6 +658,7 @@ export function ActorStudio({
                       setFacetNameLocked(true);
                       setFacetName(e.target.value);
                     }}
+                    placeholder="e.g. html-product-extractor"
                     pattern={FACET_NAME_PATTERN}
                     minLength={4}
                     maxLength={32}
@@ -636,6 +672,7 @@ export function ActorStudio({
                       id="actor-version"
                       value={version}
                       onChange={(event) => setVersion(event.target.value)}
+                      placeholder="1.0.0"
                       pattern={SEMVER_PATTERN}
                       required
                     />
@@ -665,11 +702,16 @@ export function ActorStudio({
                     onChange={(e) => setCategory(e.target.value)}
                     required
                   >
-                    {getCategoryOptionsWithCurrent(category).map((option) => (
-                      <option key={option.slug} value={option.slug}>
-                        {option.label}
-                      </option>
-                    ))}
+                    <option value="" disabled>
+                      Select a category…
+                    </option>
+                    {getCategoryOptionsWithCurrent("ACTOR", category).map(
+                      (option) => (
+                        <option key={option.slug} value={option.slug}>
+                          {option.label}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </div>
                 <div className="form-field">
@@ -723,6 +765,7 @@ export function ActorStudio({
                   id="actor-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe what this Actor accepts, processes, and returns."
                   maxLength={10000}
                   required
                 />
@@ -743,9 +786,12 @@ export function ActorStudio({
                 </div>
                 <div className="code-editor-frame">
                   <div className="code-gutter" aria-hidden="true">
-                    {Array.from({ length: codeLineCount }, (_, idx) => (
-                      <span key={idx + 1}>{idx + 1}</span>
-                    ))}
+                    {Array.from(
+                      { length: Math.max(codeLineCount, 1) },
+                      (_, idx) => (
+                        <span key={idx + 1}>{idx + 1}</span>
+                      ),
+                    )}
                   </div>
                   <textarea
                     id="actor-code"
@@ -756,6 +802,9 @@ export function ActorStudio({
                       setPreviewResult(null);
                       setCompletedUpTo((prev) => Math.min(prev, 2));
                     }}
+                    placeholder={
+                      "export default async function run(input) {\n  return [{ ok: true, input }];\n}"
+                    }
                     rows={Math.max(codeLineCount, 12)}
                     spellCheck={false}
                     required

@@ -678,6 +678,7 @@ export function FacetDraftWorkbench({
                     required
                   >
                     {getCategoryOptionsWithCurrent(
+                      "API",
                       activeItem.selection.category,
                     ).map((option) => (
                       <option key={option.slug} value={option.slug}>

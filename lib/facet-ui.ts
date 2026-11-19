@@ -86,6 +86,36 @@ export interface CategoryFilterOption {
   label: string;
 }
 
+export const FACET_CATEGORIES_BY_TYPE: Record<
+  FacetType,
+  CategoryFilterOption[]
+> = {
+  API: [
+    { slug: "data", label: "Data" },
+    { slug: "social", label: "Social" },
+    { slug: "finance", label: "Finance & Crypto" },
+    { slug: "ai", label: "AI & Search" },
+    { slug: "developer-tools", label: "Developer Tools" },
+    { slug: "others", label: "Others" },
+  ],
+  ACTOR: [
+    { slug: "web-scraping", label: "Web Scraping" },
+    { slug: "vietnamese-data", label: "Vietnamese Data" },
+    { slug: "data-processing", label: "Data Processing" },
+    { slug: "ecommerce", label: "E-commerce" },
+    { slug: "social", label: "Social & News" },
+    { slug: "others", label: "Others" },
+  ],
+  AGENT: [
+    { slug: "a2a-agents", label: "Multi-Task" },
+    { slug: "market-analysis", label: "Market Analysis" },
+    { slug: "research", label: "Research" },
+    { slug: "defi", label: "DeFi & Trading" },
+    { slug: "automation", label: "Workflow Automation" },
+    { slug: "others", label: "Others" },
+  ],
+};
+
 export const STORE_CATEGORY_FILTERS: Record<
   FacetType | "ALL",
   CategoryFilterOption[]
@@ -97,31 +127,11 @@ export const STORE_CATEGORY_FILTERS: Record<
     { slug: "web-scraping", label: "Web Scraping" },
     { slug: "vietnamese-data", label: "Vietnamese Data" },
     { slug: "a2a-agents", label: "Multi-Task" },
+    { slug: "others", label: "Others" },
   ],
-  API: [
-    { slug: "", label: "All" },
-    { slug: "data", label: "Data" },
-    { slug: "social", label: "Social" },
-    { slug: "finance", label: "Finance & Crypto" },
-    { slug: "ai", label: "AI & Search" },
-    { slug: "developer-tools", label: "Developer Tools" },
-  ],
-  ACTOR: [
-    { slug: "", label: "All" },
-    { slug: "web-scraping", label: "Web Scraping" },
-    { slug: "vietnamese-data", label: "Vietnamese Data" },
-    { slug: "data-processing", label: "Data Processing" },
-    { slug: "ecommerce", label: "E-commerce" },
-    { slug: "social", label: "Social & News" },
-  ],
-  AGENT: [
-    { slug: "", label: "All" },
-    { slug: "a2a-agents", label: "Multi-Task" },
-    { slug: "market-analysis", label: "Market Analysis" },
-    { slug: "research", label: "Research" },
-    { slug: "defi", label: "DeFi & Trading" },
-    { slug: "automation", label: "Workflow Automation" },
-  ],
+  API: [{ slug: "", label: "All" }, ...FACET_CATEGORIES_BY_TYPE.API],
+  ACTOR: [{ slug: "", label: "All" }, ...FACET_CATEGORIES_BY_TYPE.ACTOR],
+  AGENT: [{ slug: "", label: "All" }, ...FACET_CATEGORIES_BY_TYPE.AGENT],
 };
 
 export function getStoreCategoriesForType(
@@ -133,51 +143,44 @@ export function getStoreCategoriesForType(
   return STORE_CATEGORY_FILTERS.ALL;
 }
 
-export const FACET_CATEGORY_OPTIONS: CategoryFilterOption[] = [
-  { slug: "ai", label: "AI & Agents" },
-  { slug: "automation", label: "Automation & Workflows" },
-  { slug: "business", label: "Business & B2B" },
-  { slug: "data", label: "Data & Analytics" },
-  { slug: "data-processing", label: "Data Processing & ETL" },
-  { slug: "developer-tools", label: "Developer Tools" },
-  { slug: "ecommerce", label: "E-commerce & Retail" },
-  { slug: "finance", label: "Finance, Crypto & DeFi" },
-  { slug: "jobs", label: "Jobs & Recruiting" },
-  { slug: "lead-generation", label: "Lead Generation" },
-  { slug: "maps-travel", label: "Maps & Travel" },
-  { slug: "market-analysis", label: "Market Analysis" },
-  { slug: "marketing", label: "Marketing & Growth" },
-  { slug: "news", label: "News & Media" },
-  { slug: "real-estate", label: "Real Estate" },
-  { slug: "research", label: "Research & Science" },
-  { slug: "seo", label: "SEO Tools" },
-  { slug: "social", label: "Social Media" },
-  { slug: "vietnamese-data", label: "Vietnamese Data" },
-  { slug: "web-scraping", label: "Web Scraping" },
-  { slug: "a2a-agents", label: "Autonomous Multi-Task" },
-  { slug: "api", label: "API & Integrations" },
-  { slug: "other", label: "Other" },
-];
+export function getCategoriesForFacetType(
+  facetType: FacetType,
+): CategoryFilterOption[] {
+  return FACET_CATEGORIES_BY_TYPE[facetType];
+}
 
-export function getCategoryLabel(slug: string): string {
+export function getCategoryLabel(slug: string, facetType?: FacetType): string {
   const normalized = slug.trim();
-  const match = FACET_CATEGORY_OPTIONS.find(
-    (option) => option.slug === normalized,
-  );
-  return match ? match.label : normalized || "Uncategorized";
+  if (!normalized) return "Uncategorized";
+  if (facetType && facetType in FACET_CATEGORIES_BY_TYPE) {
+    const typedMatch = FACET_CATEGORIES_BY_TYPE[facetType].find(
+      (option) => option.slug === normalized,
+    );
+    if (typedMatch) return typedMatch.label;
+  }
+  for (const typeKey of ["API", "ACTOR", "AGENT"] as const) {
+    const fallbackMatch = FACET_CATEGORIES_BY_TYPE[typeKey].find(
+      (option) => option.slug === normalized,
+    );
+    if (fallbackMatch) return fallbackMatch.label;
+  }
+  if (normalized === "other" || normalized === "others") return "Others";
+  return normalized;
 }
 
 export function getCategoryOptionsWithCurrent(
+  facetType: FacetType,
   currentSlug: string,
 ): CategoryFilterOption[] {
+  const base = FACET_CATEGORIES_BY_TYPE[facetType];
   const trimmed = currentSlug.trim();
-  if (
-    !trimmed ||
-    FACET_CATEGORY_OPTIONS.some((option) => option.slug === trimmed)
-  ) {
-    return FACET_CATEGORY_OPTIONS;
+  if (!trimmed || base.some((option) => option.slug === trimmed)) {
+    return base;
   }
-  return [...FACET_CATEGORY_OPTIONS, { slug: trimmed, label: trimmed }];
+  return [
+    ...base,
+    { slug: trimmed, label: getCategoryLabel(trimmed, facetType) },
+  ];
 }
 
 const MAX_PRICE_ATOMIC_STR = "1000000000000";

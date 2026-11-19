@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import {
   formatAtomicFusd,
+  getCategoryLabel,
   getFacetTypeMeta,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
@@ -51,7 +52,8 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
         <div className="detail-header">
           <div>
             <p className="eyebrow">
-              {meta.glyph} {meta.facetTag} · {facet.provider} · {facet.category}
+              {meta.glyph} {meta.facetTag} · {facet.provider} ·{" "}
+              {getCategoryLabel(facet.category, facet.facetType)}
             </p>
             <h1>{facet.facetDisplayName}</h1>
             <p className="detail-description">{facet.description}</p>

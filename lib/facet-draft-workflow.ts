@@ -98,7 +98,7 @@ export function buildDraftSelections(
       facetDisplayName: display,
       summary: operation.summary?.trim() || display,
       description: operation.summary?.trim() || display,
-      category: "api",
+      category: "others",
       tags: [],
       sideEffectClass:
         operation.method.toUpperCase() === "GET" ? "READ_ONLY" : "UNKNOWN",

@@ -24,6 +24,7 @@ describe("FacetRow", () => {
     const markup = renderToStaticMarkup(<FacetRow facet={facet} />);
 
     expect(markup).toContain("northstar-labs");
+    expect(markup).toContain("Blockchain data");
     expect(markup).toContain("Published");
     expect(markup).toContain("Facet · API");
     expect(markup).toContain("Inspect API");
@@ -55,6 +56,7 @@ describe("FacetRow", () => {
     const markup = renderToStaticMarkup(<FacetRow facet={facet} />);
 
     expect(markup).toContain("Facet · Actor");
+    expect(markup).toContain("Vietnamese Data");
     expect(markup).toContain("nodejs22-alpine-v1");
     expect(markup).toContain("sha256:aaaaaaaa");
     expect(markup).toContain("Run Actor");
@@ -87,6 +89,7 @@ describe("FacetRow", () => {
     const markup = renderToStaticMarkup(<FacetRow facet={facet} />);
 
     expect(markup).toContain("Facet · Agent");
+    expect(markup).toContain("Multi-Task");
     expect(markup).toContain("Identity #1");
     expect(markup).toContain("vn-market-analysis");
     expect(markup).toContain("Delegate to Agent");

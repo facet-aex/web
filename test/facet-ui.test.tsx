@@ -6,9 +6,13 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import {
   ERC8004_IDENTITY_REGISTRY,
+  FACET_CATEGORIES_BY_TYPE,
   FUJI_CONTRACTS,
   STORE_CATEGORY_FILTERS,
   formatAtomicFusd,
+  getCategoriesForFacetType,
+  getCategoryLabel,
+  getCategoryOptionsWithCurrent,
   getFacetTypeMeta,
   getStoreCategoriesForType,
   isValidEvmAddress,
@@ -80,14 +84,36 @@ describe("facet-ui helpers", () => {
       studioHref: "/studio/agent",
     });
 
-    expect(STORE_CATEGORY_FILTERS.API.map((c) => c.label)).toEqual(
-      expect.arrayContaining(["Data", "Social"]),
-    );
-    expect(STORE_CATEGORY_FILTERS.ACTOR.map((c) => c.label)).toEqual(
-      expect.arrayContaining(["Web Scraping", "Vietnamese Data"]),
-    );
-    expect(STORE_CATEGORY_FILTERS.AGENT.map((c) => c.label)).toEqual(
-      expect.arrayContaining(["Market Analysis", "Research"]),
+    expect(FACET_CATEGORIES_BY_TYPE.API).toHaveLength(6);
+    expect(FACET_CATEGORIES_BY_TYPE.ACTOR).toHaveLength(6);
+    expect(FACET_CATEGORIES_BY_TYPE.AGENT).toHaveLength(6);
+    for (const typeKey of ["API", "ACTOR", "AGENT"] as const) {
+      const list = getCategoriesForFacetType(typeKey);
+      expect(list).toHaveLength(6);
+      expect(list.at(-1)).toEqual({ slug: "others", label: "Others" });
+    }
+
+    expect(STORE_CATEGORY_FILTERS.ALL.map((c) => c.slug)).toContain("others");
+    expect(STORE_CATEGORY_FILTERS.API).toEqual([
+      { slug: "", label: "All" },
+      ...FACET_CATEGORIES_BY_TYPE.API,
+    ]);
+    expect(STORE_CATEGORY_FILTERS.ACTOR).toEqual([
+      { slug: "", label: "All" },
+      ...FACET_CATEGORIES_BY_TYPE.ACTOR,
+    ]);
+    expect(STORE_CATEGORY_FILTERS.AGENT).toEqual([
+      { slug: "", label: "All" },
+      ...FACET_CATEGORIES_BY_TYPE.AGENT,
+    ]);
+
+    expect(getCategoryLabel("social", "API")).toBe("Social");
+    expect(getCategoryLabel("social", "ACTOR")).toBe("Social & News");
+    expect(getCategoryLabel("a2a-agents", "AGENT")).toBe("Multi-Task");
+    expect(getCategoryLabel("others", "ACTOR")).toBe("Others");
+    expect(getCategoryLabel("", "ACTOR")).toBe("Uncategorized");
+    expect(getCategoryOptionsWithCurrent("ACTOR", "")).toEqual(
+      FACET_CATEGORIES_BY_TYPE.ACTOR,
     );
     expect(getStoreCategoriesForType(undefined).length).toBeGreaterThan(2);
   });

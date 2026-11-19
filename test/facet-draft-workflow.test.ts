@@ -49,7 +49,7 @@ describe("Facet draft workflow helpers", () => {
         facetDisplayName: "Get a repository",
         summary: "Get a repository",
         description: "Get a repository",
-        category: "api",
+        category: "others",
         tags: [],
         sideEffectClass: "READ_ONLY",
       },

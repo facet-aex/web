@@ -1642,6 +1642,37 @@ code {
   border-top: 1px solid var(--facet-line);
 }
 
+.studio-coming-soon {
+  max-width: 760px;
+  margin: 2rem auto;
+  padding: clamp(2rem, 5vw, 3.5rem);
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+  display: grid;
+  gap: 1.25rem;
+}
+
+.studio-coming-soon h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.studio-coming-soon-copy {
+  margin: 0;
+  max-width: 58ch;
+  color: var(--facet-text-muted);
+  line-height: 1.6;
+}
+
+.studio-coming-soon-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
 /* Provider Selector Bar */
 .provider-bar {
   display: grid;

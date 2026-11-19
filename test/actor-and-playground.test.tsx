@@ -13,7 +13,7 @@ import type { PublicFacet } from "@/lib/public-catalog";
 import { checkFacetIdentityConflict } from "@/lib/use-owned-facets";
 
 describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
-  it("renders Actor Studio with top sequential stage bar, category dropdown, Facet Preview, and Docker sandbox specs", () => {
+  it("renders Actor Studio starting truly blank with Actor-only categories, sequential stage bar, and Facet Preview", () => {
     const markup = renderToStaticMarkup(<ActorStudio />);
 
     expect(markup).toContain("Actor Studio");
@@ -26,7 +26,20 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("Input Schema");
     expect(markup).toContain("Docker Preview");
     expect(markup).toContain("Pricing &amp; Payout");
+    expect(markup).toMatch(/<input[^>]*id="actor-name"[^>]*value=""/u);
+    expect(markup).toMatch(/<input[^>]*id="actor-slug"[^>]*value=""/u);
+    expect(markup).toContain("Select a category…");
+    expect(markup).toContain("Untitled Facet");
+    expect(markup).toContain("No fields defined");
     expect(markup).toContain('<select id="actor-category"');
+    expect(markup).toContain("Web Scraping");
+    expect(markup).toContain("Vietnamese Data");
+    expect(markup).toContain("Data Processing");
+    expect(markup).toContain("E-commerce");
+    expect(markup).toContain("Social &amp; News");
+    expect(markup).toContain("Others");
+    expect(markup).not.toContain("Developer Tools");
+    expect(markup).not.toContain("DeFi &amp; Trading");
     expect(markup).not.toContain("actor-category-presets");
     expect(markup).toContain('data-state="current"');
     expect(markup).toContain('aria-current="step"');
@@ -42,7 +55,7 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 
-  it("renders Agent Studio with top sequential stage bar, category dropdown, live On-Chain Agent Card, and without Publish Readiness", () => {
+  it("renders Agent Studio with Agent-only categories, sequential stage bar, live On-Chain Agent Card, and without Publish Readiness", () => {
     const markup = renderToStaticMarkup(<AgentStudio />);
 
     expect(markup).toContain("Agent Studio");
@@ -55,6 +68,14 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("Pricing &amp; Payout");
     expect(markup).toContain('id="agent-display-name"');
     expect(markup).toContain('<select id="agent-category"');
+    expect(markup).toContain("Multi-Task");
+    expect(markup).toContain("Market Analysis");
+    expect(markup).toContain("Research");
+    expect(markup).toContain("DeFi &amp; Trading");
+    expect(markup).toContain("Workflow Automation");
+    expect(markup).toContain("Others");
+    expect(markup).not.toContain("Web Scraping");
+    expect(markup).not.toContain("Developer Tools");
     expect(markup).not.toContain("agent-category-presets");
     expect(markup).toContain('data-state="current"');
     expect(markup).toContain('aria-current="step"');
