@@ -13,20 +13,9 @@ export default function DocsPage() {
       <main className="docs-page">
         <header className="section-heading docs-hero">
           <div>
-            <p className="eyebrow">Developer &amp; Agent Manual</p>
+            <p className="eyebrow">User &amp; Agent Guide</p>
             <h1 className="page-title">FACET Documentation</h1>
           </div>
-          <p>
-            <strong>Part 1</strong> explains the <code>FacetManifest v1</code>{" "}
-            architecture, modalities, <code>TaskEscrow</code> pricing, and
-            verified Avalanche contracts; <strong>Part 2</strong> walks through{" "}
-            <code>@facet-aex/cli</code>, Keychain wallets,{" "}
-            <Link className="explorer-link" href="/faucet">
-              /faucet
-            </Link>
-            , spend policies, and <code>@facet-aex/mcp-server</code> on{" "}
-            <strong>https://facet.briandev.space</strong>.
-          </p>
         </header>
 
         <div className="docs-layout">
