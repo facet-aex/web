@@ -283,8 +283,15 @@
 .docs-code-block,
 .docs-code-block .json-pre,
 .docs-toc,
+.docs-tool-card,
+.docs-inline-note,
 .docs-page .dataset-table-wrap {
   min-width: 0;
+}
+
+.docs-toc {
+  max-height: calc(100dvh - 112px);
+  overflow-y: auto;
 }
 
 .docs-page .dataset-table-wrap {
@@ -292,7 +299,8 @@
 }
 
 .docs-page code,
-.docs-section h2 {
+.docs-part-banner h2,
+.docs-section h3 {
   overflow-wrap: anywhere;
 }
 
@@ -320,11 +328,11 @@
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--facet-lime);
+  color: var(--facet-cyan);
 }
 
 .docs-toc-group:last-child .docs-toc-group-label {
-  color: var(--facet-cyan);
+  color: var(--facet-lime);
 }
 
 .docs-toc nav {
@@ -353,10 +361,18 @@
 
 .docs-part-banner h2 {
   margin: 0;
-  font-size: clamp(1.55rem, 2.6vw, 2.15rem);
+  font-size: clamp(1.8rem, 2.9vw, 2.45rem);
   font-weight: 500;
-  letter-spacing: -0.035em;
-  line-height: 1.12;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+}
+
+.docs-section h3 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.18;
 }
 
 .docs-part-banner p:last-child {
@@ -370,10 +386,13 @@
   border-top: 3px solid var(--facet-cyan);
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--facet-lime) 7%, var(--facet-surface)),
-    color-mix(in srgb, var(--facet-cyan) 7%, var(--facet-surface)) 58%,
-    var(--facet-surface)
+    color-mix(in srgb, var(--facet-cyan) 10%, var(--facet-surface)),
+    var(--facet-surface) 64%
   );
+}
+
+.docs-part-banner-overview .eyebrow {
+  color: var(--facet-cyan);
 }
 
 .docs-part-banner-agent {
@@ -383,6 +402,10 @@
     color-mix(in srgb, var(--facet-lime) 9%, var(--facet-surface)),
     var(--facet-surface) 64%
   );
+}
+
+.docs-part-banner-agent .eyebrow {
+  color: var(--facet-lime);
 }
 
 .docs-matrix-type {
@@ -450,7 +473,7 @@
   gap: 0.75rem;
 }
 
-.docs-step-head h2 {
+.docs-step-head h3 {
   margin: 0;
 }
 
@@ -477,6 +500,11 @@
   .docs-part-banner {
     scroll-margin-top: 148px;
   }
+
+  .docs-toc {
+    top: 144px;
+    max-height: calc(100dvh - 160px);
+  }
 }
 
 @media (max-width: 1040px) {
@@ -489,5 +517,7 @@
 
   .docs-toc {
     position: static;
+    max-height: none;
+    overflow-y: visible;
   }
 }

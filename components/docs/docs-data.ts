@@ -106,7 +106,7 @@ export const MODALITY_MATRIX_ROWS: readonly ModalityMatrixRow[] = [
     executionPath:
       "Single-file ESM module (export default async function run(input)) executed inside an isolated facet/node-actor-runner:1.0 Node 22 Docker container (0.5 vCPU, 128 MB RAM, --read-only, --network=none) returning structured dataset[] rows.",
     trustAndAuthoring:
-      "Single-step /studio/actor authoring with deterministic imageDigest anchored on FacetActorRegistry (facetType = 1) plus signed outputHash and itemCount.",
+      "4-step /studio/actor workbench (single POST /v1/actors publish) with deterministic imageDigest anchored on FacetActorRegistry (facetType = 1) plus signed outputHash and itemCount.",
     pricingModels: "PAY_PER_RUN or PAY_PER_RESULT (TaskEscrow)",
     studioHref: "/studio/actor",
     studioStatus: "Live",
@@ -135,13 +135,13 @@ export const CORE_DEFINITIONS: readonly CoreDefinitionItem[] = [
     term: "Provider vs Buyer / Agent",
     badge: "Single Account",
     summary:
-      "A single Clerk users record (users.username) identifies a human account. Acting as a Provider is a role of that user when publishing Facets with a verified providerPayTo payout wallet; Buyers and AI Agents pay per execution under client-side spend caps.",
+      "A single Clerk account (with one unique kebab-case provider handle) identifies a human on FACET. Acting as a Provider is a role of that account when publishing Facets with a verified providerPayTo payout wallet; Buyers and AI Agents pay per execution under client-side spend caps.",
   },
   {
     term: "x402 v2 & Idempotency",
     badge: "402 -> 200",
     summary:
-      "Unpaid requests return HTTP 402 with a PAYMENT-REQUIRED header quote. Clients retry with PAYMENT-SIGNATURE and the same Idempotency-Key ((callerId, facetVersionId, idempotencyKey)). Reusing a key with different input returns 409 IDEMPOTENCY_CONFLICT; pending 202 runs replay safely without double-charging.",
+      "Unpaid requests return HTTP 402 with a PAYMENT-REQUIRED header quote. Clients retry with PAYMENT-SIGNATURE and the same Idempotency-Key bound to the caller, pinned provider/facetName@version, and canonical input. Reusing a key with different input returns 409 IDEMPOTENCY_CONFLICT; pending 202 runs replay safely without double-charging.",
   },
   {
     term: "fUSD on Avalanche & Faucet",

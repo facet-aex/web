@@ -390,12 +390,27 @@ describe("DocsPage documentation", () => {
     const markup = renderToStaticMarkup(<DocsPage />);
     const mainAndHeader = markup.split("<footer")[0] ?? markup;
 
-    // 2-Part Structure & Preserved Anchors
+    // 2-Part Structure, Semantic Accessibility & Heading Hierarchy
+    const mainMarkup = markup.slice(
+      markup.indexOf("<main"),
+      markup.indexOf("</main>"),
+    );
     expect(markup).toContain("FACET Documentation");
     expect(markup).toContain("Part 1");
     expect(markup).toContain("Project Overview");
     expect(markup).toContain("Part 2");
     expect(markup).toContain("User &amp; Agent Guide");
+    expect(mainMarkup).toContain(
+      '<section class="docs-part-banner docs-part-banner-overview" aria-labelledby="part-overview-title">',
+    );
+    expect(mainMarkup).toContain('<h2 id="part-overview-title">');
+    expect(mainMarkup).toContain(
+      '<section class="docs-part-banner docs-part-banner-agent" id="agent-guide" aria-labelledby="part-agent-guide-title">',
+    );
+    expect(mainMarkup).toContain('<h2 id="part-agent-guide-title">');
+    expect(mainMarkup).not.toMatch(/<div[^>]*\baria-label=/u);
+    expect(mainMarkup.match(/<h2\b/gu)?.length).toBe(2);
+    expect(mainMarkup.match(/<h3\b/gu)?.length).toBe(11);
     expect(markup).toContain('id="overview"');
     expect(markup).toContain('id="facet-types"');
     expect(markup).toContain('id="core-definitions"');
@@ -480,11 +495,13 @@ describe("DocsPage documentation", () => {
     expect(markup).not.toContain("api.facet.example");
     expect(markup).not.toContain("FacetClient");
     expect(markup).not.toContain("fuji-deployment.json");
+    expect(markup).not.toContain("users.username");
+    expect(markup).not.toContain("facetVersionId");
     expect(markup).not.toMatch(/apify|rapidapi/iu);
     expect(mainAndHeader).not.toMatch(/\bfuji\b/iu);
   });
 
-  it("keeps /docs modules as pure Server Components and enforces >=44px touch targets & 1120px scroll clearance in docs-home.css", () => {
+  it("keeps /docs modules as pure Server Components and enforces >=44px touch targets, heading scale, TOC overflow/sticky rules, and cyan/lime alignment in docs-home.css", () => {
     const serverFiles = [
       "components/docs/docs-data.ts",
       "components/docs/docs-part-overview.tsx",
@@ -510,7 +527,34 @@ describe("DocsPage documentation", () => {
       /\.docs-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/u,
     );
     expect(css).toMatch(
-      /@media\s*\(max-width:\s*1120px\)\s*\{[^}]*\.docs-section,\s*\.docs-part-banner\s*\{[^}]*scroll-margin-top:\s*148px;/u,
+      /\.docs-toc\s*\{[^}]*max-height:\s*calc\(100dvh\s*-\s*112px\);[^}]*overflow-y:\s*auto;/u,
+    );
+    expect(css).toMatch(
+      /\.docs-part-banner\s+h2\s*\{[^}]*font-size:\s*clamp\(1\.8rem,\s*2\.9vw,\s*2\.45rem\);/u,
+    );
+    expect(css).toMatch(
+      /\.docs-section\s+h3\s*\{[^}]*font-size:\s*clamp\(1\.35rem,\s*2\.2vw,\s*1\.85rem\);/u,
+    );
+    expect(css).toMatch(
+      /\.docs-toc-group-label\s*\{[^}]*color:\s*var\(--facet-cyan\);/u,
+    );
+    expect(css).toMatch(
+      /\.docs-toc-group:last-child\s+\.docs-toc-group-label\s*\{[^}]*color:\s*var\(--facet-lime\);/u,
+    );
+    expect(css).toMatch(
+      /\.docs-part-banner-overview\s*\{[^}]*border-top:\s*3px\s+solid\s+var\(--facet-cyan\);/u,
+    );
+    expect(css).toMatch(
+      /\.docs-part-banner-agent\s*\{[^}]*border-top:\s*3px\s+solid\s+var\(--facet-lime\);/u,
+    );
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*1120px\)\s*\{[\s\S]*?\.docs-section,\s*\.docs-part-banner\s*\{[^}]*scroll-margin-top:\s*148px;/u,
+    );
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*1120px\)\s*\{[\s\S]*?\.docs-toc\s*\{[^}]*top:\s*144px;[^}]*max-height:\s*calc\(100dvh\s*-\s*160px\);/u,
+    );
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*1040px\)\s*\{[\s\S]*?\.docs-toc\s*\{[^}]*position:\s*static;[^}]*max-height:\s*none;[^}]*overflow-y:\s*visible;/u,
     );
   });
 });

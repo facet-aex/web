@@ -14,24 +14,26 @@ import {
 export function DocsPartAgentGuide() {
   return (
     <>
-      <div
+      <section
         className="docs-part-banner docs-part-banner-agent"
         id="agent-guide"
-        aria-label="Part 2: User and Agent Setup Guide"
+        aria-labelledby="part-agent-guide-title"
       >
         <p className="eyebrow">Part 2 · User &amp; Agent Guide</p>
-        <h2>Set Up CLI, Keychain Wallet, Spend Policies &amp; MCP</h2>
+        <h2 id="part-agent-guide-title">
+          Set Up CLI, Keychain Wallet, Spend Policies &amp; MCP
+        </h2>
         <p>
           Configure your local Avalanche buyer wallet, claim test{" "}
           <code>fUSD</code> from the Faucet, authorize bounded per-Facet spend
           policies, and connect Antigravity, Codex, Claude Code, or Cursor with
           zero private keys in MCP config.
         </p>
-      </div>
+      </section>
 
       <section className="docs-section" id="agent-concepts">
         <p className="eyebrow">06 · Buyer Safety Model</p>
-        <h2>How Agents Spend Safely Without Holding Secrets</h2>
+        <h3>How Agents Spend Safely Without Holding Secrets</h3>
         <p>
           The FACET agent runtime enforces strict separation between AI
           reasoning and Avalanche signing authority: your agent discovers and
@@ -55,7 +57,7 @@ export function DocsPartAgentGuide() {
         <div className="docs-step-block">
           <div className="docs-step-head">
             <span className="docs-step-badge">07 · Install CLI</span>
-            <h2>Install @facet-aex/cli (Node &gt;= 22)</h2>
+            <h3>Install @facet-aex/cli (Node &gt;= 22)</h3>
           </div>
           <p>
             Install the official CLI globally. Commands target{" "}
@@ -74,7 +76,7 @@ export function DocsPartAgentGuide() {
         <div className="docs-step-block">
           <div className="docs-step-head">
             <span className="docs-step-badge">08 · Wallet &amp; Faucet</span>
-            <h2>Create a Keychain Wallet &amp; Claim Test fUSD</h2>
+            <h3>Create a Keychain Wallet &amp; Claim Test fUSD</h3>
           </div>
           <p>
             Generate an isolated Avalanche EOA inside{" "}
@@ -107,7 +109,7 @@ export function DocsPartAgentGuide() {
         <div className="docs-step-block">
           <div className="docs-step-head">
             <span className="docs-step-badge">09 · Spend Policy</span>
-            <h2>Discover, Inspect &amp; Grant Bounded Policies</h2>
+            <h3>Discover, Inspect &amp; Grant Bounded Policies</h3>
           </div>
           <p>
             Policies are <strong>default-deny</strong>: inspect a Facet&apos;s
@@ -133,7 +135,7 @@ export function DocsPartAgentGuide() {
         <div className="docs-step-block">
           <div className="docs-step-head">
             <span className="docs-step-badge">10 · Install MCP</span>
-            <h2>Connect @facet-aex/mcp-server to Your AI Host</h2>
+            <h3>Connect @facet-aex/mcp-server to Your AI Host</h3>
           </div>
           <p>
             Install <code>@facet-aex/mcp-server</code> directly for Antigravity,
@@ -158,7 +160,7 @@ export function DocsPartAgentGuide() {
         <div className="docs-step-block">
           <div className="docs-step-head">
             <span className="docs-step-badge">11 · Agent Workflow</span>
-            <h2>MCP Tools, Example Prompt &amp; Spend History</h2>
+            <h3>MCP Tools, Example Prompt &amp; Spend History</h3>
           </div>
           <p>
             Once connected, your AI agent follows the deterministic 3-tool

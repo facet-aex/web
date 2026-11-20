@@ -17,15 +17,15 @@ export default function DocsPage() {
             <h1 className="page-title">FACET Documentation</h1>
           </div>
           <p>
-            Two modular guides for <strong>https://facet.briandev.space</strong>
-            : <strong>Part 1</strong> explains the <code>FacetManifest v1</code>{" "}
+            <strong>Part 1</strong> explains the <code>FacetManifest v1</code>{" "}
             architecture, modalities, <code>TaskEscrow</code> pricing, and
             verified Avalanche contracts; <strong>Part 2</strong> walks through{" "}
             <code>@facet-aex/cli</code>, Keychain wallets,{" "}
             <Link className="explorer-link" href="/faucet">
               /faucet
             </Link>
-            , spend policies, and <code>@facet-aex/mcp-server</code>.
+            , spend policies, and <code>@facet-aex/mcp-server</code> on{" "}
+            <strong>https://facet.briandev.space</strong>.
           </p>
         </header>
 

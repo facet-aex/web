@@ -16,23 +16,25 @@ import { snowtraceAddressUrl } from "@/lib/facet-ui";
 export function DocsPartOverview() {
   return (
     <>
-      <div
+      <section
         className="docs-part-banner docs-part-banner-overview"
-        aria-label="Part 1: Project Overview and Core Concepts"
+        aria-labelledby="part-overview-title"
       >
         <p className="eyebrow">Part 1 · Project Overview &amp; Core Concepts</p>
-        <h2>How FACET Standardizes APIs, Actors &amp; Agents</h2>
+        <h2 id="part-overview-title">
+          How FACET Standardizes APIs, Actors &amp; Agents
+        </h2>
         <p>
           Understand <code>FacetManifest v1</code>, natural-key addressing,
           modality execution guarantees, multi-method <code>fUSD</code>{" "}
           settlement with <code>TaskEscrow</code>, and the verified smart
           contracts on Avalanche.
         </p>
-      </div>
+      </section>
 
       <section className="docs-section" id="overview">
         <p className="eyebrow">01 · What is FACET</p>
-        <h2>One Unified Capability Standard on Avalanche</h2>
+        <h3>One Unified Capability Standard on Avalanche</h3>
         <p>
           <strong>FACET</strong> (Federated Agent Capability Exchange &amp;
           Trust) is a multi-modal capability marketplace hosted at{" "}
@@ -60,11 +62,11 @@ export function DocsPartOverview() {
           <article className="docs-tool-card">
             <strong>Single-Account User-as-Provider</strong>
             <p>
-              Humans sign in with Clerk into one unified <code>users</code>{" "}
-              account identified by <code>users.username</code>. Publishing a
-              Facet simply activates the Provider role on that same account,
-              linked to a verified EOA payout address (
-              <code>providerPayTo</code>) without duplicate organization tables.
+              Humans sign in with Clerk into one unified account identified by
+              their kebab-case provider handle. Publishing a Facet simply
+              activates the Provider role on that same account, linked to a
+              verified EOA payout address (<code>providerPayTo</code>) without
+              duplicate organization tables.
             </p>
           </article>
         </div>
@@ -72,7 +74,7 @@ export function DocsPartOverview() {
 
       <section className="docs-section" id="facet-types">
         <p className="eyebrow">02 · Modality Matrix</p>
-        <h2>API, Actor &amp; Agent Execution Models</h2>
+        <h3>API, Actor &amp; Agent Execution Models</h3>
         <p>
           Every modality uses uppercase enums (<code>API</code>,{" "}
           <code>ACTOR</code>, <code>AGENT</code>) end to end and shares the same
@@ -119,7 +121,7 @@ export function DocsPartOverview() {
 
       <section className="docs-section" id="core-definitions">
         <p className="eyebrow">03 · Core Definitions</p>
-        <h2>Platform &amp; Protocol Terminology</h2>
+        <h3>Platform &amp; Protocol Terminology</h3>
         <div className="docs-glossary-grid">
           {CORE_DEFINITIONS.map((item) => (
             <article className="docs-glossary-card" key={item.term}>
@@ -140,7 +142,7 @@ export function DocsPartOverview() {
 
       <section className="docs-section" id="pricing-escrow">
         <p className="eyebrow">04 · Multi-Pricing &amp; Settlement</p>
-        <h2>PAY_PER_RUN FeeSplit &amp; PAY_PER_RESULT TaskEscrow</h2>
+        <h3>PAY_PER_RUN FeeSplit &amp; PAY_PER_RESULT TaskEscrow</h3>
         <p>
           Providers can attach <code>1</code> or <code>2</code>{" "}
           <code>pricingOptions[]</code> per published <code>FacetVersion</code>{" "}
@@ -190,7 +192,7 @@ export function DocsPartOverview() {
         <p className="eyebrow">
           05 · Avalanche (Chain ID 43113 · eip155:43113)
         </p>
-        <h2>Verified Avalanche Smart Contracts</h2>
+        <h3>Verified Avalanche Smart Contracts</h3>
         <p>
           All six verified protocol and canonical <code>ERC-8004</code> contract
           deployments on Avalanche (<code>eip155:43113</code>) are listed below
