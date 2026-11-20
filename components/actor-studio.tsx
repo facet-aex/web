@@ -41,6 +41,11 @@ import {
   schemaToVisualFields,
 } from "@/lib/input-schema-builder";
 import { readErrorEnvelope } from "@/lib/openapi-import";
+import {
+  toCreatePricingOptions,
+  validatePricingDrafts,
+  type PricingOptionDraft,
+} from "@/lib/pricing-types";
 import { useAccountWorkspace } from "@/lib/use-account-workspace";
 import {
   checkFacetIdentityConflict,
@@ -78,6 +83,28 @@ function buildDefaultPreviewInput(schema: Record<string, unknown>): string {
     : "{}";
 }
 
+function presetToPricingOptions(
+  preset: ActorTemplatePreset,
+): PricingOptionDraft[] {
+  if (preset.pricingModel === "PAY_PER_RESULT") {
+    return [
+      {
+        model: "PAY_PER_RESULT",
+        priceFusd: atomicToFusdInput(preset.priceAtomic),
+        maxItemsCap: 20,
+        isPrimary: true,
+      },
+    ];
+  }
+  return [
+    {
+      model: "PAY_PER_RUN",
+      priceFusd: atomicToFusdInput(preset.priceAtomic),
+      isPrimary: true,
+    },
+  ];
+}
+
 export function ActorStudio({
   publishableKey,
 }: {
@@ -102,11 +129,16 @@ export function ActorStudio({
   const [category, setCategory] = useState(initialPreset.category);
   const [tagsText, setTagsText] = useState(initialPreset.tags.join(", "));
   const [description, setDescription] = useState(initialPreset.description);
-  const pricingModel = "PAY_PER_RUN" as const;
-  const [priceFusdText, setPriceFusdText] = useState(
-    atomicToFusdInput(initialPreset.priceAtomic),
+  const [pricingOptions, setPricingOptions] = useState<PricingOptionDraft[]>(
+    () => presetToPricingOptions(initialPreset),
   );
-  const priceAtomic = parseFusdToAtomic(priceFusdText);
+  const pricingValidationError = validatePricingDrafts(pricingOptions);
+  const primaryDraft =
+    pricingOptions.find((option) => option.isPrimary) ?? pricingOptions[0];
+  const primaryPricingModel = primaryDraft?.model ?? "PAY_PER_RUN";
+  const primaryPriceAtomic = primaryDraft
+    ? parseFusdToAtomic(primaryDraft.priceFusd)
+    : null;
   const [inputSchemaText, setInputSchemaText] = useState(
     JSON.stringify(initialPreset.inputSchema, null, 2),
   );
@@ -156,12 +188,18 @@ export function ActorStudio({
           registryTxHash?: string;
           errorCode?: string;
         };
-        if (status.status === "PUBLISHED" || status.status === "FAILED") {
+        if (
+          status.status === "PUBLISHED" ||
+          status.status === "FAILED" ||
+          status.status === "REGISTRATION_FAILED"
+        ) {
+          const normalizedStatus =
+            status.status === "PUBLISHED" ? "PUBLISHED" : "FAILED";
           setPublished((previous) =>
             previous
               ? {
                   ...previous,
-                  status: status.status as "PUBLISHED" | "FAILED",
+                  status: normalizedStatus,
                   ...(status.registryTxHash
                     ? { registryTxHash: status.registryTxHash }
                     : {}),
@@ -216,7 +254,7 @@ export function ActorStudio({
     setCategory(preset.category);
     setTagsText(preset.tags.join(", "));
     setDescription(preset.description);
-    setPriceFusdText(atomicToFusdInput(preset.priceAtomic));
+    setPricingOptions(presetToPricingOptions(preset));
     setInputSchemaText(JSON.stringify(preset.inputSchema, null, 2));
     setPreviewInput(buildDefaultPreviewInput(preset.inputSchema));
     setCode(preset.code);
@@ -471,8 +509,8 @@ export function ActorStudio({
       setError("Run a Docker preview before publishing.");
       return;
     }
-    if (!priceAtomic) {
-      setError("Enter a valid positive fUSD price (up to 6 decimals).");
+    if (pricingValidationError) {
+      setError(pricingValidationError);
       return;
     }
     if (identityConflict) {
@@ -480,6 +518,7 @@ export function ActorStudio({
       return;
     }
 
+    const requestPricingOptions = toCreatePricingOptions(pricingOptions);
     const requestTags = tagsText
       .split(",")
       .map((tag) => tag.trim())
@@ -513,8 +552,7 @@ export function ActorStudio({
           ...(requestTags.length ? { tags: requestTags } : {}),
           inputSchema: parsedSchema.schema,
           code,
-          pricingModel,
-          priceAtomic,
+          pricingOptions: requestPricingOptions,
         }),
       });
       const body = (await response.json().catch(() => null)) as {
@@ -993,9 +1031,8 @@ export function ActorStudio({
 
               <FacetPricingFields
                 idPrefix="actor"
-                pricingModel={pricingModel}
-                priceFusdText={priceFusdText}
-                onPriceFusdChange={setPriceFusdText}
+                options={pricingOptions}
+                onChange={setPricingOptions}
                 disabled={submitting}
               />
 
@@ -1064,7 +1101,7 @@ export function ActorStudio({
                       workspace.usernameRequired ||
                       !payoutWallet ||
                       !previewResult ||
-                      !priceAtomic ||
+                      Boolean(pricingValidationError) ||
                       Boolean(identityConflict) ||
                       !step1Valid ||
                       !step2Valid
@@ -1093,8 +1130,9 @@ export function ActorStudio({
             summary={summary}
             description={description}
             tags={tags}
-            pricingModel={pricingModel}
-            priceAtomic={priceAtomic}
+            pricingModel={primaryPricingModel}
+            priceAtomic={primaryPriceAtomic}
+            pricingOptions={pricingOptions}
             payoutWallet={payoutWallet}
             inputFields={previewInputFields}
             runtimeLabel="facet/node-actor-runner:1.0"
@@ -1123,7 +1161,17 @@ export function ActorStudio({
               <div>
                 <dt>Pricing Quote</dt>
                 <dd>
-                  {priceAtomic ? `${formatAtomicFusd(priceAtomic)} / run` : "—"}
+                  {pricingOptions.map((option) => {
+                    const atomic = parseFusdToAtomic(option.priceFusd);
+                    const unit =
+                      option.model === "PAY_PER_RESULT" ? "item" : "run";
+                    return (
+                      <div key={option.model}>
+                        {option.model} ·{" "}
+                        {atomic ? `${formatAtomicFusd(atomic)} / ${unit}` : "—"}
+                      </div>
+                    );
+                  })}
                 </dd>
               </div>
             </dl>
@@ -1135,8 +1183,8 @@ export function ActorStudio({
                 {published.status === "PUBLISHED"
                   ? "Actor Published"
                   : published.status === "FAILED"
-                    ? "Fuji Registration Failed"
-                    : "Fuji Registration Pending"}
+                    ? "Avalanche Registration Failed"
+                    : "Avalanche Registration Pending"}
               </p>
               <strong>
                 {published.provider}/{published.facetName}@{published.version}
@@ -1159,7 +1207,7 @@ export function ActorStudio({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Fuji registry transaction ↗
+                  Avalanche registry transaction ↗
                 </a>
               ) : null}
               {published.errorCode ? (

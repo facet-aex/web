@@ -12,7 +12,7 @@ import {
   snowtraceTxUrl,
   truncateMiddle,
 } from "@/lib/facet-ui";
-import type { PricingModel } from "@/lib/public-catalog";
+import type { FacetPricingOption, PricingModel } from "@/lib/public-catalog";
 
 export interface AgentIdentityCardProps {
   facetDisplayName: string;
@@ -25,6 +25,7 @@ export interface AgentIdentityCardProps {
   taskKind: string;
   pricingModel: PricingModel;
   priceAtomic: string;
+  pricingOptions?: FacetPricingOption[];
   payTo?: string;
   registryVerified?: boolean;
   registryTxHash?: string;
@@ -42,6 +43,7 @@ export function AgentIdentityCard({
   taskKind,
   pricingModel,
   priceAtomic,
+  pricingOptions,
   payTo,
   registryVerified,
   registryTxHash,
@@ -58,7 +60,7 @@ export function AgentIdentityCard({
   const hasValidTx = Boolean(registryTxHash && isValidTxHash(registryTxHash));
 
   const verificationLabel = registryVerified
-    ? "Verified on Fuji ✓"
+    ? "Verified on Avalanche ✓"
     : hasValidTx
       ? "Registry Tx Supplied"
       : "Draft Preview";
@@ -95,6 +97,9 @@ export function AgentIdentityCard({
       asset: "fUSD",
       pricingModel,
       priceAtomic: priceAtomic.trim() || "1000",
+      ...(pricingOptions && pricingOptions.length > 0
+        ? { pricingOptions }
+        : {}),
       payTo: hasValidPayTo ? payTo!.trim() : "provider-default",
     },
   };
@@ -106,9 +111,7 @@ export function AgentIdentityCard({
           <span className="badge-type badge-agent">
             ON-CHAIN AGENT IDENTITY
           </span>
-          <span className="agent-chain-pill">
-            AVALANCHE FUJI ({FUJI_CHAIN_ID})
-          </span>
+          <span className="agent-chain-pill">AVALANCHE ({FUJI_CHAIN_ID})</span>
         </div>
         <span className={`agent-verify-pill ${verificationClass}`}>
           {verificationLabel}
@@ -143,7 +146,7 @@ export function AgentIdentityCard({
           }
         >
           {isExecutableTaskKind
-            ? "Fuji Runner Compatible ✓"
+            ? "Avalanche Runner Compatible ✓"
             : "Registry Metadata Only (custom taskKind)"}
         </span>
         <button
@@ -172,7 +175,20 @@ export function AgentIdentityCard({
           <div>
             <dt>x402 Fee / Settlement</dt>
             <dd>
-              {formatAtomicFusd(priceAtomic)} / {unit}
+              {pricingOptions && pricingOptions.length > 0 ? (
+                <div className="detail-pricing-list">
+                  {pricingOptions.map((option) => (
+                    <span key={option.model}>
+                      {option.model}: {formatAtomicFusd(option.priceAtomic)} /{" "}
+                      {option.model === "PAY_PER_RESULT" ? "item" : "run"}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {formatAtomicFusd(priceAtomic)} / {unit}
+                </>
+              )}
             </dd>
           </div>
           <div>

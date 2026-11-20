@@ -1,22 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { x402Client } from "@x402/core/client";
-import {
-  decodePaymentRequiredHeader,
-  encodePaymentSignatureHeader,
-} from "@x402/core/http";
-import { ExactEvmScheme } from "@x402/evm/exact/client";
-import { privateKeyToAccount } from "viem/accounts";
-import { proxyControlApi } from "@/lib/control-api-server";
+
 import {
   isValidFacetName,
   isValidSemver,
   isValidUsername,
+  type PricingModel,
 } from "@/lib/identifiers";
-
-const FUSD_ASSET = "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f";
 
 function errorResponse(code: string, message: string, status: number) {
   return Response.json({ error: { code, message } }, { status });
+}
+
+function isPricingModel(value: unknown): value is PricingModel {
+  return value === "PAY_PER_RUN" || value === "PAY_PER_RESULT";
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -27,6 +23,7 @@ export async function POST(request: Request): Promise<Response> {
     facetName?: unknown;
     version?: unknown;
     input?: unknown;
+    pricingModel?: unknown;
     idempotencyKey?: unknown;
   };
   try {
@@ -58,142 +55,82 @@ export async function POST(request: Request): Promise<Response> {
     return errorResponse("INPUT_INVALID", "Input must be a JSON object.", 400);
   }
 
-  const idempotencyKey =
-    typeof payload.idempotencyKey === "string" &&
-    payload.idempotencyKey.length > 0 &&
-    payload.idempotencyKey.length <= 128
-      ? payload.idempotencyKey
-      : randomUUID();
-
-  const allowance = await proxyControlApi(request, "/v1/demo-payer/authorize", {
-    method: "POST",
-    body: JSON.stringify({
-      provider: payload.provider,
-      facetName: payload.facetName,
-      version: payload.version,
-      idempotencyKey,
-    }),
-  });
-  if (!allowance.ok) return allowance;
-  const grant = (await allowance.json().catch(() => null)) as {
-    amountAtomic?: unknown;
-    providerPayTo?: unknown;
-  } | null;
   if (
-    grant?.amountAtomic !== "1000" ||
-    typeof grant.providerPayTo !== "string" ||
-    !/^0x[a-f0-9]{40}$/iu.test(grant.providerPayTo)
+    payload.pricingModel !== undefined &&
+    !isPricingModel(payload.pricingModel)
   ) {
     return errorResponse(
-      "DEMO_ALLOWANCE_INVALID",
-      "Invalid browser demo allowance.",
-      502,
+      "INPUT_INVALID",
+      "pricingModel must be PAY_PER_RUN or PAY_PER_RESULT.",
+      400,
     );
   }
+
+  const headerIdempotencyKey = request.headers.get("idempotency-key")?.trim();
+  const bodyIdempotencyKey =
+    typeof payload.idempotencyKey === "string"
+      ? payload.idempotencyKey.trim()
+      : "";
+  const idempotencyKey =
+    headerIdempotencyKey && headerIdempotencyKey.length <= 128
+      ? headerIdempotencyKey
+      : bodyIdempotencyKey.length > 0 && bodyIdempotencyKey.length <= 128
+        ? bodyIdempotencyKey
+        : randomUUID();
 
   const invokeUrl = new URL(
     `/v1/facets/${encodeURIComponent(payload.provider)}/${encodeURIComponent(payload.facetName)}/versions/${encodeURIComponent(payload.version)}/invoke`,
     gatewayUrl,
   );
-  const baseHeaders = {
+
+  const upstreamHeaders: Record<string, string> = {
     "content-type": "application/json",
     "idempotency-key": idempotencyKey,
   };
-  const body = JSON.stringify({ input: payload.input });
+  const paymentSignature = request.headers.get("payment-signature");
+  if (paymentSignature && paymentSignature.trim().length > 0) {
+    upstreamHeaders["payment-signature"] = paymentSignature;
+  }
+
+  const upstreamBody = JSON.stringify({
+    input: payload.input,
+    ...(payload.pricingModel !== undefined
+      ? { pricingModel: payload.pricingModel }
+      : {}),
+  });
 
   try {
-    const first = await fetch(invokeUrl, {
+    const upstream = await fetch(invokeUrl, {
       method: "POST",
-      headers: baseHeaders,
-      body,
+      headers: upstreamHeaders,
+      body: upstreamBody,
       cache: "no-store",
       signal: AbortSignal.timeout(45_000),
     });
 
-    if (first.status !== 402) {
-      const text = await first.text();
-      return new Response(text, {
-        status: first.status,
-        headers: { "content-type": "application/json; charset=utf-8" },
-      });
+    const text = await upstream.text();
+    const responseHeaders = new Headers();
+    responseHeaders.set(
+      "content-type",
+      upstream.headers.get("content-type") ?? "application/json; charset=utf-8",
+    );
+
+    const paymentRequired = upstream.headers.get("payment-required");
+    if (paymentRequired !== null) {
+      responseHeaders.set("PAYMENT-REQUIRED", paymentRequired);
+    }
+    const paymentResponse = upstream.headers.get("payment-response");
+    if (paymentResponse !== null) {
+      responseHeaders.set("PAYMENT-RESPONSE", paymentResponse);
+    }
+    const retryAfter = upstream.headers.get("retry-after");
+    if (retryAfter !== null) {
+      responseHeaders.set("retry-after", retryAfter);
     }
 
-    const payerKey = process.env.FACET_DEMO_PAYER_PRIVATE_KEY;
-    const maxAtomic = process.env.FACET_DEMO_MAX_PAYMENT_ATOMIC ?? "100000";
-    if (!payerKey || !/^0x[a-f0-9]{64}$/iu.test(payerKey)) {
-      return errorResponse(
-        "DEMO_PAYER_NOT_CONFIGURED",
-        "Browser demo payer is not configured on the server.",
-        503,
-      );
-    }
-
-    const challengeHeader = first.headers.get("PAYMENT-REQUIRED");
-    if (!challengeHeader) {
-      return errorResponse(
-        "PAYMENT_CHALLENGE_MISSING",
-        "Gateway returned 402 without a PAYMENT-REQUIRED header.",
-        502,
-      );
-    }
-
-    const required = decodePaymentRequiredHeader(challengeHeader);
-    const option = required.accepts[0];
-    const expectedRecipient =
-      process.env.FACET_FEE_SPLIT_ADDRESS ?? grant.providerPayTo;
-    if (
-      required.x402Version !== 2 ||
-      !option ||
-      option.network !== "eip155:43113" ||
-      option.asset.toLowerCase() !== FUSD_ASSET.toLowerCase() ||
-      option.amount !== grant.amountAtomic ||
-      option.payTo.toLowerCase() !== expectedRecipient.toLowerCase() ||
-      !/^[1-9][0-9]*$/u.test(option.amount) ||
-      BigInt(option.amount) > BigInt(maxAtomic)
-    ) {
-      return errorResponse(
-        "PAYMENT_CHALLENGE_NOT_ALLOWED",
-        "Gateway x402 payment quote exceeded allowed demo bounds.",
-        400,
-      );
-    }
-
-    const client = x402Client.fromConfig({
-      schemes: [
-        {
-          network: "eip155:43113",
-          client: new ExactEvmScheme(
-            privateKeyToAccount(payerKey as `0x${string}`),
-          ),
-        },
-      ],
-      spendControls: {
-        allowedAssets: [
-          {
-            network: "eip155:43113",
-            asset: FUSD_ASSET,
-            maxAmountPerPayment: maxAtomic,
-          },
-        ],
-      },
-    });
-    const signedPayment = await client.createPaymentPayload(required);
-
-    const paid = await fetch(invokeUrl, {
-      method: "POST",
-      headers: {
-        ...baseHeaders,
-        "PAYMENT-SIGNATURE": encodePaymentSignatureHeader(signedPayment),
-      },
-      body,
-      cache: "no-store",
-      signal: AbortSignal.timeout(45_000),
-    });
-
-    const paidText = await paid.text();
-    return new Response(paidText, {
-      status: paid.status,
-      headers: { "content-type": "application/json; charset=utf-8" },
+    return new Response(text, {
+      status: upstream.status,
+      headers: responseHeaders,
     });
   } catch (error) {
     return errorResponse(

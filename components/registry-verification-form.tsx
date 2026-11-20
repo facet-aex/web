@@ -24,7 +24,7 @@ export function RegistryVerificationForm({
     setError(null);
     const registryTxHash = txHash.trim();
     if (!/^0x[a-f\d]{64}$/iu.test(registryTxHash)) {
-      setError("Enter a valid 0x 64-hex Fuji transaction hash.");
+      setError("Enter a valid 0x 64-hex Avalanche transaction hash.");
       return;
     }
 
@@ -44,7 +44,7 @@ export function RegistryVerificationForm({
       } | null;
       if (!response.ok || !body?.registryVerified) {
         throw new Error(
-          body?.error?.message ?? "Fuji registry verification failed.",
+          body?.error?.message ?? "Avalanche registry verification failed.",
         );
       }
       window.location.reload();
@@ -61,7 +61,7 @@ export function RegistryVerificationForm({
       onSubmit={(event) => void handleVerify(event)}
     >
       <label htmlFor="registry-verify-tx">
-        Verify Fuji registry transaction
+        Verify Avalanche registry transaction
       </label>
       <p>
         Published this Facet? Enter its FacetActorRegistry transaction hash.
@@ -72,7 +72,7 @@ export function RegistryVerificationForm({
           name="registryTxHash"
           value={txHash}
           onChange={(event) => setTxHash(event.target.value)}
-          placeholder="0x... Fuji tx hash"
+          placeholder="0x... Avalanche tx hash"
           autoComplete="off"
           required
         />

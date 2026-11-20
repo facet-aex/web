@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ActorStudio } from "@/components/actor-studio";
 import { AgentIdentityCard } from "@/components/agent-identity-card";
 import { AgentStudio } from "@/components/agent-studio";
+import { FacetDetailView } from "@/components/facet-detail-view";
 import { FacetPlayground } from "@/components/facet-playground";
 import { FacetPricingFields } from "@/components/facet-pricing-fields";
 import { StudioFacetPreviewCard } from "@/components/studio-facet-preview-card";
@@ -12,8 +13,8 @@ import { atomicToFusdInput, parseFusdToAtomic } from "@/lib/facet-ui";
 import type { PublicFacet } from "@/lib/public-catalog";
 import { checkFacetIdentityConflict } from "@/lib/use-owned-facets";
 
-describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
-  it("renders Actor Studio starting truly blank with Actor-only categories, sequential stage bar, and Facet Preview", () => {
+describe("ActorStudio, AgentStudio, FacetDetailView, and FacetPlayground", () => {
+  it("renders Actor Studio starting truly blank with Actor-only categories, sequential stage bar, and Facet Preview without Fuji", () => {
     const markup = renderToStaticMarkup(<ActorStudio />);
 
     expect(markup).toContain("Actor Studio");
@@ -52,6 +53,7 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("--network=none");
     expect(markup).toContain("actor-version");
     expect(markup).not.toContain("Pre-Anchored Registry Tx");
+    expect(markup).not.toMatch(/\bfuji\b/iu);
     expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 
@@ -83,7 +85,7 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("Continue to Task Input Schema →");
     expect(markup).not.toContain('id="agent-payto"');
     expect(markup).toContain("ON-CHAIN AGENT IDENTITY");
-    expect(markup).toContain("AVALANCHE FUJI (43113)");
+    expect(markup).toContain("AVALANCHE (43113)");
     expect(markup).toContain("0x8004A818BFB912233c491871b3d84c89A494BD9e");
     expect(markup).toContain("vn-market-analysis");
     expect(markup).not.toContain("Publish Readiness");
@@ -159,7 +161,7 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(step1Invalidated.getState(4)).toBe("locked");
   });
 
-  it("renders an On-Chain Agent Card with Fuji registry details", () => {
+  it("renders an On-Chain Agent Card with Avalanche registry details and zero Fuji wording", () => {
     const markup = renderToStaticMarkup(
       <AgentIdentityCard
         provider="vn-data-labs"
@@ -180,18 +182,19 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     );
 
     expect(markup).toContain("ON-CHAIN AGENT IDENTITY");
-    expect(markup).toContain("AVALANCHE FUJI (43113)");
+    expect(markup).toContain("AVALANCHE (43113)");
     expect(markup).toContain("#42");
     expect(markup).toContain("vn-market-analysis");
     expect(markup).toContain("0x8004A818BFB912233c491871b3d84c89A494BD9e");
-    expect(markup).toContain("Verified on Fuji");
+    expect(markup).toContain("Verified on Avalanche");
     expect(markup).toContain("0.001 fUSD / run");
     expect(markup).toContain("question");
+    expect(markup).not.toMatch(/\bfuji\b/iu);
     expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 
-  it("auto-generates Input-Schema Form fields including enum, integer, and array JSON fields", () => {
-    const actorFacet: PublicFacet = {
+  it("renders FacetPlayground disconnected Connect Wallet CTA, Payment Method selector, /faucet link, and schema fields across ACTOR, API, and AGENT", () => {
+    const dualActorFacet: PublicFacet = {
       provider: "vn-data-labs",
       facetName: "vn-gold-fx-actor",
       facetDisplayName: "VN Gold & FX Scraper",
@@ -213,20 +216,171 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
       pricing: {
         model: "PAY_PER_RUN",
         priceAtomic: "1000",
+        maxAmountAtomic: "1000",
         assetAddress: "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
         chainId: 43113,
         payTo: "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf",
+        isPrimary: true,
       },
+      pricingOptions: [
+        {
+          model: "PAY_PER_RUN",
+          priceAtomic: "1000",
+          maxAmountAtomic: "1000",
+          assetAddress: "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
+          chainId: 43113,
+          payTo: "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf",
+          isPrimary: true,
+        },
+        {
+          model: "PAY_PER_RESULT",
+          priceAtomic: "500",
+          maxItemsCap: 10,
+          maxAmountAtomic: "5000",
+          assetAddress: "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
+          chainId: 43113,
+          payTo: "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf",
+          isPrimary: false,
+        },
+      ],
       publishedAt: "2026-11-16T00:00:00.000Z",
     };
 
-    const markup = renderToStaticMarkup(<FacetPlayground facet={actorFacet} />);
-    expect(markup).toContain("Input-Schema Form");
-    expect(markup).toContain('id="field-brand"');
-    expect(markup).toContain('id="field-limit"');
-    expect(markup).toContain('id="field-items"');
-    expect(markup).toContain("<textarea");
-    expect(markup).toContain("Pay 0.001 fUSD via x402 &amp; Run");
+    const actorMarkup = renderToStaticMarkup(
+      <FacetPlayground facet={dualActorFacet} />,
+    );
+    expect(actorMarkup).toContain("Input-Schema Form");
+    expect(actorMarkup).toContain('id="field-brand"');
+    expect(actorMarkup).toContain('id="field-limit"');
+    expect(actorMarkup).toContain('id="field-items"');
+    expect(actorMarkup).toContain("<textarea");
+    expect(actorMarkup).toContain("Connect Wallet");
+    expect(actorMarkup).toContain('href="/faucet"');
+    expect(actorMarkup).toContain("playground-pricing-selector");
+    expect(actorMarkup).toContain("PAY_PER_RUN");
+    expect(actorMarkup).toContain("PAY_PER_RESULT");
+    expect(actorMarkup).toContain("0.005 fUSD");
+    expect(actorMarkup).not.toMatch(/\bfuji\b/iu);
+    expect(actorMarkup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
+
+    const apiFacet: PublicFacet = {
+      ...dualActorFacet,
+      facetType: "API",
+      facetName: "github-search-api",
+      facetDisplayName: "GitHub Search API",
+      method: "GET",
+      pricingOptions: [dualActorFacet.pricingOptions![1]!],
+      pricing: dualActorFacet.pricingOptions![1]!,
+      apiMeta: {
+        method: "GET",
+        pathTemplate: "/search/repositories",
+        datasetPath: "items",
+        registryTxHash: `0x${"d".repeat(64)}`,
+        registryVerified: true,
+      },
+    };
+    const apiMarkup = renderToStaticMarkup(
+      <FacetPlayground facet={apiFacet} />,
+    );
+    expect(apiMarkup).toContain("Connect Wallet");
+    expect(apiMarkup).toContain('href="/faucet"');
+    expect(apiMarkup).not.toContain("playground-pricing-selector");
+    expect(apiMarkup).not.toMatch(/\bfuji\b/iu);
+
+    const agentFacet: PublicFacet = {
+      ...dualActorFacet,
+      facetType: "AGENT",
+      facetName: "vn-market-analyst",
+      facetDisplayName: "VN Market Analyst",
+      agentMeta: {
+        erc8004ChainId: 43113,
+        erc8004Registry: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+        erc8004TokenId: "7",
+        taskKind: "vn-market-analysis",
+        registryVerified: true,
+      },
+    };
+    const agentMarkup = renderToStaticMarkup(
+      <FacetPlayground facet={agentFacet} />,
+    );
+    expect(agentMarkup).toContain("Connect Wallet");
+    expect(agentMarkup).toContain('href="/faucet"');
+    expect(agentMarkup).not.toMatch(/\bfuji\b/iu);
+    expect(agentMarkup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
+  });
+
+  it("renders FacetDetailView with all pricingOptions and verified apiMeta without Fuji or ERC-8004 prose", () => {
+    const apiFacet: PublicFacet = {
+      provider: "alice-labs",
+      facetName: "github-search",
+      facetDisplayName: "GitHub Search",
+      description: "Searches public repositories.",
+      category: "developer-tools",
+      tags: ["github"],
+      facetType: "API",
+      version: "1.0.0",
+      method: "GET",
+      inputSchema: {
+        type: "object",
+        properties: { q: { type: "string", default: "avalanche" } },
+      },
+      outputSchema: { type: "object" },
+      pricing: {
+        model: "PAY_PER_RUN",
+        priceAtomic: "2000",
+        maxAmountAtomic: "2000",
+        assetAddress: "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
+        chainId: 43113,
+        payTo: "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf",
+        isPrimary: true,
+      },
+      pricingOptions: [
+        {
+          model: "PAY_PER_RUN",
+          priceAtomic: "2000",
+          maxAmountAtomic: "2000",
+          assetAddress: "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
+          chainId: 43113,
+          payTo: "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf",
+          isPrimary: true,
+        },
+        {
+          model: "PAY_PER_RESULT",
+          priceAtomic: "500",
+          maxItemsCap: 10,
+          maxAmountAtomic: "5000",
+          assetAddress: "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
+          chainId: 43113,
+          payTo: "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf",
+          isPrimary: false,
+        },
+      ],
+      apiMeta: {
+        method: "GET",
+        pathTemplate: "/search/repositories",
+        datasetPath: "items",
+        registryTxHash: `0x${"e".repeat(64)}`,
+        registryVerified: true,
+      },
+      publishedAt: "2026-11-20T00:00:00.000Z",
+    };
+
+    const markup = renderToStaticMarkup(<FacetDetailView facet={apiFacet} />);
+    const mainMarkup =
+      markup.split('<footer class="site-footer">')[0] ?? markup;
+
+    expect(mainMarkup).toContain("x402 Pricing (Avalanche)");
+    expect(mainMarkup).toContain("PAY_PER_RUN");
+    expect(mainMarkup).toContain("0.002 fUSD");
+    expect(mainMarkup).toContain("PAY_PER_RESULT");
+    expect(mainMarkup).toContain("0.0005 fUSD");
+    expect(mainMarkup).toContain("0.005 fUSD");
+    expect(mainMarkup).toContain("GET");
+    expect(mainMarkup).toContain("/search/repositories");
+    expect(mainMarkup).toContain("items");
+    expect(mainMarkup).toContain("Verified on Avalanche ✓");
+    expect(mainMarkup).not.toMatch(/\bfuji\b/iu);
+    expect(mainMarkup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 
   it("detects duplicate (facetName, version) and cross-type conflicts immediately", () => {
@@ -301,22 +455,76 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(atomicToFusdInput("1250000")).toBe("1.25");
   });
 
-  it("renders FacetPricingFields with Pay per run active and Result/Event Coming Soon", () => {
-    const markup = renderToStaticMarkup(
+  it("renders multi-select FacetPricingFields with both options, computed escrow deposit, primary selector, last-option lock, disabled hint, and legacy compat", () => {
+    const dualMarkup = renderToStaticMarkup(
       <FacetPricingFields
-        idPrefix="actor"
+        options={[
+          { model: "PAY_PER_RUN", priceFusd: "0.001", isPrimary: true },
+          {
+            model: "PAY_PER_RESULT",
+            priceFusd: "0.0005",
+            maxItemsCap: 10,
+            isPrimary: false,
+          },
+        ]}
+        onChange={() => {}}
+      />,
+    );
+
+    expect(dualMarkup).toContain("pricing-option-grid");
+    expect(dualMarkup).toContain("pricing-option-card");
+    expect(dualMarkup).toContain("Pay per run");
+    expect(dualMarkup).toContain("Pay per result");
+    expect(dualMarkup).toContain("0.005 fUSD");
+    expect(dualMarkup).toContain("Primary");
+    expect(dualMarkup).not.toContain("COMING SOON");
+    expect(dualMarkup).not.toContain("Pay per event");
+    expect(dualMarkup).not.toContain("demo payer");
+    expect(dualMarkup).not.toMatch(/\bfuji\b/iu);
+    expect(dualMarkup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
+
+    const checkedMatches =
+      dualMarkup.match(/type="checkbox"[^>]*checked/gu) ?? [];
+    expect(checkedMatches).toHaveLength(2);
+
+    const singleMarkup = renderToStaticMarkup(
+      <FacetPricingFields
+        options={[
+          { model: "PAY_PER_RUN", priceFusd: "0.001", isPrimary: true },
+        ]}
+        onChange={() => {}}
+      />,
+    );
+    expect(singleMarkup).toMatch(
+      /<input(?=[^>]*type="checkbox")(?=[^>]*value="PAY_PER_RUN")(?=[^>]*disabled)[^>]*>/u,
+    );
+
+    const hintMarkup = renderToStaticMarkup(
+      <FacetPricingFields
+        options={[
+          { model: "PAY_PER_RUN", priceFusd: "0.001", isPrimary: true },
+        ]}
+        onChange={() => {}}
+        allowPayPerResult={false}
+        payPerResultHint="Add a datasetPath to enable Pay per result."
+      />,
+    );
+    expect(hintMarkup).toMatch(
+      /<input(?=[^>]*type="checkbox")(?=[^>]*value="PAY_PER_RESULT")(?=[^>]*disabled)[^>]*>/u,
+    );
+    expect(hintMarkup).toContain("Add a datasetPath to enable Pay per result.");
+
+    const legacyMarkup = renderToStaticMarkup(
+      <FacetPricingFields
+        idPrefix="legacy"
         pricingModel="PAY_PER_RUN"
         priceFusdText="0.005"
       />,
     );
-
-    expect(markup).toContain("Pay per run");
-    expect(markup).toContain("Pay per result");
-    expect(markup).toContain("Pay per event");
-    expect(markup).toContain("COMING SOON");
-    expect(markup).toContain('value="0.005"');
-    expect(markup).toContain("5,000 atomic fUSD");
-    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
+    expect(legacyMarkup).toContain("Pay per run");
+    expect(legacyMarkup).toContain('value="0.005"');
+    expect(legacyMarkup).toContain("5,000 atomic fUSD");
+    expect(legacyMarkup).not.toMatch(/\bfuji\b/iu);
   });
 
   it("renders StudioFacetPreviewCard with live metadata, category label, pricing, fields, and conflict state", () => {

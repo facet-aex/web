@@ -8,6 +8,28 @@ import {
 
 export type { FacetType, PricingModel };
 
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+export interface FacetPricingOption {
+  model: PricingModel;
+  priceAtomic: string;
+  maxItemsCap?: number;
+  maxAmountAtomic: string;
+  assetAddress: string;
+  chainId: 43113;
+  payTo: string;
+  isPrimary: boolean;
+}
+
+export interface ApiMeta {
+  method: HttpMethod;
+  pathTemplate: string;
+  datasetPath?: string;
+  staticHeaderNames?: string[];
+  registryTxHash?: string;
+  registryVerified?: boolean;
+}
+
 export interface PublicFacet {
   provider: string;
   facetName: string;
@@ -24,10 +46,15 @@ export interface PublicFacet {
   pricing?: {
     model: PricingModel;
     priceAtomic: string;
+    maxItemsCap?: number;
+    maxAmountAtomic?: string;
     assetAddress: string;
     chainId: 43113;
     payTo: string;
+    isPrimary?: boolean;
   };
+  pricingOptions?: FacetPricingOption[];
+  apiMeta?: ApiMeta;
   actorMeta?: {
     runtime: string;
     imageDigest: string;
