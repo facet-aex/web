@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type JSX } from "react";
 
 interface CommerceStage {
   id: string;
@@ -9,6 +9,10 @@ interface CommerceStage {
   heading: string;
   summary: string;
   points: readonly string[];
+}
+
+export interface CommerceEngineShowcaseProps {
+  initialStageId?: string;
 }
 
 const COMMERCE_STAGES: readonly CommerceStage[] = [
@@ -20,61 +24,61 @@ const COMMERCE_STAGES: readonly CommerceStage[] = [
     summary:
       "Agents search a single schema-indexed marketplace across APIs, Actors, and peer Agents—checking live pricing, input contracts, and provider track record before calling anything.",
     points: [
-      "Pinned JSON input and output contracts per published version",
-      "Transparent per-run or per-result pricing quoted upfront",
-      "Ranked by verified execution history and uptime",
+      "Pinned JSON input and output contracts per published SemVer release",
+      "Transparent PAY_PER_RUN or PAY_PER_RESULT pricing quoted upfront",
+      "Ranked by verified execution history and on-chain registration",
     ],
   },
   {
     id: "authorize",
     number: "02",
-    title: "Scoped Spending Grants",
-    heading: "Bounded Autonomy With Zero Exposed Keys",
+    title: "Default-Deny Spend Policy",
+    heading: "Bounded Autonomy With Local OS Keychain Wallets",
     summary:
-      "Operators create isolated wallets governed by enforceable spending grants—setting per-call limits, rolling budgets, and instant revocation while keeping private keys strictly outside agent prompts.",
+      "Operators create a local Avalanche wallet inside protected OS Keychain storage and enforce a default-deny spend policy—setting per-run caps, UTC daily limits, and instant revocation while keeping private keys strictly outside agent prompts.",
     points: [
-      "Agents authenticate with scoped grant tokens, never raw wallet keys",
-      "Enforce max spend per call, total budget limits, and allowed modalities",
-      "Pause, rotate, or revoke any grant instantly across all active sessions",
+      "Private keys remain in local OS Keychain storage, never in MCP configs or prompts",
+      "Policies pin exact provider, Facet, SemVer, providerPayTo, per-run max, and UTC daily cap",
+      "Inspect spend history, pause, or revoke policies instantly across sessions",
     ],
   },
   {
     id: "execute",
     number: "03",
     title: "Zero-Trust Execution",
-    heading: "Protected Secrets and Isolated Runtimes",
+    heading: "Full-HTTP Gateway and Isolated Actor Runtimes",
     summary:
-      "Upstream API credentials are injected inside an encrypted gateway vault; Actor modules run in digest-verified sandboxes; duplicate retries are deduplicated automatically before execution.",
+      "Full HTTP APIs (GET, POST, PUT, PATCH, DELETE) inject write-only encrypted vault secrets through SSRF-pinned proxies; Actor modules run in digest-verified sandboxes; duplicate retries are deduplicated automatically before execution.",
     points: [
-      "Provider secrets stay encrypted and hidden from calling agents",
-      "Immutable runtime digests verified before every Actor run",
-      "Request fingerprinting prevents duplicate execution on retries",
+      "Provider credentials stay encrypted in vault headers, query params, Bearer, or Basic auth",
+      "Immutable Actor runtime digests verified on-chain before execution",
+      "Idempotency-Key fingerprinting prevents duplicate charges on retries",
     ],
   },
   {
     id: "settle",
     number: "04",
     title: "Atomic x402 Settlement",
-    heading: "Pay Per Call With Automatic Escrow Protection",
+    heading: "Instant FeeSplit and TaskEscrow Refunds on Avalanche",
     summary:
-      "Stablecoin micropayments settle autonomously at sub-second finality over HTTP x402—eliminating monthly SaaS subscriptions while protecting pay-per-result buyers with automatic escrow refunds.",
+      "Stablecoin fUSD micropayments settle autonomously over HTTP x402 on Avalanche—supporting instant 95%/5% FeeSplit on PAY_PER_RUN and TaskEscrow settlement with automatic buyer refunds on PAY_PER_RESULT.",
     points: [
-      "True sub-cent pay-per-use pricing with zero subscription lock-in",
-      "Instant creator payout upon verified single-run completion",
-      "Automatic buyer refund when escrowed item targets are not met",
+      "PAY_PER_RUN settles 95% directly to providerPayTo and 5% to protocol treasury",
+      "PAY_PER_RESULT uses TaskEscrow upfront and refunds unused or failed runs automatically",
+      "True sub-cent pay-per-use pricing with zero monthly subscription lock-in",
     ],
   },
   {
     id: "verify",
     number: "05",
     title: "Cryptographic Receipts",
-    heading: "Audit Every Output and Earned Trust Score",
+    heading: "FacetReceiptLog Audits and ERC-8004 Reputation",
     summary:
-      "Every completed execution anchors cryptographic input hashes, output digests, item counts, and payment proofs on-chain—providing a verifiable audit trail and portable reputation.",
+      "Every completed execution anchors cryptographic input hashes, output digests, item counts, and payment proofs via FacetReceiptLog on Avalanche—providing a verifiable audit trail and portable ERC-8004 reputation.",
     points: [
-      "Immutable receipt binding caller input hash to delivered dataset",
-      "Signed runtime attestation proving which exact digest executed",
-      "Portable on-chain trust score shared across providers and Agents",
+      "FacetReceiptLog binds caller inputHash to outputHash, itemCount, and payment tx",
+      "Signed runner attestation proves which verified digest executed",
+      "ERC-8004 identity and reputation registries anchor portable Agent trust on Avalanche",
     ],
   },
 ];
@@ -82,8 +86,10 @@ const COMMERCE_STAGES: readonly CommerceStage[] = [
 /**
  * Minimal single-menu interactive showcase of FACET's production architecture.
  */
-export function CommerceEngineShowcase() {
-  const [activeId, setActiveId] = useState<string>(COMMERCE_STAGES[0].id);
+export function CommerceEngineShowcase({
+  initialStageId = COMMERCE_STAGES[0].id,
+}: CommerceEngineShowcaseProps = {}): JSX.Element {
+  const [activeId, setActiveId] = useState<string>(initialStageId);
   const activeIndex = Math.max(
     0,
     COMMERCE_STAGES.findIndex((stage) => stage.id === activeId),
