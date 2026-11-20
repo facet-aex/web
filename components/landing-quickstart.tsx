@@ -1,191 +1,272 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 
 import { CopyCodeBlock } from "@/components/copy-code-block";
 
-interface ManualTab {
-  id: "cli-grant" | "mcp" | "sdk" | "publish";
-  label: string;
-  blockTitle: string;
-  caption: string;
-  code: string;
+export type QuickstartChoice = "prompt" | "manual" | null;
+
+export interface LandingQuickstartProps {
+  initialSelection?: QuickstartChoice;
 }
 
-const AGENT_SETUP_PROMPT = `Set up FACET so this workspace can discover, pay for, and invoke external APIs, Actors, and Agents via MCP:
+const AGENT_SETUP_PROMPT = `Set up FACET against https://facet.briandev.space so this client can discover and invoke APIs, Actors, and Agents safely over MCP:
 
-1. Install the FACET CLI & SDK globally:
-   npm install -g @facet/agent-sdk
+1. Check that Node >= 22 is active, then install the FACET CLI globally:
+   npm install -g @facet-aex/cli
 
-2. Provision a non-custodial agent wallet and a scoped spending grant (never expose raw private keys inside prompts or code):
-   facet wallet create --agent workspace-agent
-   facet grant create --agent workspace-agent --max-per-call 0.05 --budget 5.00 --allow api,actor,agent
+2. Create a local Avalanche payer wallet stored in the protected OS credential store (macOS Keychain — never print or embed raw private keys in prompts or config) and inspect its address and balance:
+   facet wallet create
+   facet wallet status
 
-3. Register the @facet/mcp-server MCP server (npx -y @facet/mcp-server) in my MCP configuration with the generated FACET_GRANT_TOKEN.
+3. Ask me to fund that wallet address with test fUSD on Avalanche at https://facet.briandev.space/faucet and wait until I confirm it is funded.
 
-4. Verify connectivity by running search_facets and listing 3 matching Facets from the catalog.`;
+4. Install the FACET MCP server (@facet-aex/mcp-server) for this client (zero secrets written into MCP config, targeting https://facet.briandev.space):
+   - Antigravity: facet mcp install antigravity
+   - Codex: facet mcp install codex
+   - Claude Code: facet mcp install claude
+   - Cursor or other MCP hosts: print the mcpServers JSON with \`facet mcp config antigravity\` and configure it there
 
-const MANUAL_TABS: readonly ManualTab[] = [
-  {
-    id: "cli-grant",
-    label: "CLI & Grant",
-    blockTitle: "Install CLI, Create Wallet & Grant Authority",
-    caption:
-      "Install @facet/agent-sdk, create an isolated wallet, and issue a bounded spend grant.",
-    code: `# 1. Install the FACET CLI & SDK
-npm install -g @facet/agent-sdk
+5. Note that FACET enforces a Default-Deny Spend Policy: before any paid invocation, discover and inspect a capability (\`facet search\`, \`facet inspect <provider>/<facet-name>\`), authorize a bounded policy (\`facet policy grant --facet <provider>/<facet-name> --version <semver> --max-per-run <atomic> --daily-cap <atomic>\`), and verify MCP discovery by calling \`search_facets\`.`;
 
-# 2. Create a wallet & bounded spending grant (zero keys in prompts)
-facet wallet create --agent my-agent
-facet grant create --agent my-agent --max-per-call 0.05 --budget 5.00
+export function getAgentSetupPrompt(): string {
+  return AGENT_SETUP_PROMPT;
+}
 
-# 3. Search & inspect capabilities in the catalog
-facet search "market data"
-facet inspect <provider> <facetName>`,
-  },
-  {
-    id: "mcp",
-    label: "MCP Config",
-    blockTitle: "MCP Client Configuration (Claude · Cursor · Codex)",
-    caption:
-      "Attach FACET's discovery and x402 execution tools to any MCP-compatible host.",
-    code: `{
-  "mcpServers": {
-    "facet": {
-      "command": "npx",
-      "args": ["-y", "@facet/mcp-server"],
-      "env": {
-        "FACET_GRANT_TOKEN": "<paste-your-grant-token>"
-      }
-    }
+export async function copyAgentSetupPrompt(
+  clipboard?: Pick<Clipboard, "writeText"> | null,
+): Promise<boolean> {
+  const target =
+    clipboard === undefined ? globalThis.navigator?.clipboard : clipboard;
+  if (!target || typeof target.writeText !== "function") {
+    return false;
   }
-}`,
-  },
-  {
-    id: "sdk",
-    label: "TypeScript SDK",
-    blockTitle: "TypeScript Client (@facet/agent-sdk)",
-    caption:
-      "Call any published API, Actor, or Agent directly from application code.",
-    code: `import { FacetClient } from "@facet/agent-sdk";
 
-const facet = new FacetClient({
-  grantToken: process.env.FACET_GRANT_TOKEN,
-});
-
-const [tool] = await facet.searchFacets({ query: "gold price" });
-const run = await facet.invokeFacet(
-  tool.provider,
-  tool.facetName,
-  tool.version,
-  { brand: "SJC" },
-);
-console.log(run.dataset, run.receiptTxHash);`,
-  },
-  {
-    id: "publish",
-    label: "Publish",
-    blockTitle: "Publish a Facet From CLI",
-    caption:
-      "Deploy an Actor, endpoint, or Agent card in one command or inside Studio.",
-    code: `# Validate and deploy an Actor module straight to the catalog
-facet publish-actor --file ./actor-manifest.json`,
-  },
-];
+  try {
+    await target.writeText(AGENT_SETUP_PROMPT);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
- * Two-path onboarding workbench letting users either paste one setup prompt to
- * their coding agent or copy manual CLI, Spending Grant, MCP, and SDK snippets.
+ * Two-choice Home Quick Start letting users choose either a one-click hidden
+ * agent setup prompt or a minimal 3-step manual CLI, wallet, and MCP flow.
  */
-export function LandingQuickstart() {
-  const [activeTabId, setActiveTabId] = useState<ManualTab["id"]>("cli-grant");
-  const activeTab =
-    MANUAL_TABS.find((tab) => tab.id === activeTabId) ?? MANUAL_TABS[0];
+export function LandingQuickstart({
+  initialSelection = null,
+}: LandingQuickstartProps = {}): JSX.Element {
+  const [selection, setSelection] =
+    useState<QuickstartChoice>(initialSelection);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
+    "idle",
+  );
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current !== null) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
+
+  function selectChoice(choice: Exclude<QuickstartChoice, null>) {
+    setCopyState("idle");
+    setSelection((current) => (current === choice ? null : choice));
+  }
+
+  async function handleCopyPrompt() {
+    if (resetTimerRef.current !== null) {
+      clearTimeout(resetTimerRef.current);
+    }
+    const ok = await copyAgentSetupPrompt();
+    setCopyState(ok ? "copied" : "error");
+    if (ok) {
+      resetTimerRef.current = setTimeout(() => {
+        setCopyState("idle");
+        resetTimerRef.current = null;
+      }, 2200);
+    }
+  }
 
   return (
-    <div className="quickstart-grid">
-      <article className="quickstart-card quickstart-card-prompt">
-        <div className="quickstart-card-head">
-          <span className="quickstart-pill is-lime">
-            OPTION 01 · FASTEST PATH
-          </span>
-          <span className="quickstart-hosts">
-            Claude · Cursor · Codex · Antigravity
-          </span>
-        </div>
-
-        <h3>Paste Prompt to Your Agent</h3>
-        <p className="quickstart-copy">
-          Let your AI coding assistant handle setup in one shot. Paste this
-          prompt and your agent installs the CLI, creates a scoped spending
-          grant, wires up MCP, and verifies catalog discovery.
-        </p>
-
-        <CopyCodeBlock title="Agent Setup Prompt" code={AGENT_SETUP_PROMPT} />
-
-        <ul className="quickstart-checklist">
-          <li>Installs CLI &amp; SDK</li>
-          <li>Creates Capped Wallet Grant</li>
-          <li>Connects FACET MCP Tools</li>
-        </ul>
-      </article>
-
-      <article className="quickstart-card quickstart-card-manual">
-        <div className="quickstart-card-head">
-          <span className="quickstart-pill">OPTION 02 · MANUAL SETUP</span>
-          <span className="quickstart-hosts">CLI · Grant · MCP · SDK</span>
-        </div>
-
-        <h3>Install CLI, Grant, MCP &amp; SDK</h3>
-        <p className="quickstart-copy">{activeTab.caption}</p>
-
-        <div
-          className="quickstart-tabs"
-          role="tablist"
-          aria-label="Manual installation steps"
+    <div className="quickstart-workbench">
+      <div
+        className="quickstart-choice-grid"
+        role="group"
+        aria-label="Choose your FACET onboarding path"
+      >
+        <button
+          type="button"
+          id="quickstart-choice-prompt"
+          aria-pressed={selection === "prompt"}
+          aria-expanded={selection === "prompt"}
+          aria-controls="quickstart-panel-prompt"
+          className={
+            selection === "prompt"
+              ? "quickstart-choice-btn is-active"
+              : "quickstart-choice-btn"
+          }
+          onClick={() => selectChoice("prompt")}
         >
-          {MANUAL_TABS.map((tab) => {
-            const selected = tab.id === activeTab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                id={`qs-tab-${tab.id}`}
-                aria-selected={selected}
-                aria-controls={`qs-panel-${tab.id}`}
-                className={
-                  selected ? "quickstart-tab is-active" : "quickstart-tab"
-                }
-                onClick={() => setActiveTabId(tab.id)}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+          <span className="quickstart-choice-top">
+            <span className="quickstart-choice-kicker">
+              01 · Recommended for AI Hosts
+            </span>
+            <span className="quickstart-choice-badge is-lime">One Click</span>
+          </span>
+          <span className="quickstart-choice-title">Prompt</span>
+          <span className="quickstart-choice-desc">
+            Copy one curated setup prompt into Antigravity, Codex, Claude Code,
+            or Cursor
+          </span>
+        </button>
 
-        <div
-          role="tabpanel"
-          id={`qs-panel-${activeTab.id}`}
-          aria-labelledby={`qs-tab-${activeTab.id}`}
+        <button
+          type="button"
+          id="quickstart-choice-manual"
+          aria-pressed={selection === "manual"}
+          aria-expanded={selection === "manual"}
+          aria-controls="quickstart-panel-manual"
+          className={
+            selection === "manual"
+              ? "quickstart-choice-btn is-active"
+              : "quickstart-choice-btn"
+          }
+          onClick={() => selectChoice("manual")}
         >
-          <CopyCodeBlock title={activeTab.blockTitle} code={activeTab.code} />
-        </div>
+          <span className="quickstart-choice-top">
+            <span className="quickstart-choice-kicker">
+              02 · Step-by-Step Terminal
+            </span>
+            <span className="quickstart-choice-badge">3 Steps</span>
+          </span>
+          <span className="quickstart-choice-title">Manual</span>
+          <span className="quickstart-choice-desc">
+            Install the CLI, fund a local wallet on Avalanche, and connect MCP
+          </span>
+        </button>
+      </div>
 
-        <div className="landing-cta-buttons">
-          <Link className="button button-primary" href="/store">
-            Browse Facet Store <span aria-hidden="true">↗</span>
-          </Link>
-          <Link className="button button-secondary" href="/studio">
-            Publish in Studio <span aria-hidden="true">↗</span>
-          </Link>
-          <Link className="button button-ghost" href="/docs#agent-guide">
-            Full Docs <span aria-hidden="true">→</span>
-          </Link>
+      {selection === "prompt" ? (
+        <div
+          id="quickstart-panel-prompt"
+          className="quickstart-panel quickstart-prompt-panel"
+          role="region"
+          aria-labelledby="quickstart-choice-prompt"
+        >
+          <div className="quickstart-prompt-copy">
+            <h3>Copy One Setup Prompt Into Your Agent</h3>
+            <p className="quickstart-copy">
+              Paste this hidden setup prompt into your coding agent session to
+              walk through CLI installation, local wallet creation, fUSD faucet
+              funding, MCP setup, and spend-policy verification.
+            </p>
+          </div>
+
+          <div className="quickstart-prompt-actions">
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => void handleCopyPrompt()}
+            >
+              {copyState === "copied" ? "Copied ✓" : "Copy Setup Prompt"}
+            </button>
+            {copyState === "copied" ? (
+              <p className="quickstart-copy-feedback" role="status">
+                Prompt copied to clipboard. Paste it into your AI coding host.
+              </p>
+            ) : null}
+            {copyState === "error" ? (
+              <p className="quickstart-copy-feedback is-error" role="status">
+                Clipboard access is unavailable in this browser context. Choose
+                Manual to copy commands step by step.
+              </p>
+            ) : null}
+          </div>
         </div>
-      </article>
+      ) : null}
+
+      {selection === "manual" ? (
+        <div
+          id="quickstart-panel-manual"
+          className="quickstart-panel quickstart-manual-panel"
+          role="region"
+          aria-labelledby="quickstart-choice-manual"
+        >
+          <ol className="quickstart-manual-steps">
+            <li className="quickstart-step-card">
+              <div className="quickstart-step-head">
+                <span className="quickstart-step-num">01</span>
+                <h3>Install CLI</h3>
+                <span className="quickstart-step-meta">Node &gt;= 22</span>
+              </div>
+              <p className="quickstart-copy">
+                Install the published FACET CLI globally and verify available
+                commands.
+              </p>
+              <CopyCodeBlock
+                title="Install @facet-aex/cli"
+                code={`npm install -g @facet-aex/cli\nfacet --help`}
+              />
+            </li>
+
+            <li className="quickstart-step-card">
+              <div className="quickstart-step-head">
+                <span className="quickstart-step-num">02</span>
+                <h3>Setup Wallet &amp; Claim fUSD</h3>
+                <span className="quickstart-step-meta">OS Keychain</span>
+              </div>
+              <p className="quickstart-copy">
+                Create a local Avalanche wallet in protected macOS Keychain
+                storage without printing raw keys, then fund it.
+              </p>
+              <CopyCodeBlock
+                title="Create & Inspect Wallet"
+                code={`facet wallet create\nfacet wallet status`}
+              />
+              <div className="quickstart-faucet-callout">
+                <Link className="explorer-link" href="/faucet">
+                  Claim test fUSD on Avalanche Faucet ↗
+                </Link>
+              </div>
+            </li>
+
+            <li className="quickstart-step-card">
+              <div className="quickstart-step-head">
+                <span className="quickstart-step-num">03</span>
+                <h3>Install MCP</h3>
+                <span className="quickstart-step-meta">
+                  Zero Keys in Config
+                </span>
+              </div>
+              <p className="quickstart-copy">
+                Register FACET tools in your AI host, or print standard{" "}
+                <code>mcpServers</code> JSON for Cursor and other MCP clients.
+              </p>
+              <CopyCodeBlock
+                title="Connect MCP Client"
+                code={`facet mcp install antigravity\nfacet mcp install codex\nfacet mcp install claude\n\n# Cursor or other MCP hosts — print mcpServers JSON:\nfacet mcp config antigravity`}
+              />
+            </li>
+          </ol>
+
+          <div className="landing-cta-buttons">
+            <Link className="button button-primary" href="/faucet">
+              Claim fUSD <span aria-hidden="true">↗</span>
+            </Link>
+            <Link className="button button-secondary" href="/store">
+              Browse Facet Store <span aria-hidden="true">↗</span>
+            </Link>
+            <Link className="button button-ghost" href="/docs#agent-guide">
+              Full Agent &amp; MCP Guide <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
