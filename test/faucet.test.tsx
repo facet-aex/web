@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -150,5 +153,12 @@ describe("Faucet navigation and /faucet UI", () => {
       dripAtomic: "1000000",
       addressCooldownSec: 86_400,
     });
+  });
+
+  it("wraps the 4-tab navbar at 1120px in faucet.css so auth controls never overflow", () => {
+    const css = readFileSync(resolve(process.cwd(), "app/faucet.css"), "utf8");
+    expect(css).toContain("@media (max-width: 1120px)");
+    expect(css).toContain(".site-header");
+    expect(css).toContain("grid-template-columns: 1fr auto;");
   });
 });

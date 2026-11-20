@@ -105,7 +105,7 @@ export function ClerkAuthBar({
   publishableKey?: string | undefined;
 }) {
   if (!publishableKey) {
-    return <span className="environment">Avalanche Fuji</span>;
+    return <span className="environment">Avalanche</span>;
   }
 
   return (

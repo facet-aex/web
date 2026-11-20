@@ -96,9 +96,10 @@ import { getUsernameValidationError } from "@/components/clerk-sign-up-card";
 import SignUpPage from "@/app/sign-up/[[...sign-up]]/page";
 
 describe("ClerkAuthBar", () => {
-  it("falls back to Avalanche Fuji environment badge when no publishable key is configured", () => {
+  it("falls back to Avalanche environment badge when no publishable key is configured", () => {
     const markup = renderToStaticMarkup(<ClerkAuthBar />);
-    expect(markup).toContain("Avalanche Fuji");
+    expect(markup).toContain("Avalanche");
+    expect(markup).not.toMatch(/\bfuji\b/iu);
   });
 
   it("renders a full-pill toggleable account chip showing only @username + avatar with compact light popover", () => {

@@ -38,6 +38,37 @@
   }
 }
 
+@media (max-width: 1120px) {
+  .site-header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .site-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    border-inline: 0;
+    border-top: 1px solid var(--facet-line);
+  }
+
+  .site-nav-cell {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+  }
+
+  .nav-dropdown {
+    flex: 1;
+  }
+
+  .nav-dropdown-trigger {
+    width: 100%;
+  }
+
+  .account-pill {
+    margin-right: 0.75rem;
+  }
+}
+
 .faucet-page {
   padding: clamp(2.5rem, 5vw, 4.5rem) var(--page-padding);
   display: flex;
