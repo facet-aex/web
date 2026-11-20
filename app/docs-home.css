@@ -247,6 +247,7 @@
 .quickstart-faucet-callout .explorer-link {
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
   min-height: 44px;
   color: var(--facet-cyan);
 }
