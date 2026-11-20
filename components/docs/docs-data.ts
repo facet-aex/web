@@ -149,7 +149,7 @@ export const CORE_DEFINITIONS: readonly CoreDefinitionItem[] = [
     summary:
       "Testnet settlement uses 6-decimal EIP-3009 fUSD on Avalanche (chain 43113 / eip155:43113). Wallets can claim 1 fUSD (1000000 atomic) every 24h per address (10 claims / 24h per IP) dispensed via standard ERC-20 transfer() from a pre-funded Avalanche faucet wallet.",
     href: "/faucet",
-    linkLabel: "Open /faucet to claim test fUSD ↗",
+    linkLabel: "Open /faucet to claim test fUSD",
   },
   {
     term: "Wallet-Signed Playground",

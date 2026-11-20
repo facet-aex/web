@@ -174,6 +174,7 @@ describe("SiteHeader and SiteFooter", () => {
     expect(markup).toContain('href="/studio"');
     expect(markup).toContain('href="/docs"');
     expect(markup).toContain('href="/faucet"');
+    expect(markup).toContain(">Faucet<");
     expect(markup).not.toMatch(/\bfuji\b/iu);
     expect(markup).not.toMatch(/\.<\/span>/u);
     expect(markup).not.toMatch(/apify|rapidapi/iu);

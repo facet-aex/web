@@ -52,8 +52,9 @@ export async function copyAgentSetupPrompt(
 }
 
 /**
- * Two-choice Home Quick Start letting users choose either a one-click hidden
- * agent setup prompt or a minimal 3-step manual CLI, wallet, and MCP flow.
+ * Two-choice Home Quick Start letting users choose either a one-click copied
+ * agent setup prompt (never rendered in DOM/HTML) or a minimal 3-step manual
+ * CLI, wallet, and MCP flow.
  */
 export function LandingQuickstart({
   initialSelection = null,
@@ -64,28 +65,44 @@ export function LandingQuickstart({
     "idle",
   );
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+  const copyRequestIdRef = useRef(0);
+
+  function clearResetTimer() {
+    if (resetTimerRef.current !== null) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  }
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
-      if (resetTimerRef.current !== null) {
-        clearTimeout(resetTimerRef.current);
-      }
+      isMountedRef.current = false;
+      clearResetTimer();
     };
   }, []);
 
   function selectChoice(choice: Exclude<QuickstartChoice, null>) {
+    copyRequestIdRef.current += 1;
+    clearResetTimer();
     setCopyState("idle");
     setSelection((current) => (current === choice ? null : choice));
   }
 
   async function handleCopyPrompt() {
-    if (resetTimerRef.current !== null) {
-      clearTimeout(resetTimerRef.current);
-    }
+    const requestId = ++copyRequestIdRef.current;
+    clearResetTimer();
     const ok = await copyAgentSetupPrompt();
+    if (!isMountedRef.current || copyRequestIdRef.current !== requestId) {
+      return;
+    }
     setCopyState(ok ? "copied" : "error");
     if (ok) {
       resetTimerRef.current = setTimeout(() => {
+        if (!isMountedRef.current || copyRequestIdRef.current !== requestId) {
+          return;
+        }
         setCopyState("idle");
         resetTimerRef.current = null;
       }, 2200);
@@ -161,8 +178,8 @@ export function LandingQuickstart({
           <div className="quickstart-prompt-copy">
             <h3>Copy One Setup Prompt Into Your Agent</h3>
             <p className="quickstart-copy">
-              Paste this hidden setup prompt into your coding agent session to
-              walk through CLI installation, local wallet creation, fUSD faucet
+              Paste this setup prompt into your coding agent session to walk
+              through CLI installation, local wallet creation, fUSD faucet
               funding, MCP setup, and spend-policy verification.
             </p>
           </div>
@@ -230,7 +247,8 @@ export function LandingQuickstart({
               />
               <div className="quickstart-faucet-callout">
                 <Link className="explorer-link" href="/faucet">
-                  Claim test fUSD on Avalanche Faucet ↗
+                  Claim test fUSD on Avalanche Faucet{" "}
+                  <span aria-hidden="true">↗</span>
                 </Link>
               </div>
             </li>

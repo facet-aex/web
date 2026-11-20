@@ -47,7 +47,7 @@ export function DocsPartOverview() {
         </p>
         <div className="docs-callout-grid">
           <article className="docs-tool-card">
-            <strong>Natural-Key Addressing (Option B)</strong>
+            <strong>Natural-Key Addressing</strong>
             <p>
               Capabilities are addressed externally by{" "}
               <code>provider/facetName@version</code>—using 8–16 char kebab-case{" "}
@@ -66,7 +66,7 @@ export function DocsPartOverview() {
               their kebab-case provider handle. Publishing a Facet simply
               activates the Provider role on that same account, linked to a
               verified EOA payout address (<code>providerPayTo</code>) without
-              duplicate organization tables.
+              separate organization accounts.
             </p>
           </article>
         </div>
@@ -132,7 +132,7 @@ export function DocsPartOverview() {
               <p>{item.summary}</p>
               {item.href && item.linkLabel ? (
                 <Link className="explorer-link" href={item.href}>
-                  {item.linkLabel}
+                  {item.linkLabel} <span aria-hidden="true">↗</span>
                 </Link>
               ) : null}
             </article>
@@ -220,7 +220,7 @@ export function DocsPartOverview() {
                       target="_blank"
                       rel="noreferrer"
                     >
-                      {row.address} ↗
+                      {row.address} <span aria-hidden="true">↗</span>
                     </a>
                   </td>
                   <td>{row.role}</td>

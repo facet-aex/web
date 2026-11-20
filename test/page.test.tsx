@@ -138,6 +138,8 @@ describe("LandingQuickstart 2-choice workflow", () => {
 
     expect(markup).toContain('id="quickstart-panel-prompt"');
     expect(markup).toContain("Copy Setup Prompt");
+    expect(markup).toContain("Paste this setup prompt");
+    expect(markup).not.toContain("hidden setup prompt");
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('aria-expanded="true"');
     expect(markup).not.toContain('id="quickstart-panel-manual"');
@@ -163,6 +165,10 @@ describe("LandingQuickstart 2-choice workflow", () => {
     expect(markup).toContain("facet wallet create");
     expect(markup).toContain("facet wallet status");
     expect(markup).toContain('href="/faucet"');
+    expect(markup).toContain(
+      'Claim test fUSD on Avalanche Faucet <span aria-hidden="true">↗</span>',
+    );
+    expect(markup).not.toContain("Claim test fUSD on Avalanche Faucet ↗");
     expect(markup).toContain("facet mcp install antigravity");
     expect(markup).toContain("facet mcp install codex");
     expect(markup).toContain("facet mcp install claude");
@@ -455,6 +461,11 @@ describe("DocsPage documentation", () => {
     expect(markup).toContain("FacetActorRegistry");
     expect(markup).toContain("FacetReceiptLog");
     expect(markup).toContain('href="/faucet"');
+    expect(markup).toContain(
+      '>Open /faucet to claim test fUSD <span aria-hidden="true">↗</span></a>',
+    );
+    expect(markup).not.toContain("Open /faucet to claim test fUSD ↗");
+    expect(markup).not.toMatch(/[^>]↗/u);
     expect(markup).toContain("Wallet-Signed Playground");
     expect(markup).toContain("pre-funded");
     expect(markup).toContain("Avalanche Address");
@@ -509,6 +520,8 @@ describe("DocsPage documentation", () => {
     expect(markup).not.toContain("fuji-deployment.json");
     expect(markup).not.toContain("users.username");
     expect(markup).not.toContain("facetVersionId");
+    expect(markup).not.toContain("Option B");
+    expect(markup).not.toContain("duplicate organization tables");
     expect(markup).not.toMatch(/apify|rapidapi/iu);
     expect(markup).not.toMatch(/\bfuji\b/iu);
   });
