@@ -8,7 +8,17 @@ import { FacetPlayground } from "@/components/facet-playground";
 import { FacetPricingFields } from "@/components/facet-pricing-fields";
 import { StudioFacetPreviewCard } from "@/components/studio-facet-preview-card";
 import { computeStudioProgress } from "@/components/studio-stage-bar";
-import { atomicToFusdInput, parseFusdToAtomic } from "@/lib/facet-ui";
+import {
+  ACTOR_TEMPLATE_PRESETS,
+  type ActorTemplatePreset,
+} from "@/lib/actor-templates";
+import {
+  FACET_CATEGORIES_BY_TYPE,
+  atomicToFusdInput,
+  parseFusdToAtomic,
+} from "@/lib/facet-ui";
+import { isValidFacetName } from "@/lib/identifiers";
+import { isFlatEditableSchema } from "@/lib/input-schema-builder";
 import type { PublicFacet } from "@/lib/public-catalog";
 import { checkFacetIdentityConflict } from "@/lib/use-owned-facets";
 
@@ -19,8 +29,10 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("Actor Studio");
     expect(markup).not.toContain("Hosted Actor Studio");
     expect(markup).toContain("Blank Actor");
-    expect(markup).toContain("VN Gold &amp; FX Scraper");
-    expect(markup).toContain("VN Tech &amp; Macro News Extractor");
+    expect(markup).toContain("HTML Structured Extractor");
+    expect(markup).toContain("PII &amp; Secret Redactor");
+    expect(markup).not.toContain("VN Gold &amp; FX Scraper");
+    expect(markup).not.toContain("VN Tech &amp; Macro News Extractor");
     expect(markup).toContain("rapid-stage-bar studio-stage-bar");
     expect(markup).toContain("Source &amp; Metadata");
     expect(markup).toContain("Input Schema");
@@ -350,5 +362,200 @@ describe("ActorStudio, AgentStudio, and FacetPlayground", () => {
     expect(markup).toContain("html");
     expect(markup).toContain("Conflict");
     expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
+  });
+
+  it("provides two distinct-category runnable Actor templates that satisfy schema, payload size, and runtime contracts", async () => {
+    expect(ACTOR_TEMPLATE_PRESETS).toHaveLength(2);
+    expect(ACTOR_TEMPLATE_PRESETS.map((preset) => preset.id)).not.toContain(
+      "vn-gold-fx-actor",
+    );
+    expect(ACTOR_TEMPLATE_PRESETS.map((preset) => preset.id)).not.toContain(
+      "vn-tech-news-actor",
+    );
+
+    const allowedCategories = new Set(
+      FACET_CATEGORIES_BY_TYPE.ACTOR.map((option) => option.slug),
+    );
+    const categories = ACTOR_TEMPLATE_PRESETS.map((preset) => preset.category);
+    expect(new Set(categories).size).toBe(2);
+    expect(categories).toEqual(["web-scraping", "data-processing"]);
+    for (const category of categories) {
+      expect(allowedCategories.has(category)).toBe(true);
+    }
+
+    const extractDefaultInput = (
+      preset: ActorTemplatePreset,
+    ): Record<string, unknown> => {
+      const properties = preset.inputSchema.properties as Record<
+        string,
+        { default?: unknown }
+      >;
+      const required = Array.isArray(preset.inputSchema.required)
+        ? (preset.inputSchema.required as string[])
+        : [];
+      for (const reqKey of required) {
+        expect(properties[reqKey]?.default).toBeDefined();
+      }
+      const input: Record<string, unknown> = {};
+      for (const [key, prop] of Object.entries(properties)) {
+        if (prop.default !== undefined) {
+          input[key] = prop.default;
+        }
+      }
+      return input;
+    };
+
+    for (const preset of ACTOR_TEMPLATE_PRESETS) {
+      expect(isValidFacetName(preset.facetName)).toBe(true);
+      expect(isFlatEditableSchema(preset.inputSchema).editable).toBe(true);
+      expect(preset.code).toMatch(
+        /export\s+default\s+(?:async\s+)?function(?:\s+run)?\s*\(/u,
+      );
+
+      const defaultInput = extractDefaultInput(preset);
+      const previewBytes = Buffer.byteLength(
+        JSON.stringify({
+          code: preset.code,
+          inputSchema: preset.inputSchema,
+          input: defaultInput,
+        }),
+        "utf8",
+      );
+      expect(previewBytes).toBeLessThanOrEqual(16_384);
+
+      const copyCorpus = [
+        preset.label,
+        preset.facetDisplayName,
+        preset.summary,
+        preset.description,
+        preset.tags.join(" "),
+        preset.code,
+      ].join("\n");
+      expect(copyCorpus).not.toMatch(/apify|rapidapi|erc-?8004|\bfuji\b/iu);
+    }
+
+    const htmlPreset = ACTOR_TEMPLATE_PRESETS.find(
+      (preset) => preset.id === "html-structured-extractor",
+    );
+    expect(htmlPreset).toBeDefined();
+    expect(htmlPreset!.code).toContain('import * as cheerio from "cheerio";');
+    const strippedBody = htmlPreset!.code
+      .replace(/^import\s+\*\s+as\s+cheerio\s+from\s+"cheerio";\s*/u, "")
+      .replace(
+        /export\s+default\s+async\s+function\s+run\s*\(/u,
+        "return async function run(",
+      );
+    const compileFactory = new Function("cheerio", strippedBody) as (
+      cheerioArg: Record<string, unknown>,
+    ) => (input: Record<string, unknown>) => Promise<unknown>;
+    const compiledRun = compileFactory({});
+    await expect(compiledRun({ html: "   " })).rejects.toThrow(
+      "Input 'html' must be a non-empty HTML string.",
+    );
+
+    const redactorPreset = ACTOR_TEMPLATE_PRESETS.find(
+      (preset) => preset.id === "pii-secret-redactor",
+    );
+    expect(redactorPreset).toBeDefined();
+    const dataUrl = `data:text/javascript;base64,${Buffer.from(
+      redactorPreset!.code,
+      "utf8",
+    ).toString("base64")}`;
+    const redactorMod = (await import(/* @vite-ignore */ dataUrl)) as {
+      default: (
+        input: Record<string, unknown>,
+      ) => Promise<Array<Record<string, unknown>>>;
+    };
+
+    const defaultRedactorInput = extractDefaultInput(redactorPreset!);
+    const maskedRows = await redactorMod.default(defaultRedactorInput);
+    expect(maskedRows).toHaveLength(2);
+    expect(maskedRows[0]).toMatchObject({
+      id: "ticket-101",
+      hasPii: true,
+      findingCount: 3,
+      riskLevel: "MEDIUM",
+    });
+    expect(maskedRows[0]?.sanitizedText).toBe(
+      "Contact [EMAIL] or [PHONE] from [IPV4] regarding invoice.",
+    );
+    expect(maskedRows[1]).toMatchObject({
+      id: "log-204",
+      hasPii: true,
+      findingCount: 2,
+      riskLevel: "HIGH",
+    });
+    expect(maskedRows[1]?.sanitizedText).toBe(
+      "Leaked token Bearer [JWT] and key [API_KEY].",
+    );
+
+    const pseudoRows = await redactorMod.default({
+      mode: "pseudonymize",
+      salt: "unit-test-salt",
+      records: [
+        { id: "r1", text: "Email bob@example.org once." },
+        { id: "r2", text: "Email bob@example.org twice." },
+      ],
+    });
+    expect(pseudoRows[0]?.sanitizedText).toMatch(
+      /^Email \[EMAIL:[0-9a-f]{8}\] once\.$/u,
+    );
+    expect(pseudoRows[0]?.sanitizedText).not.toContain("bob@example.org");
+    expect(pseudoRows[1]?.sanitizedText).toBe(
+      String(pseudoRows[0]?.sanitizedText).replace("once.", "twice."),
+    );
+
+    const auditInput = {
+      mode: "audit",
+      records: [{ id: "a1", text: "Ping security@acme.dev from 192.168.1.50" }],
+    };
+    const auditRows = await redactorMod.default(auditInput);
+    expect(auditRows[0]).toMatchObject({
+      id: "a1",
+      sanitizedText: "Ping security@acme.dev from 192.168.1.50",
+      hasPii: true,
+      findingCount: 2,
+      counts: { EMAIL: 1, IPV4: 1 },
+    });
+
+    const luhnAndKeyRows = await redactorMod.default({
+      mode: "mask",
+      redactPrivateKeys: true,
+      records: [
+        {
+          id: "card-valid",
+          text: "Card 4532-0151-1283-0366 and key 0x" + "a".repeat(64),
+        },
+        {
+          id: "card-invalid",
+          text: "Ref 4532-0151-1283-0367",
+        },
+        {
+          id: "clean",
+          text: "Nothing sensitive in this summary.",
+        },
+      ],
+    });
+    expect(luhnAndKeyRows[0]).toMatchObject({
+      id: "card-valid",
+      sanitizedText: "Card [CARD] and key [PRIVATE_KEY]",
+      hasPii: true,
+      findingCount: 2,
+      riskLevel: "HIGH",
+    });
+    expect(luhnAndKeyRows[1]).toMatchObject({
+      id: "card-invalid",
+      sanitizedText: "Ref 4532-0151-1283-0367",
+      hasPii: false,
+      findingCount: 0,
+      riskLevel: "NONE",
+    });
+    expect(luhnAndKeyRows[2]).toMatchObject({
+      id: "clean",
+      sanitizedText: "Nothing sensitive in this summary.",
+      hasPii: false,
+      findingCount: 0,
+      riskLevel: "NONE",
+    });
   });
 });
