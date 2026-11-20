@@ -1,11 +1,18 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import type { Hex } from "viem";
+import { describe, expect, it, vi } from "vitest";
 
 import { ActorStudio } from "@/components/actor-studio";
 import { AgentIdentityCard } from "@/components/agent-identity-card";
 import { AgentStudio } from "@/components/agent-studio";
 import { FacetDetailView } from "@/components/facet-detail-view";
-import { FacetPlayground } from "@/components/facet-playground";
+import {
+  FacetPlayground,
+  createAccountsChangedHandler,
+  isAbortError,
+  pollPaidInvocation,
+  waitMs,
+} from "@/components/facet-playground";
 import { FacetPricingFields } from "@/components/facet-pricing-fields";
 import { StudioFacetPreviewCard } from "@/components/studio-facet-preview-card";
 import { computeStudioProgress } from "@/components/studio-stage-bar";
@@ -558,5 +565,165 @@ describe("ActorStudio, AgentStudio, FacetDetailView, and FacetPlayground", () =>
     expect(markup).toContain("html");
     expect(markup).toContain("Conflict");
     expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
+  });
+
+  it("aborts 202 settlement polling immediately on unmount without issuing extra POST requests", async () => {
+    const controller = new AbortController();
+    const pendingNotices: Array<string | undefined> = [];
+    const fetchMock = vi.fn<typeof fetch>(async () => {
+      return Response.json(
+        {
+          runId: "run-pending-1",
+          payment: { status: "escrow_pending" },
+        },
+        {
+          status: 202,
+          headers: { "retry-after": "2" },
+        },
+      );
+    });
+
+    const pollPromise = pollPaidInvocation({
+      requestBody: JSON.stringify({ input: { topic: "AI" } }),
+      idempotencyKey: "idem-abort-1",
+      paymentSignature: "sig-abort-1",
+      signal: controller.signal,
+      fetchImpl: fetchMock,
+      waitImpl: (durationMs, signal) => {
+        const delay = waitMs(durationMs, signal);
+        controller.abort();
+        return delay;
+      },
+      onPending: (pending) => {
+        pendingNotices.push(pending?.runId);
+      },
+    });
+
+    await expect(pollPromise).rejects.toSatisfy((err: unknown) =>
+      isAbortError(err),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(pendingNotices).toEqual(["run-pending-1"]);
+
+    const retryFetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json(
+          { runId: "run-2", payment: { status: "escrow_pending" } },
+          { status: 202, headers: { "retry-after": "0" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            runId: "run-2",
+            provider: "alice-labs",
+            facetName: "vn-tech-news-actor",
+            version: "1.0.0",
+            result: [{ ok: true }],
+            replayed: true,
+          },
+          { status: 200 },
+        ),
+      );
+    const retryController = new AbortController();
+    const result = await pollPaidInvocation({
+      requestBody: JSON.stringify({ input: { topic: "AI" } }),
+      idempotencyKey: "idem-reuse-1",
+      paymentSignature: "sig-reuse-1",
+      signal: retryController.signal,
+      fetchImpl: retryFetchMock,
+      waitImpl: async () => {},
+    });
+
+    expect(result).toMatchObject({
+      kind: "success",
+      payload: { runId: "run-2", replayed: true },
+    });
+    expect(retryFetchMock).toHaveBeenCalledTimes(2);
+    for (const [, init] of retryFetchMock.mock.calls) {
+      const headers = new Headers(init?.headers);
+      expect(headers.get("idempotency-key")).toBe("idem-reuse-1");
+      expect(headers.get("payment-signature")).toBe("sig-reuse-1");
+    }
+  });
+
+  it("clears fusdBalanceAtomic immediately on accountsChanged and ignores stale out-of-order or unmounted RPC responses", async () => {
+    const accountA = "0x1111111111111111111111111111111111111111" as Hex;
+    const accountB = "0x2222222222222222222222222222222222222222" as Hex;
+    const accountC = "0x3333333333333333333333333333333333333333" as Hex;
+
+    let walletAddress: Hex | null = accountA;
+    let fusdBalanceAtomic: string | null = "999999";
+    let walletError: string | null = null;
+    let mounted = true;
+    let requestId = 0;
+    let activeAddress: Hex | null = accountA;
+
+    const resolvers = new Map<
+      string,
+      { resolve: (value: string) => void; reject: (reason: Error) => void }
+    >();
+
+    const handler = createAccountsChangedHandler({
+      readBalance: (address) =>
+        new Promise<string>((resolve, reject) => {
+          resolvers.set(address, { resolve, reject });
+        }),
+      isMounted: () => mounted,
+      nextRequestId: () => ++requestId,
+      getRequestId: () => requestId,
+      setActiveAddress: (address) => {
+        activeAddress = address;
+      },
+      getActiveAddress: () => activeAddress,
+      onDisconnected: () => {
+        walletAddress = null;
+        fusdBalanceAtomic = null;
+        walletError = null;
+      },
+      onAccountSelected: (next) => {
+        walletAddress = next;
+        fusdBalanceAtomic = null;
+        walletError = null;
+      },
+      onBalanceLoaded: (balance) => {
+        fusdBalanceAtomic = balance;
+      },
+      onBalanceError: (message) => {
+        walletError = message;
+      },
+    });
+
+    const firstChange = handler([accountB.toLowerCase()]);
+    expect(walletAddress).toBe(accountB);
+    expect(fusdBalanceAtomic).toBeNull();
+
+    const secondChange = handler([accountC.toLowerCase()]);
+    expect(walletAddress).toBe(accountC);
+    expect(fusdBalanceAtomic).toBeNull();
+
+    resolvers.get(accountC)?.resolve("250000");
+    await secondChange;
+    expect(fusdBalanceAtomic).toBe("250000");
+    expect(walletError).toBeNull();
+
+    resolvers.get(accountB)?.resolve("111111");
+    await firstChange;
+    expect(fusdBalanceAtomic).toBe("250000");
+    expect(walletError).toBeNull();
+
+    const failedChange = handler([accountA.toLowerCase()]);
+    expect(fusdBalanceAtomic).toBeNull();
+    resolvers.get(accountA)?.reject(new Error("RPC unavailable"));
+    await failedChange;
+    expect(fusdBalanceAtomic).toBeNull();
+    expect(walletError).toBe("RPC unavailable");
+
+    const preUnmount = handler([accountB.toLowerCase()]);
+    mounted = false;
+    resolvers.get(accountB)?.resolve("777777");
+    await preUnmount;
+    expect(fusdBalanceAtomic).toBeNull();
   });
 });
