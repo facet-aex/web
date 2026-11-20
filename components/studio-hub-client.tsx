@@ -27,7 +27,7 @@ const WORKFLOW_CARDS = [
     meta: FACET_TYPE_META.AGENT,
     inspiration: "On-Chain Agent Card",
     steps: [
-      "Bind an Avalanche Fuji Agent Identity Token ID (#1+)",
+      "Bind an Avalanche Agent Identity Token ID (#1+)",
       "Preview the live On-Chain Agent Card, payout wallet & task schema",
       "Publish as a Facet and optionally verify your Registry tx",
     ],

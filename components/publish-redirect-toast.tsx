@@ -47,11 +47,11 @@ export function PublishRedirectToast({
   const heading = isPending
     ? "Publish request sent — Registration Pending"
     : isFailed
-      ? "Publish failed on Fuji"
+      ? "Publish failed on Avalanche"
       : "Published successfully";
 
   const message = isPending
-    ? `${identifier} has been submitted for on-chain registration on Avalanche Fuji.${redirecting ? " Redirecting to My Facets…" : ""}`
+    ? `${identifier} has been submitted for on-chain registration on Avalanche.${redirecting ? " Redirecting to My Facets…" : ""}`
     : isFailed
       ? `${identifier} encountered an on-chain registration error.${redirecting ? " Redirecting to My Facets…" : ""}`
       : `${identifier} is now published.${redirecting ? " Redirecting to My Facets…" : ""}`;

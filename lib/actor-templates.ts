@@ -498,7 +498,7 @@ export const AGENT_TEMPLATE_PRESET: AgentTemplatePreset = {
   category: "a2a-agents",
   tags: ["vietnam", "agent", "macro"],
   description:
-    "Agent định danh on-chain trên Fuji, tự động tổng hợp dữ liệu vàng, tỷ giá và tin tức Việt Nam thành báo cáo phân tích có trích dẫn nguồn.",
+    "Agent định danh on-chain trên Avalanche, tự động tổng hợp dữ liệu vàng, tỷ giá và tin tức Việt Nam thành báo cáo phân tích có trích dẫn nguồn.",
   erc8004TokenId: "1",
   erc8004Registry: ERC8004_IDENTITY_REGISTRY,
   taskKind: "vn-market-analysis",
@@ -567,7 +567,7 @@ export const CUSTOM_AGENT_PRESET: AgentTemplatePreset = {
   category: "a2a-agents",
   tags: ["agent", "fusd"],
   description:
-    "Autonomous Agent anchored to an Avalanche Fuji on-chain identity token.",
+    "Autonomous Agent anchored to an Avalanche on-chain identity token.",
   erc8004TokenId: "1",
   erc8004Registry: ERC8004_IDENTITY_REGISTRY,
   taskKind: "vn-market-analysis",
