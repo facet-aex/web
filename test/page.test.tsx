@@ -27,7 +27,6 @@ afterEach(() => {
 describe("HomePage landing page", () => {
   it("renders Hero without trailing period, redesigned production commerce flow, 1-line section titles, and 2-choice quickstart", () => {
     const markup = renderToStaticMarkup(<HomePage />);
-    const mainAndHeader = markup.split("<footer")[0] ?? markup;
 
     // Page 1: Hero preserved without trailing period in title
     expect(markup).toContain("Federated Agent Capability Exchange &amp; Trust");
@@ -51,8 +50,8 @@ describe("HomePage landing page", () => {
     // Ensure no heading (h1-h3) or span on Home ends with a trailing period
     expect(markup).not.toMatch(/\.<\/(span|h1|h2|h3)>/u);
 
-    // Avalanche branding invariant on Home header/main (footer is updated in S2.3)
-    expect(mainAndHeader).not.toMatch(/\bfuji\b/iu);
+    // Avalanche branding invariant across full HomePage (including header and footer)
+    expect(markup).not.toMatch(/\bfuji\b/iu);
 
     // Page 2: Minimal 1-menu production commerce showcase (replaces static bento-grid & duplicate menus)
     expect(markup).not.toContain("bento-grid");
@@ -299,7 +298,12 @@ describe("StorePage catalog", () => {
     );
 
     expect(allMarkup).toContain("Facet Store");
+    expect(allMarkup).toContain("Public Marketplace / Avalanche x402");
     expect(allMarkup).toContain("What is a Facet?");
+    expect(allMarkup).toContain("ERC-8004");
+    expect(allMarkup).toContain('href="/docs#agent-guide"');
+    expect(allMarkup).toContain("Agent &amp; MCP guide");
+    expect(allMarkup).not.toContain("MCP &amp; SDK guide");
     expect(allMarkup).toContain('action="/store"');
     expect(allMarkup).toContain('id="facet-search"');
     expect(allMarkup).toContain("All Facets");
@@ -352,6 +356,15 @@ describe("StorePage catalog", () => {
     expect(agentMarkup).toContain(
       'href="/store?type=AGENT&amp;category=others"',
     );
+
+    for (const storeMarkup of [
+      allMarkup,
+      apiMarkup,
+      actorMarkup,
+      agentMarkup,
+    ]) {
+      expect(storeMarkup).not.toMatch(/\bfuji\b/iu);
+    }
   });
 });
 
@@ -380,7 +393,7 @@ describe("Studio pages", () => {
       expect(markup).not.toContain("← Studio Overview");
       expect(markup).not.toContain("Active Provider");
       expect(markup).not.toContain("+ New Provider");
-      expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
+      expect(markup).not.toMatch(/apify|rapidapi/iu);
     }
   });
 });
@@ -388,7 +401,6 @@ describe("Studio pages", () => {
 describe("DocsPage documentation", () => {
   it("renders modular 2-part Overview & Agent Setup Guide with ERC-8004, multi-pricing, real CLI/MCP, and all 6 Avalanche contracts", () => {
     const markup = renderToStaticMarkup(<DocsPage />);
-    const mainAndHeader = markup.split("<footer")[0] ?? markup;
 
     // 2-Part Structure, Semantic Accessibility & Heading Hierarchy
     const mainMarkup = markup.slice(
@@ -483,7 +495,7 @@ describe("DocsPage documentation", () => {
     expect(markup).toContain("0x8004A818BFB912233c491871b3d84c89A494BD9e");
     expect(markup).toContain("0x8004B663056A597Dffe9eCcC1965A193B7388713");
 
-    // Stale Content & Brand Ban Assertions (footer upgraded to full-page check in S2.3)
+    // Stale Content & Brand Ban Assertions
     expect(markup).not.toContain("@facet/agent-sdk");
     expect(markup).not.toContain("@facet/mcp-server");
     expect(markup).not.toContain("127.0.0.1");
@@ -498,7 +510,7 @@ describe("DocsPage documentation", () => {
     expect(markup).not.toContain("users.username");
     expect(markup).not.toContain("facetVersionId");
     expect(markup).not.toMatch(/apify|rapidapi/iu);
-    expect(mainAndHeader).not.toMatch(/\bfuji\b/iu);
+    expect(markup).not.toMatch(/\bfuji\b/iu);
   });
 
   it("keeps /docs modules as pure Server Components and enforces >=44px touch targets, heading scale, TOC overflow/sticky rules, and cyan/lime alignment in docs-home.css", () => {
@@ -615,6 +627,6 @@ describe("FacetDetailPage modality views", () => {
     expect(markup).toContain("vn-market-analysis");
     expect(markup).toContain('href="/store"');
     expect(markup).toContain('href="/store?type=AGENT"');
-    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
+    expect(markup).not.toMatch(/apify|rapidapi/iu);
   });
 });

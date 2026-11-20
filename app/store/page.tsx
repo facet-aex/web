@@ -76,7 +76,7 @@ export default async function StorePage({
       <main className="store" id="store">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Public Marketplace / Avalanche Fuji x402</p>
+            <p className="eyebrow">Public Marketplace / Avalanche x402</p>
             <h1 className="page-title">Facet Store</h1>
           </div>
           <p>
@@ -202,7 +202,7 @@ export default async function StorePage({
               <div>
                 <dt>◈ Facet · Agent</dt>
                 <dd>
-                  Verified on-chain Agent identity executing tasks with
+                  ERC-8004 on-chain Agent identity executing tasks with
                   citations.
                 </dd>
               </div>
@@ -216,7 +216,7 @@ export default async function StorePage({
             <small>
               Need programmatic access? See the{" "}
               <Link className="explorer-link" href="/docs#agent-guide">
-                MCP &amp; SDK guide
+                Agent &amp; MCP guide
               </Link>
               .
             </small>
