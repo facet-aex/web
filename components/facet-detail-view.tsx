@@ -11,6 +11,10 @@ import {
   getFacetTypeMeta,
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
+import {
+  normalizePricingOptions,
+  type NormalizedPricingOption,
+} from "@/lib/pricing-types";
 import type { PublicFacet } from "@/lib/public-catalog";
 
 function extractInputFieldNames(schema: unknown): string[] {
@@ -26,12 +30,60 @@ function extractInputFieldNames(schema: unknown): string[] {
   return Object.keys(schema.properties);
 }
 
+function resolveDetailPricingOptions(
+  facet: PublicFacet,
+): NormalizedPricingOption[] {
+  const normalized = normalizePricingOptions(
+    facet.pricing,
+    facet.pricingOptions,
+  );
+  if (
+    (!facet.pricingOptions || facet.pricingOptions.length === 0) &&
+    facet.pricing?.model === "PAY_PER_RESULT" &&
+    normalized[0]
+  ) {
+    const cap = facet.pricing.maxItemsCap ?? 20;
+    const maxAmount =
+      facet.pricing.maxAmountAtomic ??
+      (BigInt(facet.pricing.priceAtomic) * BigInt(cap)).toString();
+    return [
+      {
+        ...normalized[0],
+        maxItemsCap: cap,
+        maxAmountAtomic: maxAmount,
+      },
+    ];
+  }
+  return normalized;
+}
+
+function formatPricingOptionLine(option: NormalizedPricingOption): string {
+  const primarySuffix = option.isPrimary ? " (Primary)" : "";
+  if (option.model === "PAY_PER_RESULT") {
+    const cap = option.maxItemsCap ?? 20;
+    return `${option.model}${primarySuffix} · ${formatAtomicFusd(option.priceAtomic)} / item · max ${cap} items (max deposit ${formatAtomicFusd(option.maxAmountAtomic)})`;
+  }
+  return `${option.model}${primarySuffix} · ${formatAtomicFusd(option.priceAtomic)} / run`;
+}
+
 export function FacetDetailView({ facet }: { facet: PublicFacet }) {
   const meta = getFacetTypeMeta(facet.facetType);
-  const priceFusd = facet.pricing
-    ? `${formatAtomicFusd(facet.pricing.priceAtomic)} (${facet.pricing.model})`
-    : "0.001 fUSD (PAY_PER_RUN)";
+  const pricingOptions = resolveDetailPricingOptions(facet);
+  const primaryPricing =
+    pricingOptions.find((option) => option.isPrimary) ?? pricingOptions[0];
   const inputFields = extractInputFieldNames(facet.inputSchema);
+
+  const registryTxHash =
+    facet.actorMeta?.registryTxHash ??
+    facet.agentMeta?.registryTxHash ??
+    facet.apiMeta?.registryTxHash;
+  const registryVerified =
+    facet.actorMeta?.registryVerified ??
+    facet.agentMeta?.registryVerified ??
+    facet.apiMeta?.registryVerified;
+  const hasRegistryMetadata = Boolean(
+    facet.actorMeta || facet.agentMeta || facet.apiMeta,
+  );
 
   return (
     <div className="page-shell">
@@ -73,9 +125,10 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
             erc8004Registry={facet.agentMeta.erc8004Registry}
             erc8004TokenId={facet.agentMeta.erc8004TokenId}
             taskKind={facet.agentMeta.taskKind}
-            pricingModel={facet.pricing?.model ?? "PAY_PER_RUN"}
-            priceAtomic={facet.pricing?.priceAtomic ?? "1000"}
-            {...(facet.pricing?.payTo ? { payTo: facet.pricing.payTo } : {})}
+            pricingModel={primaryPricing?.model ?? "PAY_PER_RUN"}
+            priceAtomic={primaryPricing?.priceAtomic ?? "1000"}
+            {...(pricingOptions.length > 0 ? { pricingOptions } : {})}
+            {...(primaryPricing?.payTo ? { payTo: primaryPricing.payTo } : {})}
             {...(facet.agentMeta.registryVerified !== undefined
               ? { registryVerified: facet.agentMeta.registryVerified }
               : {})}
@@ -96,8 +149,20 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
             <dd>{facet.method}</dd>
           </div>
           <div>
-            <dt>x402 Pricing (Fuji)</dt>
-            <dd>{priceFusd}</dd>
+            <dt>x402 Pricing (Avalanche)</dt>
+            <dd>
+              {pricingOptions.length > 0 ? (
+                <div className="detail-pricing-list">
+                  {pricingOptions.map((option) => (
+                    <span key={option.model}>
+                      {formatPricingOptionLine(option)}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                "0.001 fUSD (PAY_PER_RUN)"
+              )}
+            </dd>
           </div>
           <div>
             <dt>Facet Identifier</dt>
@@ -126,56 +191,73 @@ export function FacetDetailView({ facet }: { facet: PublicFacet }) {
               ) : null}
             </>
           ) : null}
+          {facet.apiMeta ? (
+            <>
+              <div>
+                <dt>API Endpoint</dt>
+                <dd>
+                  <code>
+                    {facet.apiMeta.method} {facet.apiMeta.pathTemplate}
+                  </code>
+                </dd>
+              </div>
+              {facet.apiMeta.datasetPath ? (
+                <div>
+                  <dt>Dataset Path</dt>
+                  <dd>
+                    <code>{facet.apiMeta.datasetPath}</code>
+                  </dd>
+                </div>
+              ) : null}
+              {facet.apiMeta.staticHeaderNames &&
+              facet.apiMeta.staticHeaderNames.length > 0 ? (
+                <div>
+                  <dt>Static Headers</dt>
+                  <dd>{facet.apiMeta.staticHeaderNames.join(", ")}</dd>
+                </div>
+              ) : null}
+            </>
+          ) : null}
           {!facet.actorMeta && !facet.agentMeta ? (
             <div>
               <dt>Gateway Enforcement</dt>
               <dd>SSRF DNS/IP Pinning · Encrypted Secret Isolation</dd>
             </div>
           ) : null}
-          {(facet.actorMeta?.registryTxHash ??
-          facet.agentMeta?.registryTxHash) ? (
+          {registryTxHash ? (
             <div>
               <dt>
                 ActorRegistry Tx (
-                {(facet.actorMeta?.registryVerified ??
-                facet.agentMeta?.registryVerified)
-                  ? "Verified on Fuji ✓"
+                {registryVerified
+                  ? "Verified on Avalanche ✓"
                   : "Unverified Reference"}
                 )
               </dt>
               <dd>
                 <a
                   className="explorer-link"
-                  href={snowtraceTxUrl(
-                    facet.actorMeta?.registryTxHash ??
-                      facet.agentMeta?.registryTxHash ??
-                      "",
-                  )}
+                  href={snowtraceTxUrl(registryTxHash)}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  {facet.actorMeta?.registryTxHash ??
-                    facet.agentMeta?.registryTxHash}{" "}
-                  ↗
+                  {registryTxHash} ↗
                 </a>
               </dd>
+            </div>
+          ) : registryVerified ? (
+            <div>
+              <dt>Avalanche Registry</dt>
+              <dd>Verified on Avalanche ✓</dd>
             </div>
           ) : null}
         </dl>
 
-        {(facet.actorMeta || facet.agentMeta) &&
-        !(
-          facet.actorMeta?.registryVerified ?? facet.agentMeta?.registryVerified
-        ) ? (
+        {hasRegistryMetadata && !registryVerified ? (
           <RegistryVerificationForm
             provider={facet.provider}
             facetName={facet.facetName}
             version={facet.version}
-            initialTxHash={
-              facet.actorMeta?.registryTxHash ??
-              facet.agentMeta?.registryTxHash ??
-              ""
-            }
+            initialTxHash={registryTxHash ?? ""}
           />
         ) : null}
 

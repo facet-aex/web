@@ -59,7 +59,7 @@ describe("MyFacetsView and PublishRedirectToast", () => {
     expect(publishedMarkup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 
-  it("renders MyFacetsView with pending submission banner and publish action", () => {
+  it("renders MyFacetsView with pending submission banner and Avalanche copy without Fuji", () => {
     const markup = renderToStaticMarkup(
       <MyFacetsView
         initialSubmitted="brian-gemini/html-product-extractor@1.0.0"
@@ -73,8 +73,10 @@ describe("MyFacetsView and PublishRedirectToast", () => {
       "Publish request submitted — Registration Pending",
     );
     expect(markup).toContain("brian-gemini/html-product-extractor@1.0.0");
+    expect(markup).toContain("Avalanche");
     expect(markup).toContain("+ Publish New Facet");
     expect(markup).toContain('href="/studio"');
+    expect(markup).not.toMatch(/\bfuji\b/iu);
     expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
   });
 });
