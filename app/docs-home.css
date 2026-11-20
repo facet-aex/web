@@ -274,6 +274,10 @@
 }
 
 /* Two-Part Documentation (/docs) */
+.docs-page .docs-hero {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .docs-content {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -299,7 +303,6 @@
   max-width: 100%;
 }
 
-.docs-page code,
 .docs-part-banner h2,
 .docs-section h3 {
   overflow-wrap: anywhere;
@@ -490,10 +493,6 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.docs-contract-address {
-  word-break: break-all;
 }
 
 @media (max-width: 1120px) {

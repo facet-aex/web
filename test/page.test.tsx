@@ -405,7 +405,7 @@ describe("Studio pages", () => {
 });
 
 describe("DocsPage documentation", () => {
-  it("renders modular 2-part Overview & Agent Setup Guide with ERC-8004, multi-pricing, real CLI/MCP, and all 6 Avalanche contracts", () => {
+  it("renders user-friendly 2-part /docs with embedded links, zero inline code/dev jargon, ERC-8004, multi-pricing, real CLI/MCP, and all 6 Avalanche contract links", () => {
     const markup = renderToStaticMarkup(<DocsPage />);
 
     // 2-Part Structure, Semantic Accessibility & Heading Hierarchy
@@ -413,11 +413,16 @@ describe("DocsPage documentation", () => {
       markup.indexOf("<main"),
       markup.indexOf("</main>"),
     );
+    const proseMarkup = mainMarkup.replace(/<pre[\s\S]*?<\/pre>/gu, "");
+    const visibleProseText = proseMarkup.replace(/<[^>]+>/gu, " ");
+
     expect(markup).toContain("FACET Documentation");
     expect(markup).toContain("Part 1");
-    expect(markup).toContain("Project Overview");
     expect(markup).toContain("Part 2");
     expect(markup).toContain("User &amp; Agent Guide");
+    expect(mainMarkup).not.toContain("explains the");
+    expect(mainMarkup).not.toContain("Developer &amp; Agent Manual");
+
     expect(mainMarkup).toContain(
       '<section class="docs-part-banner docs-part-banner-overview" aria-labelledby="part-overview-title">',
     );
@@ -442,69 +447,136 @@ describe("DocsPage documentation", () => {
     expect(markup).toContain('id="install-mcp"');
     expect(markup).toContain('id="agent-workflow"');
 
-    // Accurate Core Concepts & Multi-Pricing
-    expect(markup).toContain("ERC-8004");
-    expect(markup).toContain("FacetManifest v1");
-    expect(markup).toContain("PAY_PER_RUN");
-    expect(markup).toContain("PAY_PER_RESULT");
-    expect(markup).toContain("TaskEscrow");
-    expect(markup).toContain("maxItemsCap");
-    expect(markup).toContain("95%");
-    expect(markup).toContain("5%");
-    expect(markup).toContain("GET");
-    expect(markup).toContain("POST");
-    expect(markup).toContain("PUT");
-    expect(markup).toContain("PATCH");
-    expect(markup).toContain("DELETE");
-    expect(markup).toContain("BASIC");
-    expect(markup).toContain("datasetPath");
-    expect(markup).toContain("FacetActorRegistry");
-    expect(markup).toContain("FacetReceiptLog");
-    expect(markup).toContain('href="/faucet"');
-    expect(markup).toContain(
-      '>Open /faucet to claim test fUSD <span aria-hidden="true">↗</span></a>',
+    // Rule 2: ZERO inline <code> font switches or internal variable/function/contract symbol names in prose
+    expect(proseMarkup).not.toMatch(/<code\b/iu);
+    const bannedProseCodeTerms = [
+      "FacetManifest",
+      "FacetVersion",
+      "providerPayTo",
+      "priceAtomic",
+      "maxItemsCap",
+      "maxAmountAtomic",
+      "pricingOptions",
+      "datasetPath",
+      "search_facets",
+      "get_facet",
+      "invoke_facet",
+      "PAYMENT-REQUIRED",
+      "PAYMENT-SIGNATURE",
+      "IDEMPOTENCY_CONFLICT",
+      "export default async function",
+      "main.mjs",
+      "FacetActorRegistry",
+      "FacetFeeSplitAndEscrow",
+      "FacetReceiptLog",
+      "TaskEscrow",
+      "PAY_PER_RUN",
+      "PAY_PER_RESULT",
+    ];
+    for (const term of bannedProseCodeTerms) {
+      expect(proseMarkup).not.toContain(term);
+    }
+
+    // Rule 3: Plain end-user language (zero internal dev/protocol jargon)
+    const bannedDevJargon = [
+      "kebab-case",
+      "8–16",
+      "4–32",
+      "SemVer",
+      "MAJOR.MINOR.PATCH",
+      "UUID",
+      "Clerk",
+      "EOA",
+      "JSON Schema",
+      "EIP-3009",
+      "EIP-1193",
+      "eip155:43113",
+      "SSRF",
+      "Docker",
+      "ESM",
+      "0.5 vCPU",
+      "--private-key",
+      "--profile",
+      "--json",
+      "/usr/bin/security",
+      "atomic",
+      "Developer",
+    ];
+    for (const term of bannedDevJargon) {
+      expect(proseMarkup).not.toContain(term);
+    }
+
+    // Rule 4: Embedded links only (no bare URLs, raw paths, or 0x addresses in visible text)
+    expect(visibleProseText).not.toMatch(/https?:\/\//iu);
+    expect(visibleProseText).not.toMatch(
+      /\/(?:faucet|studio\/(?:api|actor|agent))\b/iu,
     );
-    expect(markup).not.toContain("Open /faucet to claim test fUSD ↗");
+    expect(visibleProseText).not.toMatch(/0x[a-f0-9]{10,}/iu);
+    expect(visibleProseText).toContain("View on Snowtrace");
+    expect(visibleProseText).toContain("Avalanche Faucet");
+    expect(visibleProseText).toContain("Open API Studio");
+    expect(visibleProseText).toContain("Open Actor Studio");
+    expect(visibleProseText).toContain("Agent Studio (Coming Soon)");
     expect(markup).not.toMatch(/[^>]↗/u);
-    expect(markup).toContain("Wallet-Signed Playground");
-    expect(markup).toContain("pre-funded");
-    expect(markup).toContain("Avalanche Address");
-    expect(markup).toContain("409 IDEMPOTENCY_CONFLICT");
-    expect(markup).toContain("PAYMENT-REQUIRED");
-    expect(markup).toContain("PAYMENT-SIGNATURE");
-    expect(markup).toContain("Coming Soon");
 
-    // Accurate Real CLI & MCP Commands
-    expect(markup).toContain("@facet-aex/cli");
-    expect(markup).toContain("@facet-aex/mcp-server");
-    expect(markup).toContain("https://facet.briandev.space");
-    expect(markup).toContain("npm install -g @facet-aex/cli");
-    expect(markup).toContain("facet wallet create");
-    expect(markup).toContain("facet wallet import");
-    expect(markup).toContain("facet wallet status");
-    expect(markup).toContain("facet search");
-    expect(markup).toContain("facet inspect");
-    expect(markup).toContain("facet policy grant");
-    expect(markup).toContain("--pricing-model");
-    expect(markup).toContain("facet policy show");
-    expect(markup).toContain("facet policy revoke");
-    expect(markup).toContain("facet policy prune");
-    expect(markup).toContain("facet mcp install antigravity");
-    expect(markup).toContain("facet mcp install codex");
-    expect(markup).toContain("facet mcp install claude");
-    expect(markup).toContain("facet mcp config");
-    expect(markup).toContain("facet spend history");
-    expect(markup).toContain("search_facets");
-    expect(markup).toContain("get_facet");
-    expect(markup).toContain("invoke_facet");
+    // Accurate Core End-User Content & Real Link Targets
+    expect(proseMarkup).toContain("API");
+    expect(proseMarkup).toContain("Actor");
+    expect(proseMarkup).toContain("Agent");
+    expect(proseMarkup).toContain("ERC-8004");
+    expect(proseMarkup).toContain("Pay Per Run");
+    expect(proseMarkup).toContain("Pay Per Result");
+    expect(proseMarkup).toContain("95%");
+    expect(proseMarkup).toContain("5%");
+    expect(proseMarkup).toContain("100%");
+    expect(proseMarkup).toContain("macOS Keychain");
+    expect(proseMarkup).toContain("Coming Soon");
+    expect(proseMarkup).toContain("Browser Playground");
+    expect(mainMarkup).toContain('href="/faucet"');
+    expect(mainMarkup).toContain('href="/store"');
+    expect(mainMarkup).toContain('href="/studio/api"');
+    expect(mainMarkup).toContain('href="/studio/actor"');
+    expect(mainMarkup).toContain('href="/studio/agent"');
 
-    // All 6 Verified Avalanche Contract Addresses
-    expect(markup).toContain("0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f");
-    expect(markup).toContain("0xc37c12bcd53a4ba5fd33870cecc74a4ba601e3a2");
-    expect(markup).toContain("0xc50cb5d5ff6c71eb1b065971c198a9edb0ecff06");
-    expect(markup).toContain("0x5dc611b5642c306dd50fa7f786194dc04bd12fa7");
-    expect(markup).toContain("0x8004A818BFB912233c491871b3d84c89A494BD9e");
-    expect(markup).toContain("0x8004B663056A597Dffe9eCcC1965A193B7388713");
+    // All 6 Verified Avalanche Contract Addresses Preserved in Snowtrace Links
+    expect(mainMarkup).toContain(
+      "https://testnet.snowtrace.io/address/0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
+    );
+    expect(mainMarkup).toContain(
+      "https://testnet.snowtrace.io/address/0xc37c12bcd53a4ba5fd33870cecc74a4ba601e3a2",
+    );
+    expect(mainMarkup).toContain(
+      "https://testnet.snowtrace.io/address/0xc50cb5d5ff6c71eb1b065971c198a9edb0ecff06",
+    );
+    expect(mainMarkup).toContain(
+      "https://testnet.snowtrace.io/address/0x5dc611b5642c306dd50fa7f786194dc04bd12fa7",
+    );
+    expect(mainMarkup).toContain(
+      "https://testnet.snowtrace.io/address/0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    );
+    expect(mainMarkup).toContain(
+      "https://testnet.snowtrace.io/address/0x8004B663056A597Dffe9eCcC1965A193B7388713",
+    );
+
+    // Real Copyable CLI & MCP Commands Preserved Inside Code Blocks
+    expect(mainMarkup).toContain("npm install -g @facet-aex/cli");
+    expect(mainMarkup).toContain("@facet-aex/mcp-server");
+    expect(mainMarkup).toContain("https://facet.briandev.space");
+    expect(mainMarkup).toContain("facet wallet create");
+    expect(mainMarkup).toContain("facet wallet import");
+    expect(mainMarkup).toContain("facet wallet status");
+    expect(mainMarkup).toContain("facet search");
+    expect(mainMarkup).toContain("facet inspect");
+    expect(mainMarkup).toContain("facet policy grant");
+    expect(mainMarkup).toContain("--pricing-model");
+    expect(mainMarkup).toContain("facet policy show");
+    expect(mainMarkup).toContain("facet policy revoke");
+    expect(mainMarkup).toContain("facet policy prune");
+    expect(mainMarkup).toContain("facet mcp install antigravity");
+    expect(mainMarkup).toContain("facet mcp install codex");
+    expect(mainMarkup).toContain("facet mcp install claude");
+    expect(mainMarkup).toContain("facet mcp config");
+    expect(mainMarkup).toContain("facet spend history");
 
     // Stale Content & Brand Ban Assertions
     expect(markup).not.toContain("@facet/agent-sdk");
@@ -526,7 +598,7 @@ describe("DocsPage documentation", () => {
     expect(markup).not.toMatch(/\bfuji\b/iu);
   });
 
-  it("keeps /docs modules as pure Server Components and enforces >=44px touch targets, heading scale, TOC overflow/sticky rules, and cyan/lime alignment in docs-home.css", () => {
+  it("keeps /docs modules as pure Server Components and enforces >=44px touch targets, single-column hero, heading scale, TOC overflow/sticky rules, and cyan/lime alignment in docs-home.css", () => {
     const serverFiles = [
       "components/docs/docs-data.ts",
       "components/docs/docs-part-overview.tsx",
@@ -541,6 +613,9 @@ describe("DocsPage documentation", () => {
     const css = readFileSync(
       resolve(process.cwd(), "app/docs-home.css"),
       "utf8",
+    );
+    expect(css).toMatch(
+      /\.docs-page\s+\.docs-hero\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/u,
     );
     expect(css).toMatch(
       /\.docs-page\s+\.docs-code-header\s+\.preset-chip\s*\{[^}]*min-height:\s*44px;[^}]*min-width:\s*44px;/u,
