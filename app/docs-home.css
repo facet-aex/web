@@ -271,3 +271,223 @@
     border-bottom: 0;
   }
 }
+
+/* Two-Part Documentation (/docs) */
+.docs-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.docs-section,
+.docs-part-banner,
+.docs-step-block,
+.docs-code-block,
+.docs-code-block .json-pre,
+.docs-toc,
+.docs-page .dataset-table-wrap {
+  min-width: 0;
+}
+
+.docs-page .dataset-table-wrap {
+  max-width: 100%;
+}
+
+.docs-page code,
+.docs-section h2 {
+  overflow-wrap: anywhere;
+}
+
+.docs-page .docs-code-header .preset-chip {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.docs-toc-groups {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.docs-toc-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.docs-toc-group-label {
+  margin: 0;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--facet-line);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--facet-lime);
+}
+
+.docs-toc-group:last-child .docs-toc-group-label {
+  color: var(--facet-cyan);
+}
+
+.docs-toc nav {
+  gap: 0.15rem;
+}
+
+.docs-toc nav a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.45rem 0;
+}
+
+.docs-part-banner {
+  display: grid;
+  gap: 0.65rem;
+  padding: clamp(1.25rem, 2.5vw, 1.85rem);
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+  scroll-margin-top: 96px;
+}
+
+.docs-part-banner .eyebrow {
+  margin-bottom: 0.15rem;
+}
+
+.docs-part-banner h2 {
+  margin: 0;
+  font-size: clamp(1.55rem, 2.6vw, 2.15rem);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.docs-part-banner p:last-child {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--facet-text-muted);
+  line-height: 1.6;
+}
+
+.docs-part-banner-overview {
+  border-top: 3px solid var(--facet-cyan);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--facet-lime) 7%, var(--facet-surface)),
+    color-mix(in srgb, var(--facet-cyan) 7%, var(--facet-surface)) 58%,
+    var(--facet-surface)
+  );
+}
+
+.docs-part-banner-agent {
+  border-top: 3px solid var(--facet-lime);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--facet-lime) 9%, var(--facet-surface)),
+    var(--facet-surface) 64%
+  );
+}
+
+.docs-matrix-type {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.docs-glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.docs-glossary-card {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 1.15rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+}
+
+.docs-glossary-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.docs-glossary-head strong {
+  color: var(--facet-text);
+  font-size: 0.98rem;
+}
+
+.docs-glossary-card p {
+  margin: 0;
+  color: var(--facet-text-muted);
+  line-height: 1.58;
+}
+
+.docs-inline-note {
+  padding: 0.95rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--facet-cyan) 42%, var(--facet-line));
+  border-left: 3px solid var(--facet-cyan);
+  background: color-mix(in srgb, var(--facet-cyan) 7%, var(--facet-surface));
+  color: var(--facet-text-muted);
+  line-height: 1.6;
+}
+
+.docs-inline-note strong {
+  color: var(--facet-text);
+}
+
+.docs-step-block {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.docs-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.docs-step-head h2 {
+  margin: 0;
+}
+
+.docs-step-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--facet-lime) 55%, var(--facet-line));
+  background: color-mix(in srgb, var(--facet-lime) 12%, var(--facet-ink));
+  color: var(--facet-lime);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.docs-contract-address {
+  word-break: break-all;
+}
+
+@media (max-width: 1120px) {
+  .docs-section,
+  .docs-part-banner {
+    scroll-margin-top: 148px;
+  }
+}
+
+@media (max-width: 1040px) {
+  .docs-layout,
+  .docs-glossary-grid,
+  .docs-callout-grid,
+  .docs-tool-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .docs-toc {
+    position: static;
+  }
+}

@@ -386,23 +386,132 @@ describe("Studio pages", () => {
 });
 
 describe("DocsPage documentation", () => {
-  it("renders structured sections, Agent Integration guide, and verified Fuji contracts without Apify, RapidAPI, or ERC-8004 labels", () => {
+  it("renders modular 2-part Overview & Agent Setup Guide with ERC-8004, multi-pricing, real CLI/MCP, and all 6 Avalanche contracts", () => {
     const markup = renderToStaticMarkup(<DocsPage />);
+    const mainAndHeader = markup.split("<footer")[0] ?? markup;
 
+    // 2-Part Structure & Preserved Anchors
     expect(markup).toContain("FACET Documentation");
-    expect(markup).not.toMatch(/apify|rapidapi|erc-?8004/iu);
-    expect(markup).toContain("Integrating FACET into Your AI Agent");
+    expect(markup).toContain("Part 1");
+    expect(markup).toContain("Project Overview");
+    expect(markup).toContain("Part 2");
+    expect(markup).toContain("User &amp; Agent Guide");
+    expect(markup).toContain('id="overview"');
+    expect(markup).toContain('id="facet-types"');
+    expect(markup).toContain('id="core-definitions"');
+    expect(markup).toContain('id="pricing-escrow"');
+    expect(markup).toContain('id="contracts"');
+    expect(markup).toContain('id="agent-guide"');
+    expect(markup).toContain('id="agent-concepts"');
+    expect(markup).toContain('id="install-cli"');
+    expect(markup).toContain('id="wallet-faucet"');
+    expect(markup).toContain('id="spend-policy"');
+    expect(markup).toContain('id="install-mcp"');
+    expect(markup).toContain('id="agent-workflow"');
+
+    // Accurate Core Concepts & Multi-Pricing
+    expect(markup).toContain("ERC-8004");
+    expect(markup).toContain("FacetManifest v1");
+    expect(markup).toContain("PAY_PER_RUN");
+    expect(markup).toContain("PAY_PER_RESULT");
+    expect(markup).toContain("TaskEscrow");
+    expect(markup).toContain("maxItemsCap");
+    expect(markup).toContain("95%");
+    expect(markup).toContain("5%");
+    expect(markup).toContain("GET");
+    expect(markup).toContain("POST");
+    expect(markup).toContain("PUT");
+    expect(markup).toContain("PATCH");
+    expect(markup).toContain("DELETE");
+    expect(markup).toContain("BASIC");
+    expect(markup).toContain("datasetPath");
+    expect(markup).toContain("FacetActorRegistry");
+    expect(markup).toContain("FacetReceiptLog");
+    expect(markup).toContain('href="/faucet"');
+    expect(markup).toContain("Wallet-Signed Playground");
+    expect(markup).toContain("pre-funded");
+    expect(markup).toContain("Avalanche Address");
+    expect(markup).toContain("409 IDEMPOTENCY_CONFLICT");
+    expect(markup).toContain("PAYMENT-REQUIRED");
+    expect(markup).toContain("PAYMENT-SIGNATURE");
+    expect(markup).toContain("Coming Soon");
+
+    // Accurate Real CLI & MCP Commands
+    expect(markup).toContain("@facet-aex/cli");
+    expect(markup).toContain("@facet-aex/mcp-server");
+    expect(markup).toContain("https://facet.briandev.space");
+    expect(markup).toContain("npm install -g @facet-aex/cli");
+    expect(markup).toContain("facet wallet create");
+    expect(markup).toContain("facet wallet import");
+    expect(markup).toContain("facet wallet status");
+    expect(markup).toContain("facet search");
+    expect(markup).toContain("facet inspect");
+    expect(markup).toContain("facet policy grant");
+    expect(markup).toContain("--pricing-model");
+    expect(markup).toContain("facet policy show");
+    expect(markup).toContain("facet policy revoke");
+    expect(markup).toContain("facet policy prune");
+    expect(markup).toContain("facet mcp install antigravity");
+    expect(markup).toContain("facet mcp install codex");
+    expect(markup).toContain("facet mcp install claude");
+    expect(markup).toContain("facet mcp config");
+    expect(markup).toContain("facet spend history");
     expect(markup).toContain("search_facets");
     expect(markup).toContain("get_facet");
     expect(markup).toContain("invoke_facet");
-    expect(markup).toContain("FacetClient");
-    expect(markup).toContain("PAYMENT-REQUIRED");
-    expect(markup).toContain("PAYMENT-SIGNATURE");
+
+    // All 6 Verified Avalanche Contract Addresses
     expect(markup).toContain("0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f");
     expect(markup).toContain("0xc37c12bcd53a4ba5fd33870cecc74a4ba601e3a2");
     expect(markup).toContain("0xc50cb5d5ff6c71eb1b065971c198a9edb0ecff06");
     expect(markup).toContain("0x5dc611b5642c306dd50fa7f786194dc04bd12fa7");
     expect(markup).toContain("0x8004A818BFB912233c491871b3d84c89A494BD9e");
+    expect(markup).toContain("0x8004B663056A597Dffe9eCcC1965A193B7388713");
+
+    // Stale Content & Brand Ban Assertions (footer upgraded to full-page check in S2.3)
+    expect(markup).not.toContain("@facet/agent-sdk");
+    expect(markup).not.toContain("@facet/mcp-server");
+    expect(markup).not.toContain("127.0.0.1");
+    expect(markup).not.toContain("FACET_DEMO_PAYER_PRIVATE_KEY");
+    expect(markup).not.toContain("facet grant create");
+    expect(markup).not.toContain("FACET_GRANT_TOKEN");
+    expect(markup).not.toContain("facet policy list");
+    expect(markup).not.toContain("facet publish-actor");
+    expect(markup).not.toContain("api.facet.example");
+    expect(markup).not.toContain("FacetClient");
+    expect(markup).not.toContain("fuji-deployment.json");
+    expect(markup).not.toMatch(/apify|rapidapi/iu);
+    expect(mainAndHeader).not.toMatch(/\bfuji\b/iu);
+  });
+
+  it("keeps /docs modules as pure Server Components and enforces >=44px touch targets & 1120px scroll clearance in docs-home.css", () => {
+    const serverFiles = [
+      "components/docs/docs-data.ts",
+      "components/docs/docs-part-overview.tsx",
+      "components/docs/docs-part-agent-guide.tsx",
+      "app/docs/page.tsx",
+    ];
+    for (const file of serverFiles) {
+      const source = readFileSync(resolve(process.cwd(), file), "utf8");
+      expect(source).not.toMatch(/["']use client["']/u);
+    }
+
+    const css = readFileSync(
+      resolve(process.cwd(), "app/docs-home.css"),
+      "utf8",
+    );
+    expect(css).toMatch(
+      /\.docs-page\s+\.docs-code-header\s+\.preset-chip\s*\{[^}]*min-height:\s*44px;[^}]*min-width:\s*44px;/u,
+    );
+    expect(css).toMatch(
+      /\.docs-toc\s+nav\s+a\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;[^}]*min-height:\s*44px;/u,
+    );
+    expect(css).toMatch(
+      /\.docs-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/u,
+    );
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*1120px\)\s*\{[^}]*\.docs-section,\s*\.docs-part-banner\s*\{[^}]*scroll-margin-top:\s*148px;/u,
+    );
   });
 });
 
