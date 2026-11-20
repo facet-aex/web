@@ -1,1 +1,386 @@
 /* Session 1 exclusive stylesheet: Multi-pricing selector & Web Playground */
+
+.pricing-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.pricing-option-card {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+}
+
+.pricing-option-card-active {
+  border-color: var(--facet-lime);
+}
+
+.pricing-option-card-disabled {
+  opacity: 0.6;
+}
+
+.pricing-option-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.pricing-option-check-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0.15rem 0 0;
+  accent-color: var(--facet-lime);
+  flex: none;
+  cursor: pointer;
+}
+
+.pricing-option-card-disabled .pricing-option-check-row,
+.pricing-option-check-row input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
+.pricing-option-title {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pricing-option-title strong {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--facet-text);
+}
+
+.pricing-option-title small,
+.pricing-option-hint {
+  color: var(--facet-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.pricing-option-fields {
+  display: grid;
+  gap: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--facet-line);
+}
+
+.pricing-option-deposit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--facet-lime) 45%, var(--facet-line));
+  background: color-mix(in srgb, var(--facet-lime) 8%, var(--facet-surface));
+  font-family: var(--font-mono), monospace;
+  font-size: 0.76rem;
+}
+
+.pricing-option-deposit strong {
+  color: var(--facet-lime);
+}
+
+.pricing-option-deposit small {
+  color: var(--facet-text-muted);
+}
+
+.pricing-primary-selector {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+}
+
+.pricing-primary-selector legend {
+  padding-inline: 0.35rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--facet-text-muted);
+}
+
+.pricing-primary-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.pricing-primary-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.pricing-primary-pill input[type="radio"] {
+  accent-color: var(--facet-lime);
+  margin: 0;
+}
+
+.pricing-primary-pill-active {
+  border-color: var(--facet-lime);
+  color: var(--facet-lime);
+}
+
+.pricing-primary-pill small {
+  color: var(--facet-text-muted);
+  text-transform: uppercase;
+  font-size: 0.64rem;
+}
+
+.studio-preview-pricing-list,
+.detail-pricing-list,
+.my-facet-pricing-list {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.playground-wallet-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem 1.25rem;
+  padding: 0.95rem 1.1rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+}
+
+.playground-wallet-info,
+.playground-wallet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.playground-wallet-badge,
+.playground-chain-pill,
+.playground-balance-pill {
+  padding: 0.28rem 0.58rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+}
+
+.playground-chain-ok {
+  border-color: color-mix(in srgb, var(--facet-success) 55%, var(--facet-line));
+  color: var(--facet-success);
+}
+
+.playground-chain-warn {
+  border-color: color-mix(in srgb, var(--facet-warning) 55%, var(--facet-line));
+  color: var(--facet-warning);
+}
+
+.playground-wallet-prompt {
+  color: var(--facet-text-muted);
+  font-size: 0.86rem;
+}
+
+.playground-faucet-link {
+  padding: 0.42rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--facet-cyan) 50%, var(--facet-line));
+  background: color-mix(in srgb, var(--facet-cyan) 10%, var(--facet-surface));
+  color: var(--facet-cyan);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.playground-faucet-link:hover {
+  background: var(--facet-cyan);
+  color: var(--facet-ink);
+}
+
+.playground-balance-warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.9rem 1.05rem;
+  border: 1px solid
+    color-mix(in srgb, var(--facet-warning) 60%, var(--facet-line));
+  background: color-mix(
+    in srgb,
+    var(--facet-warning) 10%,
+    var(--facet-surface)
+  );
+}
+
+.playground-balance-warning strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--facet-warning);
+}
+
+.playground-balance-warning p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--facet-text);
+}
+
+.playground-pricing-selector {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+}
+
+.playground-pricing-selector legend {
+  padding-inline: 0.35rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--facet-text-muted);
+}
+
+.playground-pricing-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.playground-pricing-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+  cursor: pointer;
+}
+
+.playground-pricing-option input[type="radio"] {
+  accent-color: var(--facet-lime);
+  margin: 0.2rem 0 0;
+}
+
+.playground-pricing-option-active {
+  border-color: var(--facet-lime);
+  background: color-mix(in srgb, var(--facet-lime) 7%, var(--facet-surface));
+}
+
+.playground-pricing-copy {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.playground-pricing-copy strong {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.76rem;
+  color: var(--facet-text);
+}
+
+.playground-pricing-copy small {
+  color: var(--facet-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.playground-single-pricing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.95rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.76rem;
+  color: var(--facet-text-muted);
+}
+
+.playground-single-pricing strong {
+  color: var(--facet-lime);
+}
+
+.playground-pending-banner {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.95rem 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--facet-cyan) 55%, var(--facet-line));
+  background: color-mix(in srgb, var(--facet-cyan) 9%, var(--facet-surface));
+}
+
+.playground-pending-banner p {
+  margin: 0;
+  color: var(--facet-text-muted);
+  font-size: 0.86rem;
+}
+
+.playground-refund-banner {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid
+    color-mix(in srgb, var(--facet-danger) 60%, var(--facet-line));
+  background: color-mix(in srgb, var(--facet-danger) 10%, var(--facet-surface));
+}
+
+.playground-refund-banner strong {
+  color: var(--facet-danger);
+}
+
+.playground-refund-banner p {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.escrow-receipt-breakdown {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.escrow-receipt-breakdown > div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+}
+
+.escrow-receipt-breakdown span {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--facet-text-muted);
+}
+
+.escrow-receipt-breakdown strong {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.88rem;
+  color: var(--facet-lime);
+}
+
+@media (max-width: 820px) {
+  .pricing-option-grid,
+  .playground-pricing-options,
+  .escrow-receipt-breakdown {
+    grid-template-columns: 1fr;
+  }
+}

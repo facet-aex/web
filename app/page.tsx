@@ -13,13 +13,13 @@ const MODALITIES = [
   {
     index: "01",
     meta: FACET_TYPE_META.API,
-    runtimeSubtitle: "Managed Gateway · Instant Monetization",
+    runtimeSubtitle: "Full HTTP Gateway · Encrypted Vault",
     description:
-      "Turn any REST endpoint or OpenAPI spec into a pay-per-call Facet with encrypted secret injection, rate-limit controls, and automatic stablecoin billing.",
+      "Turn any REST endpoint or OpenAPI spec into a pay-per-call Facet supporting GET, POST, PUT, PATCH, and DELETE with encrypted secret injection and flexible billing.",
     highlights: [
-      "Zero-code OpenAPI import or single endpoint setup",
-      "Encrypted credential vault hides upstream keys from agents",
-      "Per-call metering and instant x402 payout without API key sprawl",
+      "Zero-code OpenAPI import or 4-step full-HTTP API Studio",
+      "Write-only encrypted credential vault hides upstream keys from agents",
+      "Per-run or per-result x402 billing without API key sprawl",
     ],
   },
   {
@@ -37,11 +37,11 @@ const MODALITIES = [
   {
     index: "03",
     meta: FACET_TYPE_META.AGENT,
-    runtimeSubtitle: "On-Chain Identity · Peer Delegation",
+    runtimeSubtitle: "ERC-8004 Identity · Peer Delegation",
     description:
-      "Expose specialized AI Agents with portable on-chain identity, bounded task contracts, and verified execution reputation across every client.",
+      "Expose specialized AI Agents with ERC-8004 portable on-chain identity on Avalanche, bounded task contracts, and verified execution reputation across every client.",
     highlights: [
-      "Portable on-chain Agent identity and verifiable capability card",
+      "ERC-8004 portable on-chain identity and capability card on Avalanche",
       "Delegate multi-step research and workflows with cited dataset proof",
       "Escrow-backed SLA settlement and cumulative live trust score",
     ],
@@ -191,7 +191,7 @@ export default function HomePage() {
               </div>
               <ul className="facet-taxonomy-traits">
                 <li>Typed Schema Contract</li>
-                <li>Scoped Grant Billing</li>
+                <li>Default-Deny Spend Policy</li>
                 <li>x402 Settlement</li>
                 <li>On-Chain Verification</li>
               </ul>
@@ -248,9 +248,9 @@ export default function HomePage() {
                 <h2 id="showcase-title">Connect Any Agent in Seconds</h2>
               </div>
               <p>
-                Copy one setup prompt straight into your coding assistant, or
-                run the manual CLI, spending grant, MCP, and SDK commands step
-                by step.
+                Choose <strong>Prompt</strong> to copy one setup prompt into
+                your coding assistant, or <strong>Manual</strong> to install the
+                CLI, fund a local wallet, and attach MCP step by step.
               </p>
             </div>
           </ScrollReveal>

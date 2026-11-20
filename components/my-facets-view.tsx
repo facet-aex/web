@@ -11,12 +11,14 @@ import {
   snowtraceTxUrl,
 } from "@/lib/facet-ui";
 import type { FacetType, PricingModel } from "@/lib/identifiers";
+import type { FacetPricingOption } from "@/lib/public-catalog";
 import { useAccountWorkspace } from "@/lib/use-account-workspace";
 
 export type MyFacetStatus =
   | "REGISTRATION_PENDING"
   | "PUBLISHED"
   | "FAILED"
+  | "REGISTRATION_FAILED"
   | "DRAFT"
   | "VALID"
   | "DISABLED";
@@ -32,6 +34,8 @@ export interface MyFacetItem {
   status: MyFacetStatus;
   pricingModel: PricingModel;
   priceAtomic: string;
+  maxItemsCap?: number | null;
+  pricingOptions?: FacetPricingOption[];
   registryVerified: boolean;
   registryTxHash: string | null;
   errorCode: string | null;
@@ -55,6 +59,7 @@ function statusPillLabel(status: MyFacetStatus): string {
     case "PUBLISHED":
       return "PUBLISHED";
     case "FAILED":
+    case "REGISTRATION_FAILED":
       return "FAILED";
     case "VALID":
       return "VALIDATED";
@@ -73,6 +78,7 @@ function statusVariant(status: MyFacetStatus): string {
     case "PUBLISHED":
       return "published";
     case "FAILED":
+    case "REGISTRATION_FAILED":
       return "failed";
     case "VALID":
       return "valid";
@@ -233,13 +239,19 @@ export function MyFacetsView({
       : visibleSourceFacets.filter((item) => item.facetType === filterType);
 
   const noticeStatus: "REGISTRATION_PENDING" | "PUBLISHED" | "FAILED" =
-    submittedItem?.status === "PUBLISHED" || submittedItem?.status === "FAILED"
-      ? submittedItem.status
-      : submittedItem?.status === "REGISTRATION_PENDING"
-        ? "REGISTRATION_PENDING"
-        : initialStatus === "PUBLISHED" || initialStatus === "FAILED"
-          ? initialStatus
-          : "REGISTRATION_PENDING";
+    submittedItem?.status === "PUBLISHED"
+      ? "PUBLISHED"
+      : submittedItem?.status === "FAILED" ||
+          submittedItem?.status === "REGISTRATION_FAILED"
+        ? "FAILED"
+        : submittedItem?.status === "REGISTRATION_PENDING"
+          ? "REGISTRATION_PENDING"
+          : initialStatus === "PUBLISHED"
+            ? "PUBLISHED"
+            : initialStatus === "FAILED" ||
+                initialStatus === "REGISTRATION_FAILED"
+              ? "FAILED"
+              : "REGISTRATION_PENDING";
 
   return (
     <div className="my-facets-page">
@@ -250,8 +262,8 @@ export function MyFacetsView({
           </div>
           <h1>My Facets</h1>
           <p>
-            Track publish history, Avalanche Fuji registration status, and
-            pricing across all Capabilities owned by your account.
+            Track publish history, Avalanche registration status, and pricing
+            across all Capabilities owned by your account.
           </p>
         </div>
         <div className="provider-bar-actions">
@@ -290,7 +302,7 @@ export function MyFacetsView({
             </strong>
             <p>
               {noticeStatus === "REGISTRATION_PENDING"
-                ? `${initialSubmitted} is queued for Avalanche Fuji registry confirmation. This list refreshes automatically until confirmed.`
+                ? `${initialSubmitted} is queued for Avalanche registry confirmation. This list refreshes automatically until confirmed.`
                 : noticeStatus === "FAILED"
                   ? `${initialSubmitted} failed on-chain registration${submittedItem?.errorCode ? ` (${submittedItem.errorCode})` : ""}.`
                   : `${initialSubmitted} is verified and live in the public Store.`}
@@ -423,10 +435,26 @@ export function MyFacetsView({
                 </span>
 
                 <div className="my-facet-pricing">
-                  <span>{item.pricingModel}</span>
-                  <strong>
-                    {formatAtomicFusd(item.priceAtomic)} / {unit}
-                  </strong>
+                  {item.pricingOptions && item.pricingOptions.length > 0 ? (
+                    <div className="my-facet-pricing-list">
+                      {item.pricingOptions.map((option) => (
+                        <div key={option.model}>
+                          <span>{option.model}</span>{" "}
+                          <strong>
+                            {formatAtomicFusd(option.priceAtomic)} /{" "}
+                            {option.model === "PAY_PER_RESULT" ? "item" : "run"}
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <span>{item.pricingModel}</span>
+                      <strong>
+                        {formatAtomicFusd(item.priceAtomic)} / {unit}
+                      </strong>
+                    </>
+                  )}
                 </div>
 
                 <div className="my-facet-time">{timestamp}</div>
@@ -440,7 +468,9 @@ export function MyFacetsView({
                       Open Playground <span aria-hidden="true">↗</span>
                     </Link>
                   ) : item.status === "REGISTRATION_PENDING" ? (
-                    <span className="mono-detail">Registering on Fuji…</span>
+                    <span className="mono-detail">
+                      Registering on Avalanche…
+                    </span>
                   ) : null}
                   {item.registryTxHash ? (
                     <a
@@ -449,7 +479,7 @@ export function MyFacetsView({
                       rel="noreferrer"
                       className="explorer-link"
                     >
-                      Fuji Tx ↗
+                      Avalanche Tx ↗
                     </a>
                   ) : null}
                 </div>

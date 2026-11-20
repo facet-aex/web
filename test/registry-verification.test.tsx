@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe("published Facet registry verification", () => {
-  it("lets a provider verify an already-published Actor after reopening its detail page", async () => {
+  it("lets a provider verify an already-published Actor after reopening its detail page without Fuji wording", async () => {
     const provider = "personal-studio";
     const facetName = "vn-tech-news-actor";
     vi.stubEnv("FACET_CONTROL_API_URL", "http://127.0.0.1:4000");
@@ -54,7 +54,11 @@ describe("published Facet registry verification", () => {
       }),
     );
 
-    expect(markup).toContain('id="registry-verify-tx"');
-    expect(markup).toContain("Verify Fuji registry transaction");
+    const mainMarkup =
+      markup.split('<footer class="site-footer">')[0] ?? markup;
+
+    expect(mainMarkup).toContain('id="registry-verify-tx"');
+    expect(mainMarkup).toContain("Verify Avalanche registry transaction");
+    expect(mainMarkup).not.toMatch(/\bfuji\b/iu);
   });
 });

@@ -333,7 +333,7 @@ export function AgentStudio({
     if (!published) return;
     setVerifyError(null);
     if (!isValidTxHash(verifyTxInput)) {
-      setVerifyError("Enter a valid 0x 64-hex Fuji transaction hash.");
+      setVerifyError("Enter a valid 0x 64-hex Avalanche transaction hash.");
       return;
     }
     setVerifying(true);
@@ -354,7 +354,7 @@ export function AgentStudio({
       if (!response.ok || !body?.registryVerified) {
         throw new Error(
           body?.error?.message ??
-            "Fuji FacetActorRegistry verification failed.",
+            "Avalanche FacetActorRegistry verification failed.",
         );
       }
       setVerifiedTxHash(body.registryTxHash ?? verifyTxInput.trim());
@@ -411,12 +411,12 @@ export function AgentStudio({
               ◈ FACET · AGENT
             </span>
             <span className="studio-mode-tag">
-              On-Chain Identity Card · Avalanche Fuji
+              On-Chain Identity Card · Avalanche
             </span>
           </div>
           <h1>Agent Studio</h1>
           <p>
-            Bind an on-chain Agent identity on Avalanche Fuji, define the task
+            Bind an on-chain Agent identity on Avalanche, define the task
             contract, preview the Agent Card, and publish it as a Facet.
           </p>
         </div>
@@ -460,7 +460,7 @@ export function AgentStudio({
                   Step 01 of 04 · Identity &amp; Profile
                 </span>
                 <h2 className="studio-step-title">
-                  Configure Agent identity, SemVer, and Fuji token binding
+                  Configure Agent identity, SemVer, and Avalanche token binding
                 </h2>
               </div>
 
@@ -604,7 +604,7 @@ export function AgentStudio({
               <div className="studio-grid">
                 <div className="form-field">
                   <label htmlFor="agent-identity-id">
-                    Agent Identity Token ID (Fuji)
+                    Agent Identity Token ID (Avalanche)
                   </label>
                   <input
                     id="agent-identity-id"
@@ -614,13 +614,13 @@ export function AgentStudio({
                     required
                   />
                   <small>
-                    Positive nonzero token ID minted on the Fuji Agent Identity
-                    Registry.
+                    Positive nonzero token ID minted on the Avalanche Agent
+                    Identity Registry.
                   </small>
                 </div>
                 <div className="form-field">
                   <label htmlFor="agent-identity-registry">
-                    Agent Identity Registry (Fuji 43113)
+                    Agent Identity Registry (Avalanche 43113)
                   </label>
                   <input
                     id="agent-identity-registry"
@@ -649,7 +649,7 @@ export function AgentStudio({
                   />
                   <small>
                     Use <code>vn-market-analysis</code> for live execution on
-                    the built-in Fuji runner.
+                    the built-in Avalanche runner.
                   </small>
                 </div>
               </div>
@@ -967,14 +967,14 @@ export function AgentStudio({
 
               <div className="verify-tx-box">
                 <label htmlFor="agent-verify-tx">
-                  Verify Fuji FacetActorRegistry Tx (optional)
+                  Verify Avalanche FacetActorRegistry Tx (optional)
                 </label>
                 <div className="verify-tx-row">
                   <input
                     id="agent-verify-tx"
                     value={verifyTxInput}
                     onChange={(e) => setVerifyTxInput(e.target.value)}
-                    placeholder="0x... Fuji tx hash"
+                    placeholder="0x... Avalanche tx hash"
                   />
                   <button
                     type="button"
@@ -990,7 +990,7 @@ export function AgentStudio({
                 ) : null}
                 {verifiedTxHash ? (
                   <p className="mono-accent">
-                    Verified on Fuji ✓{" "}
+                    Verified on Avalanche ✓{" "}
                     <a
                       className="explorer-link"
                       href={snowtraceTxUrl(verifiedTxHash)}
