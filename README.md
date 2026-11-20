@@ -1,55 +1,31 @@
-# FACET Web
+# FACET Web (`@facet/web`)
 
-Standalone Next.js repository for the FACET Provider Console and public Facet Store.
+[![FACET](https://img.shields.io/badge/FACET-facet.briandev.space-050505?style=flat-square&labelColor=DFFF4F)](https://facet.briandev.space)
+[![Layer](https://img.shields.io/badge/INTERFACE-WEB%20CONSOLE-0D0D0D?style=flat-square&labelColor=343434)](https://github.com/facet-aex)
 
-**Phase:** 1 — active.
-**Deployment:** local-first; optional Vercel preview.
-**Boundary:** calls published FACET APIs only. It never calls provider APIs, reads provider secrets or imports sibling source code.
+> Official Next.js web application for the FACET Store, Provider Studios, Playground, Faucet, and documentation.
 
-This repository uses npm and owns its package configuration, `package-lock.json`, environment variables, CI and UI documentation. See `AGENTS.md` and `docs/ui-brand-direction.md` before coding.
+## Overview
 
-## Local setup
+`web` is the human-facing web interface for **FACET** (`https://facet.briandev.space`). It connects capability creators, operators, and AI agent builders with the public Facet Store, capability authoring studios, an interactive execution playground, and on-chain verification views.
 
-```bash
-cp .env.example .env.local
-npm ci
-npm run dev
-```
+## Role in FACET
 
-The web repository keeps its backend configuration server-side:
+- **Facet Store & Explorer:** Lets users search and inspect published `API`, `ACTOR`, and `AGENT` capabilities, view pricing options, inspect structured datasets, and trace on-chain payment and receipt transactions.
+- **Provider Studios:** Provides dedicated workflows for publishing OpenAPI or full-HTTP `API` Facets, single-file ESM `ACTOR` modules, and `ERC-8004` `AGENT` profiles with verified payout wallets.
+- **Wallet-Signed Playground & Faucet:** Supports interactive browser-wallet EIP-3009 signing over x402 via `gateway` and dispenses test `fUSD` through `/faucet`.
+- **Documentation & Quick Start:** Hosts the platform documentation (`/docs`) and agent onboarding quick start for `@facet-aex/cli` and `@facet-aex/mcp-server`.
 
-```dotenv
-FACET_ENV=local
-FACET_CONTROL_API_URL=http://localhost:4000
-FACET_LOCAL_DEV_USER=demo-owner
-```
+## Tech Stack
 
-`FACET_LOCAL_DEV_USER` is converted to the Control API's local-development header only inside fixed Next.js Route Handlers. It is never exposed through a `NEXT_PUBLIC_` variable. Outside `FACET_ENV=local`, the development identity fallback is disabled. Clerk browser/session integration remains pending.
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router), React 19, TypeScript |
+| Auth & Identity | Clerk (`@clerk/nextjs`, `@clerk/backend`) |
+| Web3 & Payments | `viem`, `@x402/core`, `@x402/evm` |
+| Typography & Styling | Self-hosted `Inter Tight` & `IBM Plex Mono`, CSS |
+| Testing & Container | Vitest, ESLint, Docker (`node:24-alpine`) |
 
-## OpenAPI import demo
+---
 
-Run each standalone repository from its own clone/configuration. The required startup order is:
-
-1. Start `openapi-importer` on `127.0.0.1:4010` with `npm run dev`.
-2. Start `control-api` on `127.0.0.1:4000` with `npm run dev`.
-3. Start the Control API worker in a second `control-api` terminal with `npm run worker:dev`.
-4. Start this repository with `npm run dev`, then open `http://localhost:3000/#provider-console`.
-
-The configured local user needs a provider membership. Create a provider profile in the Provider Console if there is none. The equivalent Control API command is:
-
-```bash
-curl --request POST http://localhost:4000/v1/providers \
-  --header 'content-type: application/json' \
-  --header 'x-facet-dev-user: demo-owner' \
-  --data '{"slug":"facet-demo","name":"FACET Demo Provider","description":"Local Phase 1 provider"}'
-```
-
-The Provider Console supports isolated HTTPS OpenAPI URL import, paste, and local text-file upload. For a provider with only a public GET JSON endpoint, **I only have an API endpoint** generates an editable OpenAPI 3.1 description, which then follows the same import path. This form asks for the endpoint, short agent-facing description, required query names and optional API-key header name; the key value is entered later during endpoint configuration. Upload currently reads a maximum 5 MiB JSON/YAML file in the browser and sends the Control API's JSON-content fallback; multipart/streaming upload is not implemented.
-
-After import, a provider can select operations, edit their public metadata, create an atomic private draft batch, configure a protected HTTPS endpoint with no auth, API-key auth, or Bearer auth, validate each draft, then publish a valid immutable version as `PUBLIC` or `UNLISTED`. If validation returns warnings, the provider must explicitly acknowledge the exact current warning IDs before the version can become `VALID`. Operation selection locks after draft creation to prevent duplicate batches.
-
-Secret values are submitted once through a fixed server-side BFF route and cleared from the client state after the Control API creates a SecretRef. The local filesystem secret adapter is development-only and is not an encryption or production-security claim.
-
-The Next.js BFF applies a bounded streaming read to the import command before forwarding it. The Control API independently enforces both its JSON transport limit and the decoded 5 MiB document limit.
-
-The public Store reads published Facets from the Control API catalog. Version history/diff and disable/deprecate remain unfinished. Run `npm run verify` before committing.
+Part of **[FACET](https://facet.briandev.space)** (`facet-aex`) — Federated Agent Capability Exchange & Trust on Avalanche.
