@@ -1,4 +1,42 @@
-/* Testnet fUSD Faucet (/faucet) */
+/* Testnet fUSD Faucet (/faucet) & Navbar CTA */
+
+.site-nav .site-nav-cell-faucet:not(.nav-active) {
+  background: color-mix(in srgb, var(--facet-cyan) 12%, var(--facet-surface));
+  color: var(--facet-cyan);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--facet-cyan);
+}
+
+.site-nav .site-nav-cell-faucet:not(.nav-active):hover {
+  background: var(--facet-cyan);
+  color: var(--facet-ink);
+}
+
+.site-nav-faucet-dot {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  flex: none;
+}
+
+.site-nav-faucet-tag {
+  padding: 0.12rem 0.34rem;
+  border: 1px solid currentColor;
+  font-size: 0.62rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.site-nav .site-nav-cell-faucet.nav-active .site-nav-faucet-tag {
+  border-color: var(--facet-ink);
+}
+
+@media (max-width: 560px) {
+  .site-nav-faucet-tag {
+    display: none;
+  }
+}
 
 .faucet-page {
   padding: clamp(2.5rem, 5vw, 4.5rem) var(--page-padding);

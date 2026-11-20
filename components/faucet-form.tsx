@@ -185,12 +185,12 @@ export function FaucetForm({
             className="button-primary faucet-submit-button"
             disabled={submitting || !initialStatus.enabled}
           >
-            {submitting ? "Minting..." : "Faucet"}
+            {submitting ? "Sending..." : "Faucet"}
           </button>
         </div>
 
         <p className="faucet-meta">
-          Dispenses <strong>{dripLabel}</strong> per claim on{" "}
+          Claim <strong>{dripLabel}</strong> per transfer on{" "}
           <strong>Avalanche</strong> (cooldown {cooldownLabel}). Token contract:{" "}
           <a
             href={snowtraceAddressUrl(FUJI_CONTRACTS.fusd)}
@@ -216,7 +216,7 @@ export function FaucetForm({
       {result ? (
         <div className="faucet-result" role="status">
           <div className="faucet-result-header">
-            <span className="eyebrow">Minted On-Chain ✓</span>
+            <span className="eyebrow">Sent On-Chain ✓</span>
             <span className="faucet-amount">
               +{formatAtomicFusd(result.amountAtomic)}
             </span>

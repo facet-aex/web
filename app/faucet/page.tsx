@@ -39,8 +39,8 @@ export default async function FaucetPage() {
             <span className="eyebrow">Avalanche Testnet Stablecoin</span>
             <h1>fUSD Faucet</h1>
             <p>
-              Mint test fUSD to run Facets via the CLI, MCP, or Web Playground
-              on Avalanche.
+              Claim test fUSD from our pre-funded Avalanche faucet wallet to run
+              Facets via the CLI, MCP, or Web Playground.
             </p>
           </div>
 

@@ -133,10 +133,12 @@ export function SiteNav({ activeSection }: { activeSection?: NavSection }) {
       </Link>
       <Link
         href="/faucet"
-        className={`site-nav-cell${active === "faucet" ? " nav-active" : ""}`}
+        className={`site-nav-cell site-nav-cell-faucet${active === "faucet" ? " nav-active" : ""}`}
         aria-current={active === "faucet" ? "page" : undefined}
       >
-        Faucet
+        <span className="site-nav-faucet-dot" aria-hidden="true" />
+        <span>Faucet</span>
+        <span className="site-nav-faucet-tag">fUSD</span>
       </Link>
     </nav>
   );

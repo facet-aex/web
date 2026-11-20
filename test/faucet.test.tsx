@@ -22,11 +22,14 @@ describe("Faucet navigation and /faucet UI", () => {
     const sliceBetween = markup.slice(docsHrefIndex + 12, faucetHrefIndex);
     expect(sliceBetween).not.toContain("href=");
     expect(markup).toContain(">Docs</a>");
-    expect(markup).toContain(">Faucet</a>");
+    expect(markup).toContain("site-nav-cell-faucet");
+    expect(markup).toContain("site-nav-faucet-tag");
+    expect(markup).toContain(">Faucet</span>");
+    expect(markup).toContain(">fUSD</span>");
     expect(markup).toContain('aria-current="page"');
   });
 
-  it("renders address input, Faucet submit button, and Avalanche copy without Fuji", () => {
+  it("renders address input, Faucet submit button, and Avalanche claim copy without Fuji", () => {
     const markup = renderToStaticMarkup(
       <FaucetForm
         initialStatus={{
@@ -41,6 +44,7 @@ describe("Faucet navigation and /faucet UI", () => {
     expect(markup).toContain("fUSD");
     expect(markup).toContain("<input");
     expect(markup).toContain(">Faucet</button>");
+    expect(markup).toContain("Claim");
     expect(markup).not.toMatch(/\bfuji\b/iu);
   });
 
