@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -227,6 +230,25 @@ describe("LandingQuickstart 2-choice workflow", () => {
 
     vi.stubGlobal("navigator", {});
     expect(await copyAgentSetupPrompt()).toBe(false);
+  });
+
+  it("enforces >=44px Copy button touch targets and minmax(0, 1fr) grid tracks in docs-home.css", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "app/docs-home.css"),
+      "utf8",
+    );
+    expect(css).toMatch(
+      /\.quickstart-step-card\s+\.docs-code-header\s+\.preset-chip\s*\{[^}]*min-height:\s*44px;[^}]*min-width:\s*44px;/u,
+    );
+    expect(css).toMatch(
+      /\.quickstart-workbench\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/u,
+    );
+    expect(css).toMatch(
+      /\.quickstart-panel\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/u,
+    );
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*1040px\)\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/u,
+    );
   });
 });
 
