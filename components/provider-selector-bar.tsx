@@ -55,7 +55,7 @@ export function ProviderSelectorBar({
         <p className="provider-bar-sub">
           Each signed-in FACET account automatically maps to your{" "}
           <code>provider</code> handle. You can explore builders below, then
-          sign in to save drafts, store secrets, or publish to Avalanche Fuji.
+          sign in to save drafts, store secrets, or publish to Avalanche.
         </p>
       </div>
       <div className="provider-bar-actions">
