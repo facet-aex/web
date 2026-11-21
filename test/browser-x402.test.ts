@@ -20,7 +20,7 @@ import {
 const TEST_ACCOUNT = privateKeyToAccount(
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
 );
-const FEE_SPLIT_ADDRESS = "0xc50cb5d5ff6c71eb1b065971c198a9edb0ecff06";
+const FEE_SPLIT_ADDRESS = "0x8f04b927606a309d2835ed097ba4a37a6b3b0a05";
 const PROVIDER_PAY_TO = "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf";
 
 function buildDualOptionRequired(overrides?: {

@@ -546,7 +546,7 @@ describe("DocsPage documentation", () => {
       "https://testnet.snowtrace.io/address/0xc37c12bcd53a4ba5fd33870cecc74a4ba601e3a2",
     );
     expect(mainMarkup).toContain(
-      "https://testnet.snowtrace.io/address/0xc50cb5d5ff6c71eb1b065971c198a9edb0ecff06",
+      "https://testnet.snowtrace.io/address/0x8f04b927606a309d2835ed097ba4a37a6b3b0a05",
     );
     expect(mainMarkup).toContain(
       "https://testnet.snowtrace.io/address/0x5dc611b5642c306dd50fa7f786194dc04bd12fa7",
