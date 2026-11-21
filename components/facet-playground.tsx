@@ -831,7 +831,6 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
       );
       return;
     }
-    setNowMs(Date.now());
     setEscrowBusy(true);
     setEscrowRecoveryError(null);
     try {
@@ -861,7 +860,6 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
       );
       return;
     }
-    setNowMs(Date.now());
     setEscrowBusy(true);
     setEscrowRecoveryError(null);
     setEscrowReclaimTxHash(null);
