@@ -101,12 +101,44 @@ interface PendingEscrowRecord {
 }
 
 const PENDING_ESCROW_STORAGE_KEY = "facet:pending-escrows:v1";
+const pendingEscrowListeners = new Set<() => void>();
 
-function loadPendingEscrows(): PendingEscrowRecord[] {
-  if (typeof window === "undefined") return [];
+function notifyPendingEscrowListeners(): void {
+  for (const listener of pendingEscrowListeners) {
+    listener();
+  }
+}
+
+function subscribePendingEscrows(onStoreChange: () => void): () => void {
+  pendingEscrowListeners.add(onStoreChange);
+  if (typeof window === "undefined") {
+    return () => {
+      pendingEscrowListeners.delete(onStoreChange);
+    };
+  }
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === PENDING_ESCROW_STORAGE_KEY) {
+      onStoreChange();
+    }
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    pendingEscrowListeners.delete(onStoreChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function readPendingEscrowsRaw(): string {
+  if (typeof window === "undefined") return "[]";
   try {
-    const raw = window.localStorage.getItem(PENDING_ESCROW_STORAGE_KEY);
-    if (!raw) return [];
+    return window.localStorage.getItem(PENDING_ESCROW_STORAGE_KEY) ?? "[]";
+  } catch {
+    return "[]";
+  }
+}
+
+function parsePendingEscrows(raw: string): PendingEscrowRecord[] {
+  try {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
@@ -120,6 +152,10 @@ function loadPendingEscrows(): PendingEscrowRecord[] {
   }
 }
 
+function loadPendingEscrows(): PendingEscrowRecord[] {
+  return parsePendingEscrows(readPendingEscrowsRaw());
+}
+
 function writePendingEscrows(records: PendingEscrowRecord[]): void {
   if (typeof window === "undefined") return;
   try {
@@ -130,21 +166,20 @@ function writePendingEscrows(records: PendingEscrowRecord[]): void {
   } catch {
     // Ignore storage quota or private browsing errors cleanly
   }
+  notifyPendingEscrowListeners();
 }
 
-function savePendingEscrow(record: PendingEscrowRecord): PendingEscrowRecord[] {
+function savePendingEscrow(record: PendingEscrowRecord): void {
   const existing = loadPendingEscrows().filter(
     (item) => item.runId !== record.runId,
   );
   const next = [record, ...existing].slice(0, 12);
   writePendingEscrows(next);
-  return next;
 }
 
-function removePendingEscrow(runId: string): PendingEscrowRecord[] {
+function removePendingEscrow(runId: string): void {
   const next = loadPendingEscrows().filter((item) => item.runId !== runId);
   writePendingEscrows(next);
-  return next;
 }
 
 function formatEscrowCountdown(
@@ -581,10 +616,15 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
     transaction?: string;
     escrowExpiresAt?: string;
   } | null>(null);
-  const [pendingEscrows, setPendingEscrows] = useState<PendingEscrowRecord[]>(
-    [],
+  const pendingEscrowsRaw = useSyncExternalStore(
+    subscribePendingEscrows,
+    readPendingEscrowsRaw,
+    () => "[]",
   );
-  const [recoveryRunId, setRecoveryRunId] = useState("");
+  const pendingEscrows = parsePendingEscrows(pendingEscrowsRaw);
+  const [recoveryRunId, setRecoveryRunId] = useState<string | null>(null);
+  const effectiveRecoveryRunId =
+    recoveryRunId ?? pendingEscrows[0]?.runId ?? "";
   const [escrowBusy, setEscrowBusy] = useState(false);
   const [escrowSnapshot, setEscrowSnapshot] =
     useState<BrowserEscrowStateSnapshot | null>(null);
@@ -613,11 +653,6 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
 
   useEffect(() => {
     mountedRef.current = true;
-    const saved = loadPendingEscrows();
-    if (saved.length > 0) {
-      setPendingEscrows(saved);
-      setRecoveryRunId((prev) => prev || saved[0]!.runId);
-    }
     return () => {
       mountedRef.current = false;
       balanceRequestIdRef.current += 1;
@@ -634,7 +669,6 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
 
   useEffect(() => {
     if (!hasActiveCountdown) return;
-    setNowMs(Date.now());
     const timer = globalThis.setInterval(() => {
       setNowMs(Date.now());
     }, 1000);
@@ -790,13 +824,14 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
   }
 
   async function handleCheckEscrowStatus(runIdOverride?: string) {
-    const targetRunId = (runIdOverride ?? recoveryRunId).trim();
+    const targetRunId = (runIdOverride ?? effectiveRecoveryRunId).trim();
     if (!targetRunId) {
       setEscrowRecoveryError(
         "Enter a Run ID to inspect its on-chain escrow status.",
       );
       return;
     }
+    setNowMs(Date.now());
     setEscrowBusy(true);
     setEscrowRecoveryError(null);
     try {
@@ -819,13 +854,14 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
   }
 
   async function handleReclaimEscrow(runIdOverride?: string) {
-    const targetRunId = (runIdOverride ?? recoveryRunId).trim();
+    const targetRunId = (runIdOverride ?? effectiveRecoveryRunId).trim();
     if (!targetRunId) {
       setEscrowRecoveryError(
         "Enter a Run ID to reclaim its expired escrow on Avalanche.",
       );
       return;
     }
+    setNowMs(Date.now());
     setEscrowBusy(true);
     setEscrowRecoveryError(null);
     setEscrowReclaimTxHash(null);
@@ -849,7 +885,7 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
       if (!mountedRef.current) return;
       setRecoveryRunId(targetRunId);
       setEscrowReclaimTxHash(result.txHash);
-      setPendingEscrows(removePendingEscrow(targetRunId));
+      removePendingEscrow(targetRunId);
       if (pendingState?.runId === targetRunId) {
         setPendingState(null);
       }
@@ -1034,24 +1070,23 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
             (pending.payment?.escrowExpiresAt ||
               pending.payment?.status === "escrow_pending")
           ) {
+            setNowMs(Date.now());
             setRecoveryRunId(pending.runId);
-            setPendingEscrows(
-              savePendingEscrow({
-                runId: pending.runId,
-                ...(pending.payment?.escrowExpiresAt
-                  ? { escrowExpiresAt: pending.payment.escrowExpiresAt }
-                  : {}),
-                ...((pending.payment?.depositTxHash ??
-                pending.payment?.transaction)
-                  ? {
-                      depositTxHash:
-                        pending.payment?.depositTxHash ??
-                        pending.payment?.transaction,
-                    }
-                  : {}),
-                savedAt: new Date().toISOString(),
-              }),
-            );
+            savePendingEscrow({
+              runId: pending.runId,
+              ...(pending.payment?.escrowExpiresAt
+                ? { escrowExpiresAt: pending.payment.escrowExpiresAt }
+                : {}),
+              ...((pending.payment?.depositTxHash ??
+              pending.payment?.transaction)
+                ? {
+                    depositTxHash:
+                      pending.payment?.depositTxHash ??
+                      pending.payment?.transaction,
+                  }
+                : {}),
+              savedAt: new Date().toISOString(),
+            });
           }
           setPendingState({
             ...(pending?.runId ? { runId: pending.runId } : {}),
@@ -1077,7 +1112,7 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
       if (pollOutcome.kind === "refunded") {
         const refunded = pollOutcome.payload;
         if (refunded.runId) {
-          setPendingEscrows(removePendingEscrow(refunded.runId));
+          removePendingEscrow(refunded.runId);
         }
         setPendingState(null);
         setRefundedError({
@@ -1098,7 +1133,7 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
       }
 
       if (pollOutcome.payload.runId) {
-        setPendingEscrows(removePendingEscrow(pollOutcome.payload.runId));
+        removePendingEscrow(pollOutcome.payload.runId);
       }
       setPendingState(null);
       setOutput(pollOutcome.payload);
@@ -1771,7 +1806,7 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
               id="escrow-recovery-run-id"
               className="playground-input"
               type="text"
-              value={recoveryRunId}
+              value={effectiveRecoveryRunId}
               onChange={(event) => setRecoveryRunId(event.target.value)}
               placeholder="Enter run ID (e.g. run_...)"
             />
