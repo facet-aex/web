@@ -379,7 +379,9 @@ class ReceiveAuthorizationEvmScheme implements SchemeNetworkClient {
     const extraName = paymentRequirements.extra?.name;
     const extraVersion = paymentRequirements.extra?.version;
     if (typeof extraName !== "string" || typeof extraVersion !== "string") {
-      throw new Error("Payment challenge is missing FACET USD domain metadata.");
+      throw new Error(
+        "Payment challenge is missing FACET USD domain metadata.",
+      );
     }
     const chainId = Number(paymentRequirements.network.split(":")[1]);
     const nonce = createRandomBytes32Hex();

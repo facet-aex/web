@@ -111,7 +111,9 @@ function loadPendingEscrows(): PendingEscrowRecord[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (item): item is PendingEscrowRecord =>
-        isRecord(item) && typeof item.runId === "string" && item.runId.length > 0,
+        isRecord(item) &&
+        typeof item.runId === "string" &&
+        item.runId.length > 0,
     );
   } catch {
     return [];
@@ -626,8 +628,8 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
 
   const hasActiveCountdown = Boolean(
     pendingState?.escrowExpiresAt ||
-      escrowSnapshot?.state === "ESCROWED" ||
-      pendingEscrows.some((item) => Boolean(item.escrowExpiresAt)),
+    escrowSnapshot?.state === "ESCROWED" ||
+    pendingEscrows.some((item) => Boolean(item.escrowExpiresAt)),
   );
 
   useEffect(() => {
@@ -1039,7 +1041,8 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
                 ...(pending.payment?.escrowExpiresAt
                   ? { escrowExpiresAt: pending.payment.escrowExpiresAt }
                   : {}),
-                ...(pending.payment?.depositTxHash ?? pending.payment?.transaction
+                ...((pending.payment?.depositTxHash ??
+                pending.payment?.transaction)
                   ? {
                       depositTxHash:
                         pending.payment?.depositTxHash ??
@@ -1451,19 +1454,19 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
               Reusing signed x402 authorization without re-prompting your wallet
               {pendingState.runId ? ` · Run ${pendingState.runId}` : ""}.
             </p>
-            {pendingState.escrowExpiresAt ? (
-              (() => {
-                const countdown = formatEscrowCountdown(
-                  pendingState.escrowExpiresAt,
-                  nowMs,
-                );
-                return (
-                  <p>
-                    {countdown.label} ({pendingState.escrowExpiresAt})
-                  </p>
-                );
-              })()
-            ) : null}
+            {pendingState.escrowExpiresAt
+              ? (() => {
+                  const countdown = formatEscrowCountdown(
+                    pendingState.escrowExpiresAt,
+                    nowMs,
+                  );
+                  return (
+                    <p>
+                      {countdown.label} ({pendingState.escrowExpiresAt})
+                    </p>
+                  );
+                })()
+              : null}
             {pendingState.runId &&
             pendingState.escrowExpiresAt &&
             formatEscrowCountdown(pendingState.escrowExpiresAt, nowMs)

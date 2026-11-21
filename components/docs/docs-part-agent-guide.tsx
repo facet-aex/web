@@ -183,8 +183,8 @@ export function DocsPartAgentGuide() {
             code={DOCS_CODE_SNIPPETS.spendHistory}
           />
           <p>
-            Every pay-per-result deposit also carries a maximum lock window of 15
-            minutes. If settlement stalls past 15 minutes, version 0.4.0 lets
+            Every pay-per-result deposit also carries a maximum lock window of
+            15 minutes. If settlement stalls past 15 minutes, version 0.4.0 lets
             anyone check status and reclaim locked funds back to the payer
             directly on Avalanche without waiting for FACET servers:
           </p>

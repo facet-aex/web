@@ -1,6 +1,12 @@
 import { decodePaymentSignatureHeader } from "@x402/core/http";
 import type { PaymentRequired } from "@x402/core/types";
-import { getAddress, keccak256, stringToHex, verifyTypedData, type Hex } from "viem";
+import {
+  getAddress,
+  keccak256,
+  stringToHex,
+  verifyTypedData,
+  type Hex,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it, vi } from "vitest";
 

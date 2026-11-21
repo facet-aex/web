@@ -980,7 +980,9 @@ describe("ActorStudio, AgentStudio, FacetDetailView, and FacetPlayground", () =>
         registryVerified: true,
       },
     };
-    const markup = renderToStaticMarkup(<FacetPlayground facet={sampleFacet} />);
+    const markup = renderToStaticMarkup(
+      <FacetPlayground facet={sampleFacet} />,
+    );
     expect(markup).toContain("Escrow Recovery");
     expect(markup).toContain("Run ID");
   });
