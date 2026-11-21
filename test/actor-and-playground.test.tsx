@@ -933,4 +933,57 @@ describe("ActorStudio, AgentStudio, FacetDetailView, and FacetPlayground", () =>
       riskLevel: "NONE",
     });
   });
+
+  it("renders direct Avalanche Escrow Recovery panel in FacetPlayground for expired escrow self-reclaim", () => {
+    const sampleFacet: PublicFacet = {
+      provider: "tai-hung-dev",
+      facetName: "vn-tech-news-actor",
+      facetDisplayName: "VN Tech News",
+      version: "1.0.0",
+      facetType: "ACTOR",
+      method: "POST",
+      publishedAt: "2026-11-21T00:00:00.000Z",
+      summary: "Collects Vietnamese tech articles",
+      description: "Collects articles",
+      category: "vietnamese-data",
+      tags: ["news"],
+      pricing: {
+        model: "PAY_PER_RESULT",
+        priceAtomic: "500",
+        maxItemsCap: 10,
+        maxAmountAtomic: "5000",
+        assetAddress: "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
+        chainId: 43113,
+        payTo: "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf",
+      },
+      pricingOptions: [
+        {
+          model: "PAY_PER_RESULT",
+          priceAtomic: "500",
+          maxItemsCap: 10,
+          maxAmountAtomic: "5000",
+          assetAddress: "0xe7082a54a456dc4dfe0ceadcd0d0dce7d8ba176f",
+          chainId: 43113,
+          payTo: "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf",
+          isPrimary: true,
+        },
+      ],
+      inputSchema: {
+        type: "object",
+        required: ["query"],
+        properties: { query: { type: "string", default: "AI" } },
+      },
+      outputSchema: { type: "object" },
+      actorMeta: {
+        runtime: "node-22-esm",
+        imageDigest: `sha256:${"a".repeat(64)}`,
+        registryVerified: true,
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <FacetPlayground facet={sampleFacet} />,
+    );
+    expect(markup).toContain("Escrow Recovery");
+    expect(markup).toContain("Run ID");
+  });
 });

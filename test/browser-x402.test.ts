@@ -1,6 +1,12 @@
 import { decodePaymentSignatureHeader } from "@x402/core/http";
 import type { PaymentRequired } from "@x402/core/types";
-import { getAddress } from "viem";
+import {
+  getAddress,
+  keccak256,
+  stringToHex,
+  verifyTypedData,
+  type Hex,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,7 +15,9 @@ import {
   FUSD_ASSET_ADDRESS,
   connectBrowserWallet,
   ensureAvalancheChain,
+  readBrowserEscrowState,
   readFusdBalanceAtomic,
+  reclaimExpiredEscrowInBrowser,
   selectPaymentRequirement,
   signBrowserX402Payment,
   type Eip1193Provider,
@@ -18,7 +26,7 @@ import {
 const TEST_ACCOUNT = privateKeyToAccount(
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
 );
-const FEE_SPLIT_ADDRESS = "0xc50cb5d5ff6c71eb1b065971c198a9edb0ecff06";
+const FEE_SPLIT_ADDRESS = "0x8f04b927606a309d2835ed097ba4a37a6b3b0a05";
 const PROVIDER_PAY_TO = "0x9265c1c87fC5fb3C72Dc68b4D3A005dE1E22C3cf";
 
 function buildDualOptionRequired(overrides?: {
@@ -234,5 +242,146 @@ describe("browser-x402 wallet & EIP-3009 signing helpers", () => {
       to: getAddress(FEE_SPLIT_ADDRESS),
       value: "10000",
     });
+  });
+
+  it("signs EIP-3009 ReceiveWithAuthorization when challenge extra specifies authorizationType=ReceiveWithAuthorization", async () => {
+    const base = buildDualOptionRequired();
+    const required: PaymentRequired = {
+      ...base,
+      accepts: base.accepts.map((option) => ({
+        ...option,
+        extra: {
+          ...option.extra,
+          authorizationType: "ReceiveWithAuthorization",
+        },
+      })),
+    };
+    const signedPrimaryTypes: string[] = [];
+
+    const ethereum: Eip1193Provider = {
+      async request(args) {
+        if (args.method === "eth_signTypedData_v4") {
+          const [, rawTypedData] = args.params as [string, string];
+          const parsed = JSON.parse(rawTypedData) as {
+            domain: Record<string, unknown>;
+            types: Record<string, Array<{ name: string; type: string }>>;
+            primaryType: string;
+            message: Record<string, unknown>;
+          };
+          signedPrimaryTypes.push(parsed.primaryType);
+          const { EIP712Domain: _ignored, ...restTypes } = parsed.types;
+          return TEST_ACCOUNT.signTypedData({
+            domain: parsed.domain as {
+              name: string;
+              version: string;
+              chainId: number;
+              verifyingContract: `0x${string}`;
+            },
+            types: restTypes,
+            primaryType: parsed.primaryType,
+            message: parsed.message,
+          });
+        }
+        throw new Error(`Unexpected RPC method: ${args.method}`);
+      },
+    };
+
+    const { paymentSignature } = await signBrowserX402Payment({
+      ethereum,
+      address: TEST_ACCOUNT.address,
+      required,
+      pricingModel: "PAY_PER_RESULT",
+      expectedAmountAtomic: "10000",
+    });
+
+    expect(signedPrimaryTypes).toEqual(["ReceiveWithAuthorization"]);
+    const decoded = decodePaymentSignatureHeader(paymentSignature);
+    const rawPayload = decoded.payload as {
+      authorization: {
+        from: string;
+        to: string;
+        value: string;
+        validAfter: string;
+        validBefore: string;
+        nonce: Hex;
+      };
+      signature: Hex;
+    };
+    const valid = await verifyTypedData({
+      address: TEST_ACCOUNT.address,
+      domain: {
+        name: "FACET USD",
+        version: "2",
+        chainId: AVALANCHE_CHAIN_ID,
+        verifyingContract: getAddress(FUSD_ASSET_ADDRESS),
+      },
+      types: {
+        ReceiveWithAuthorization: [
+          { name: "from", type: "address" },
+          { name: "to", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "validAfter", type: "uint256" },
+          { name: "validBefore", type: "uint256" },
+          { name: "nonce", type: "bytes32" },
+        ],
+      },
+      primaryType: "ReceiveWithAuthorization",
+      message: {
+        from: getAddress(rawPayload.authorization.from),
+        to: getAddress(rawPayload.authorization.to),
+        value: BigInt(rawPayload.authorization.value),
+        validAfter: BigInt(rawPayload.authorization.validAfter),
+        validBefore: BigInt(rawPayload.authorization.validBefore),
+        nonce: rawPayload.authorization.nonce,
+      },
+      signature: rawPayload.signature,
+    });
+    expect(valid).toBe(true);
+  });
+
+  it("reads on-chain escrow state and submits permissionless refundEscrow(runKey) when expired", async () => {
+    const runId = "019a1234-5678-7abc-8def-123456789abc";
+    const runKey = keccak256(stringToHex(runId));
+    const snapshot = await readBrowserEscrowState(runId, {
+      readState: async () => ({
+        state: "ESCROWED",
+        payer: TEST_ACCOUNT.address,
+        creatorPayTo: PROVIDER_PAY_TO,
+        unitPriceAtomic: "500",
+        maxAmountAtomic: "5000",
+        expiresAtUnix: 1_577_836_800,
+      }),
+    });
+    expect(snapshot.runKey).toBe(runKey);
+    expect(snapshot.expired).toBe(true);
+    expect(snapshot.state).toBe("ESCROWED");
+
+    const sentCalls: Array<{ runKey: Hex }> = [];
+    const ethereum: Eip1193Provider = {
+      async request(args) {
+        if (args.method === "wallet_switchEthereumChain") return null;
+        throw new Error(`Unexpected ${args.method}`);
+      },
+    };
+    const res = await reclaimExpiredEscrowInBrowser({
+      ethereum,
+      address: TEST_ACCOUNT.address,
+      runId,
+      readState: async () => ({
+        state: "ESCROWED",
+        payer: TEST_ACCOUNT.address,
+        creatorPayTo: PROVIDER_PAY_TO,
+        unitPriceAtomic: "500",
+        maxAmountAtomic: "5000",
+        expiresAtUnix: 1_577_836_800,
+      }),
+      submitRefund: async (keyArg) => {
+        sentCalls.push({ runKey: keyArg });
+        return `0x${"f".repeat(64)}`;
+      },
+    });
+    expect(sentCalls).toEqual([{ runKey }]);
+    expect(res.txHash).toBe(`0x${"f".repeat(64)}`);
+    expect(res.refundAmountAtomic).toBe("5000");
   });
 });

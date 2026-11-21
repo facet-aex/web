@@ -546,7 +546,7 @@ describe("DocsPage documentation", () => {
       "https://testnet.snowtrace.io/address/0xc37c12bcd53a4ba5fd33870cecc74a4ba601e3a2",
     );
     expect(mainMarkup).toContain(
-      "https://testnet.snowtrace.io/address/0xc50cb5d5ff6c71eb1b065971c198a9edb0ecff06",
+      "https://testnet.snowtrace.io/address/0x8f04b927606a309d2835ed097ba4a37a6b3b0a05",
     );
     expect(mainMarkup).toContain(
       "https://testnet.snowtrace.io/address/0x5dc611b5642c306dd50fa7f786194dc04bd12fa7",
@@ -577,6 +577,10 @@ describe("DocsPage documentation", () => {
     expect(mainMarkup).toContain("facet mcp install claude");
     expect(mainMarkup).toContain("facet mcp config");
     expect(mainMarkup).toContain("facet spend history");
+    expect(mainMarkup).toContain("facet escrow status");
+    expect(mainMarkup).toContain("facet escrow reclaim");
+    expect(proseMarkup).toContain("15 minutes");
+    expect(proseMarkup).toContain("0.4.0");
 
     // Stale Content & Brand Ban Assertions
     expect(markup).not.toContain("@facet/agent-sdk");

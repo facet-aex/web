@@ -59,13 +59,13 @@ const COMMERCE_STAGES: readonly CommerceStage[] = [
     id: "settle",
     number: "04",
     title: "Atomic x402 Settlement",
-    heading: "Instant FeeSplit and TaskEscrow Refunds on Avalanche",
+    heading: "Instant FeeSplit and Timeout-Protected TaskEscrow on Avalanche",
     summary:
-      "Stablecoin fUSD micropayments settle autonomously over HTTP x402 on Avalanche—supporting instant 95%/5% FeeSplit on PAY_PER_RUN and TaskEscrow settlement with automatic buyer refunds on PAY_PER_RESULT.",
+      "Stablecoin fUSD micropayments settle autonomously over HTTP x402 on Avalanche—supporting recipient-locked ReceiveWithAuthorization transfers, instant 95%/5% FeeSplit on PAY_PER_RUN, and timeout-protected TaskEscrow settlement on PAY_PER_RESULT.",
     points: [
       "PAY_PER_RUN settles 95% directly to providerPayTo and 5% to protocol treasury",
-      "PAY_PER_RESULT uses TaskEscrow upfront and refunds unused or failed runs automatically",
-      "True sub-cent pay-per-use pricing with zero monthly subscription lock-in",
+      "PAY_PER_RESULT locks deposits with ReceiveWithAuthorization and enforces a 15-minute permissionless TaskEscrow refund timeout",
+      "Verified domain-separated usage proofs and auto-refunds with zero monthly subscription lock-in",
     ],
   },
   {
