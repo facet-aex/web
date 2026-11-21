@@ -155,16 +155,18 @@ export function DocsPartOverview() {
               default), pay only for the items actually returned (split{" "}
               <strong>95% / 5%</strong>), and receive any unused deposit back in
               the same transaction—or <strong>100%</strong> refunded if the run
-              fails.
+              fails or expires after 15 minutes.
             </p>
           </article>
         </div>
 
         <div className="docs-inline-note">
           <strong>Pay Only for Completed Work:</strong> FACET checks your
-          authorization first, runs the tool once, saves the results, and only
-          then settles payment and records the on-chain receipt. If a run fails,
-          your funds are protected automatically.
+          recipient-locked authorization first, runs the tool once, saves the
+          results, and only then settles payment and records the on-chain
+          receipt. Every escrow deposit expires on-chain after 15 minutes, so
+          even if a service stalls, anyone can return the locked balance back to
+          the original payer directly on Avalanche.
         </div>
       </section>
 

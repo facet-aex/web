@@ -17,8 +17,11 @@ import {
   connectBrowserWallet,
   ensureAvalancheChain,
   getBrowserEthereumProvider,
+  readBrowserEscrowState,
   readFusdBalanceAtomic,
+  reclaimExpiredEscrowInBrowser,
   signBrowserX402Payment,
+  type BrowserEscrowStateSnapshot,
 } from "@/lib/browser-x402";
 import {
   formatAtomicFusd,
@@ -85,6 +88,86 @@ interface PendingPayload {
   payment?: {
     status?: string;
     transaction?: string;
+    depositTxHash?: string;
+    escrowExpiresAt?: string;
+  };
+}
+
+interface PendingEscrowRecord {
+  runId: string;
+  escrowExpiresAt?: string;
+  depositTxHash?: string;
+  savedAt: string;
+}
+
+const PENDING_ESCROW_STORAGE_KEY = "facet:pending-escrows:v1";
+
+function loadPendingEscrows(): PendingEscrowRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(PENDING_ESCROW_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is PendingEscrowRecord =>
+        isRecord(item) && typeof item.runId === "string" && item.runId.length > 0,
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writePendingEscrows(records: PendingEscrowRecord[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      PENDING_ESCROW_STORAGE_KEY,
+      JSON.stringify(records.slice(0, 12)),
+    );
+  } catch {
+    // Ignore storage quota or private browsing errors cleanly
+  }
+}
+
+function savePendingEscrow(record: PendingEscrowRecord): PendingEscrowRecord[] {
+  const existing = loadPendingEscrows().filter(
+    (item) => item.runId !== record.runId,
+  );
+  const next = [record, ...existing].slice(0, 12);
+  writePendingEscrows(next);
+  return next;
+}
+
+function removePendingEscrow(runId: string): PendingEscrowRecord[] {
+  const next = loadPendingEscrows().filter((item) => item.runId !== runId);
+  writePendingEscrows(next);
+  return next;
+}
+
+function formatEscrowCountdown(
+  expiresAtIso: string | undefined,
+  nowMs: number,
+): { expired: boolean; label: string } {
+  if (!expiresAtIso) {
+    return { expired: false, label: "Waiting for 15-minute deadline" };
+  }
+  const expiresMs = Date.parse(expiresAtIso);
+  if (!Number.isFinite(expiresMs)) {
+    return { expired: false, label: `Deadline ${expiresAtIso}` };
+  }
+  const remainingSec = Math.ceil((expiresMs - nowMs) / 1000);
+  if (remainingSec <= 0) {
+    return {
+      expired: true,
+      label: "Escrow timeout reached — permissionless reclaim unlocked",
+    };
+  }
+  const mins = Math.floor(remainingSec / 60);
+  const secs = remainingSec % 60;
+  return {
+    expired: false,
+    label: `Self-reclaim unlocks in ${mins}m ${String(secs).padStart(2, "0")}s`,
   };
 }
 
@@ -494,7 +577,22 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
     runId?: string;
     status: string;
     transaction?: string;
+    escrowExpiresAt?: string;
   } | null>(null);
+  const [pendingEscrows, setPendingEscrows] = useState<PendingEscrowRecord[]>(
+    [],
+  );
+  const [recoveryRunId, setRecoveryRunId] = useState("");
+  const [escrowBusy, setEscrowBusy] = useState(false);
+  const [escrowSnapshot, setEscrowSnapshot] =
+    useState<BrowserEscrowStateSnapshot | null>(null);
+  const [escrowReclaimTxHash, setEscrowReclaimTxHash] = useState<string | null>(
+    null,
+  );
+  const [escrowRecoveryError, setEscrowRecoveryError] = useState<string | null>(
+    null,
+  );
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [refundedError, setRefundedError] = useState<{
     code: string;
     message?: string;
@@ -513,6 +611,11 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
 
   useEffect(() => {
     mountedRef.current = true;
+    const saved = loadPendingEscrows();
+    if (saved.length > 0) {
+      setPendingEscrows(saved);
+      setRecoveryRunId((prev) => prev || saved[0]!.runId);
+    }
     return () => {
       mountedRef.current = false;
       balanceRequestIdRef.current += 1;
@@ -520,6 +623,21 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
       runAbortRef.current = null;
     };
   }, []);
+
+  const hasActiveCountdown = Boolean(
+    pendingState?.escrowExpiresAt ||
+      escrowSnapshot?.state === "ESCROWED" ||
+      pendingEscrows.some((item) => Boolean(item.escrowExpiresAt)),
+  );
+
+  useEffect(() => {
+    if (!hasActiveCountdown) return;
+    setNowMs(Date.now());
+    const timer = globalThis.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => globalThis.clearInterval(timer);
+  }, [hasActiveCountdown]);
 
   async function syncWalletBalance(
     address: Hex,
@@ -665,6 +783,93 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
     } finally {
       if (mountedRef.current) {
         setWalletBusy(false);
+      }
+    }
+  }
+
+  async function handleCheckEscrowStatus(runIdOverride?: string) {
+    const targetRunId = (runIdOverride ?? recoveryRunId).trim();
+    if (!targetRunId) {
+      setEscrowRecoveryError(
+        "Enter a Run ID to inspect its on-chain escrow status.",
+      );
+      return;
+    }
+    setEscrowBusy(true);
+    setEscrowRecoveryError(null);
+    try {
+      const snapshot = await readBrowserEscrowState(targetRunId);
+      if (!mountedRef.current) return;
+      setRecoveryRunId(targetRunId);
+      setEscrowSnapshot(snapshot);
+    } catch (cause) {
+      if (!mountedRef.current) return;
+      setEscrowRecoveryError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not read escrow status from Avalanche.",
+      );
+    } finally {
+      if (mountedRef.current) {
+        setEscrowBusy(false);
+      }
+    }
+  }
+
+  async function handleReclaimEscrow(runIdOverride?: string) {
+    const targetRunId = (runIdOverride ?? recoveryRunId).trim();
+    if (!targetRunId) {
+      setEscrowRecoveryError(
+        "Enter a Run ID to reclaim its expired escrow on Avalanche.",
+      );
+      return;
+    }
+    setEscrowBusy(true);
+    setEscrowRecoveryError(null);
+    setEscrowReclaimTxHash(null);
+    try {
+      let address = activeAddressRef.current ?? walletAddress;
+      if (!address) {
+        const connected = await connectBrowserWallet();
+        if (!mountedRef.current) return;
+        address = connected.address;
+        activeAddressRef.current = connected.address;
+        setWalletAddress(connected.address);
+      }
+      await ensureAvalancheChain();
+      if (!mountedRef.current) return;
+      setWalletChainId(AVALANCHE_CHAIN_ID);
+
+      const result = await reclaimExpiredEscrowInBrowser({
+        address,
+        runId: targetRunId,
+      });
+      if (!mountedRef.current) return;
+      setRecoveryRunId(targetRunId);
+      setEscrowReclaimTxHash(result.txHash);
+      setPendingEscrows(removePendingEscrow(targetRunId));
+      if (pendingState?.runId === targetRunId) {
+        setPendingState(null);
+      }
+      try {
+        const updated = await readBrowserEscrowState(targetRunId);
+        if (mountedRef.current) {
+          setEscrowSnapshot(updated);
+        }
+      } catch {
+        // Non-fatal if immediate post-tx RPC read lags behind
+      }
+      void syncWalletBalance(address);
+    } catch (cause) {
+      if (!mountedRef.current) return;
+      setEscrowRecoveryError(
+        cause instanceof Error
+          ? cause.message
+          : "Failed to submit escrow reclaim transaction on Avalanche.",
+      );
+    } finally {
+      if (mountedRef.current) {
+        setEscrowBusy(false);
       }
     }
   }
@@ -822,11 +1027,37 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
         signal,
         onPending: (pending) => {
           if (signal.aborted || !mountedRef.current) return;
+          if (
+            pending?.runId &&
+            (pending.payment?.escrowExpiresAt ||
+              pending.payment?.status === "escrow_pending")
+          ) {
+            setRecoveryRunId(pending.runId);
+            setPendingEscrows(
+              savePendingEscrow({
+                runId: pending.runId,
+                ...(pending.payment?.escrowExpiresAt
+                  ? { escrowExpiresAt: pending.payment.escrowExpiresAt }
+                  : {}),
+                ...(pending.payment?.depositTxHash ?? pending.payment?.transaction
+                  ? {
+                      depositTxHash:
+                        pending.payment?.depositTxHash ??
+                        pending.payment?.transaction,
+                    }
+                  : {}),
+                savedAt: new Date().toISOString(),
+              }),
+            );
+          }
           setPendingState({
             ...(pending?.runId ? { runId: pending.runId } : {}),
             status: pending?.payment?.status ?? "settlement_pending",
             ...(pending?.payment?.transaction
               ? { transaction: pending.payment.transaction }
+              : {}),
+            ...(pending?.payment?.escrowExpiresAt
+              ? { escrowExpiresAt: pending.payment.escrowExpiresAt }
               : {}),
           });
         },
@@ -835,13 +1066,16 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
 
       if (pollOutcome.kind === "timeout") {
         setError(
-          `Settlement is still confirming on Avalanche${pollOutcome.pending?.runId ? ` (runId: ${pollOutcome.pending.runId})` : ""}. Wait a moment and retry.`,
+          `Settlement is still confirming on Avalanche${pollOutcome.pending?.runId ? ` (runId: ${pollOutcome.pending.runId})` : ""}. Wait a moment and retry, or check Escrow Recovery below after the 15-minute deadline.`,
         );
         return;
       }
 
       if (pollOutcome.kind === "refunded") {
         const refunded = pollOutcome.payload;
+        if (refunded.runId) {
+          setPendingEscrows(removePendingEscrow(refunded.runId));
+        }
         setPendingState(null);
         setRefundedError({
           code: refunded.error?.code ?? "EXECUTION_FAILED",
@@ -860,6 +1094,9 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
         return;
       }
 
+      if (pollOutcome.payload.runId) {
+        setPendingEscrows(removePendingEscrow(pollOutcome.payload.runId));
+      }
       setPendingState(null);
       setOutput(pollOutcome.payload);
       setViewTab("dataset");
@@ -1214,6 +1451,36 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
               Reusing signed x402 authorization without re-prompting your wallet
               {pendingState.runId ? ` · Run ${pendingState.runId}` : ""}.
             </p>
+            {pendingState.escrowExpiresAt ? (
+              (() => {
+                const countdown = formatEscrowCountdown(
+                  pendingState.escrowExpiresAt,
+                  nowMs,
+                );
+                return (
+                  <p>
+                    {countdown.label} ({pendingState.escrowExpiresAt})
+                  </p>
+                );
+              })()
+            ) : null}
+            {pendingState.runId &&
+            pendingState.escrowExpiresAt &&
+            formatEscrowCountdown(pendingState.escrowExpiresAt, nowMs)
+              .expired ? (
+              <div className="escrow-recovery-actions">
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  disabled={escrowBusy}
+                  onClick={() => void handleReclaimEscrow(pendingState.runId)}
+                >
+                  {escrowBusy
+                    ? "Reclaiming..."
+                    : "Reclaim Expired Escrow on Avalanche"}
+                </button>
+              </div>
+            ) : null}
             {pendingState.transaction ? (
               <a
                 className="explorer-link"
@@ -1463,6 +1730,123 @@ export function FacetPlayground({ facet }: { facet: PublicFacet }) {
           </div>
         </div>
       ) : null}
+
+      <details className="playground-escrow-recovery">
+        <summary>
+          Direct Avalanche Escrow Recovery (Zero-Backend Self-Reclaim)
+        </summary>
+        <div className="escrow-recovery-body">
+          <p className="escrow-recovery-copy">
+            Pay-per-result escrows enforce an on-chain 15-minute deadline. Once
+            expired, anyone can call refund directly on Avalanche to return 100%
+            of locked fUSD to the original payer even if FACET servers are
+            unreachable.
+          </p>
+
+          {pendingEscrows.length > 0 ? (
+            <div className="escrow-recovery-saved">
+              <span>Saved pending escrows:</span>
+              {pendingEscrows.map((entry) => (
+                <button
+                  key={entry.runId}
+                  type="button"
+                  className="escrow-recovery-chip"
+                  onClick={() => {
+                    setRecoveryRunId(entry.runId);
+                    void handleCheckEscrowStatus(entry.runId);
+                  }}
+                >
+                  {truncateMiddle(entry.runId, 16)}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="escrow-recovery-controls">
+            <label htmlFor="escrow-recovery-run-id">Run ID</label>
+            <input
+              id="escrow-recovery-run-id"
+              className="playground-input"
+              type="text"
+              value={recoveryRunId}
+              onChange={(event) => setRecoveryRunId(event.target.value)}
+              placeholder="Enter run ID (e.g. run_...)"
+            />
+            <div className="escrow-recovery-actions">
+              <button
+                type="button"
+                className="button button-ghost"
+                disabled={escrowBusy}
+                onClick={() => void handleCheckEscrowStatus()}
+              >
+                {escrowBusy ? "Checking..." : "Check Escrow Status"}
+              </button>
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={escrowBusy}
+                onClick={() => void handleReclaimEscrow()}
+              >
+                {escrowBusy
+                  ? "Submitting..."
+                  : "Reclaim Expired Escrow on Avalanche"}
+              </button>
+            </div>
+          </div>
+
+          {escrowRecoveryError ? (
+            <div className="error-banner" role="alert">
+              <p>{escrowRecoveryError}</p>
+            </div>
+          ) : null}
+
+          {escrowReclaimTxHash ? (
+            <div className="escrow-recovery-status" role="status">
+              <strong>Escrow reclaim submitted on Avalanche</strong>
+              <a
+                className="explorer-link"
+                href={snowtraceTxUrl(escrowReclaimTxHash)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View reclaim tx on Snowtrace ({escrowReclaimTxHash}) ↗
+              </a>
+            </div>
+          ) : null}
+
+          {escrowSnapshot ? (
+            <div className="escrow-recovery-status">
+              <dl className="inspector-specs">
+                <div>
+                  <dt>On-Chain Escrow State</dt>
+                  <dd>{escrowSnapshot.state}</dd>
+                </div>
+                <div>
+                  <dt>Locked Amount</dt>
+                  <dd>{formatAtomicFusd(escrowSnapshot.maxAmountAtomic)}</dd>
+                </div>
+                <div>
+                  <dt>Payer Address</dt>
+                  <dd>{escrowSnapshot.payer}</dd>
+                </div>
+                <div>
+                  <dt>Expiry Deadline</dt>
+                  <dd>
+                    {escrowSnapshot.expiresAtIso ?? "None"} (
+                    {escrowSnapshot.expired
+                      ? "Expired — reclaim unlocked"
+                      : formatEscrowCountdown(
+                          escrowSnapshot.expiresAtIso ?? undefined,
+                          nowMs,
+                        ).label}
+                    )
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          ) : null}
+        </div>
+      </details>
     </section>
   );
 }

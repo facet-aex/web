@@ -182,6 +182,21 @@ export function DocsPartAgentGuide() {
             title="View payments & automatic refunds"
             code={DOCS_CODE_SNIPPETS.spendHistory}
           />
+          <p>
+            Every pay-per-result deposit also carries a maximum lock window of 15
+            minutes. If settlement stalls past 15 minutes, version 0.4.0 lets
+            anyone check status and reclaim locked funds back to the payer
+            directly on Avalanche without waiting for FACET servers:
+          </p>
+          <CopyCodeBlock
+            title="Check or reclaim an expired escrow directly on Avalanche"
+            code={DOCS_CODE_SNIPPETS.reclaimEscrow}
+          />
+          <p>
+            Upgrading from an older client release? Install version 0.4.0 and
+            re-grant your spending policy once so local records point to the
+            hardened escrow settlement contract.
+          </p>
         </div>
       </section>
     </>

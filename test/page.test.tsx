@@ -577,6 +577,10 @@ describe("DocsPage documentation", () => {
     expect(mainMarkup).toContain("facet mcp install claude");
     expect(mainMarkup).toContain("facet mcp config");
     expect(mainMarkup).toContain("facet spend history");
+    expect(mainMarkup).toContain("facet escrow status");
+    expect(mainMarkup).toContain("facet escrow reclaim");
+    expect(proseMarkup).toContain("15 minutes");
+    expect(proseMarkup).toContain("0.4.0");
 
     // Stale Content & Brand Ban Assertions
     expect(markup).not.toContain("@facet/agent-sdk");

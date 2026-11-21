@@ -59,6 +59,7 @@ export interface DocsCodeSnippets {
   mcpInstall: string;
   mcpConfigJson: string;
   spendHistory: string;
+  reclaimEscrow: string;
 }
 
 export const DOCS_TOC_GROUPS: readonly DocsTocGroup[] = [
@@ -178,7 +179,7 @@ export const AVALANCHE_CONTRACTS: readonly AvalancheContractRow[] = [
   {
     name: "Payment Split & Escrow",
     address: FUJI_CONTRACTS.feeSplitAndEscrow,
-    role: "Routes 95% of each fixed-price payment to the creator, 5% to the platform, and refunds unused escrow balances automatically.",
+    role: "Routes 95% of each fixed-price payment to the creator, 5% to the platform, binds authorizations directly to the contract recipient, and enforces a 15-minute expiry window so anyone can reclaim expired deposits back to the payer.",
   },
   {
     name: "Execution Receipt Log",
@@ -214,7 +215,7 @@ export const BUYER_SAFETY_PILLARS: readonly BuyerSafetyPillar[] = [
     title: "Per-Run & Daily Caps",
     badge: "Auto-Refunded",
     summary:
-      "Every payment checks your per-run limit and daily budget before signing. Failed runs and unused escrow deposits return to your remaining budget automatically.",
+      "Every payment uses recipient-locked authorizations, checks your per-run limit and daily budget before signing, and includes a 15-minute on-chain timeout so expired or failed escrows return 100% of unused funds to the payer.",
   },
   {
     title: "Pricing Control",
@@ -299,4 +300,9 @@ facet spend history
 # Filter by status or date
 facet spend history --status SETTLED --day 2026-11-20
 facet spend history --status RELEASED --json`,
+  reclaimEscrow: `# Check live on-chain escrow state and expiry deadline for a stalled run
+facet escrow status <run-id>
+
+# After 15 minutes, permissionlessly return locked funds to the original payer
+facet escrow reclaim <run-id>`,
 };

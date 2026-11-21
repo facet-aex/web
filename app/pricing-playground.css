@@ -377,6 +377,70 @@
   color: var(--facet-lime);
 }
 
+.playground-escrow-recovery {
+  border: 1px solid var(--facet-line);
+  background: var(--facet-ink);
+  padding: 0.95rem 1.05rem;
+}
+
+.playground-escrow-recovery summary {
+  cursor: pointer;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--facet-cyan);
+}
+
+.escrow-recovery-body {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.escrow-recovery-copy {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--facet-text-muted);
+  line-height: 1.5;
+}
+
+.escrow-recovery-saved {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.escrow-recovery-chip {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+  color: var(--facet-text);
+  cursor: pointer;
+}
+
+.escrow-recovery-controls {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.escrow-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.escrow-recovery-status {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--facet-line);
+  background: var(--facet-surface);
+}
+
 @media (max-width: 820px) {
   .pricing-option-grid,
   .playground-pricing-options,

@@ -1,6 +1,12 @@
 import { x402Client } from "@x402/core/client";
 import { encodePaymentSignatureHeader } from "@x402/core/http";
-import type { PaymentRequired, PaymentRequirements } from "@x402/core/types";
+import type {
+  PaymentPayloadContext,
+  PaymentPayloadResult,
+  PaymentRequired,
+  PaymentRequirements,
+  SchemeNetworkClient,
+} from "@x402/core/types";
 import { type ClientEvmSigner } from "@x402/evm";
 import { ExactEvmScheme } from "@x402/evm/exact/client";
 import {
@@ -10,6 +16,10 @@ import {
   getAddress,
   http,
   isAddress,
+  keccak256,
+  parseAbi,
+  stringToHex,
+  type Address,
   type Chain,
   type Hex,
 } from "viem";
@@ -315,6 +325,98 @@ export function selectPaymentRequirement(
   return selected;
 }
 
+const RECEIVE_WITH_AUTHORIZATION_TYPES = {
+  ReceiveWithAuthorization: [
+    { name: "from", type: "address" },
+    { name: "to", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "validAfter", type: "uint256" },
+    { name: "validBefore", type: "uint256" },
+    { name: "nonce", type: "bytes32" },
+  ],
+};
+
+const ESCROW_V2_ABI = parseAbi([
+  "function runState(bytes32) view returns (uint8)",
+  "function escrows(bytes32) view returns (bytes32 facetId,address payer,address creatorPayTo,uint256 unitPriceAtomic,uint256 maxAmount,uint64 expiresAt)",
+  "function refundEscrow(bytes32 runId)",
+]);
+
+const RUN_STATE_NAMES = ["UNUSED", "ESCROWED", "SETTLED", "REFUNDED"] as const;
+export type BrowserEscrowRunState = (typeof RUN_STATE_NAMES)[number];
+
+function createRandomBytes32Hex(): Hex {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return `0x${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+
+class ReceiveAuthorizationEvmScheme implements SchemeNetworkClient {
+  readonly scheme = "exact";
+  private readonly fallback: ExactEvmScheme;
+  readonly findDefaultAsset: ExactEvmScheme["findDefaultAsset"];
+
+  constructor(private readonly signer: ClientEvmSigner) {
+    this.fallback = new ExactEvmScheme(signer);
+    this.findDefaultAsset = this.fallback.findDefaultAsset.bind(this.fallback);
+  }
+
+  async createPaymentPayload(
+    x402Version: number,
+    paymentRequirements: PaymentRequirements,
+    context?: PaymentPayloadContext,
+  ): Promise<PaymentPayloadResult> {
+    if (
+      paymentRequirements.extra?.authorizationType !==
+      "ReceiveWithAuthorization"
+    ) {
+      return this.fallback.createPaymentPayload(
+        x402Version,
+        paymentRequirements,
+        context,
+      );
+    }
+    const extraName = paymentRequirements.extra?.name;
+    const extraVersion = paymentRequirements.extra?.version;
+    if (typeof extraName !== "string" || typeof extraVersion !== "string") {
+      throw new Error("Payment challenge is missing FACET USD domain metadata.");
+    }
+    const chainId = Number(paymentRequirements.network.split(":")[1]);
+    const nonce = createRandomBytes32Hex();
+    const now = Math.floor(Date.now() / 1000);
+    const authorization = {
+      from: getAddress(this.signer.address),
+      to: getAddress(paymentRequirements.payTo),
+      value: paymentRequirements.amount,
+      validAfter: "0",
+      validBefore: String(now + paymentRequirements.maxTimeoutSeconds),
+      nonce,
+    };
+    const signature = await this.signer.signTypedData({
+      domain: {
+        name: extraName,
+        version: extraVersion,
+        chainId,
+        verifyingContract: getAddress(paymentRequirements.asset),
+      },
+      types: RECEIVE_WITH_AUTHORIZATION_TYPES,
+      primaryType: "ReceiveWithAuthorization",
+      message: {
+        from: authorization.from,
+        to: authorization.to,
+        value: BigInt(authorization.value),
+        validAfter: BigInt(authorization.validAfter),
+        validBefore: BigInt(authorization.validBefore),
+        nonce: authorization.nonce,
+      },
+    });
+    return {
+      x402Version,
+      payload: { authorization, signature },
+    };
+  }
+}
+
 export async function signBrowserX402Payment(params: {
   ethereum?: Eip1193Provider;
   address: Hex;
@@ -357,7 +459,7 @@ export async function signBrowserX402Payment(params: {
     schemes: [
       {
         network: AVALANCHE_NETWORK,
-        client: new ExactEvmScheme(signer),
+        client: new ReceiveAuthorizationEvmScheme(signer),
       },
     ],
     spendControls: {
@@ -379,4 +481,162 @@ export async function signBrowserX402Payment(params: {
   const payload = await client.createPaymentPayload(singleOptionRequired);
   const paymentSignature = encodePaymentSignatureHeader(payload);
   return { paymentSignature, selected };
+}
+
+export interface BrowserEscrowStateSnapshot {
+  runId: string;
+  runKey: Hex;
+  contractAddress: Address;
+  state: BrowserEscrowRunState;
+  payer: Address;
+  creatorPayTo: Address;
+  unitPriceAtomic: string;
+  maxAmountAtomic: string;
+  expiresAtUnix: number;
+  expiresAtIso: string;
+  expired: boolean;
+}
+
+export interface BrowserEscrowReclaimResult {
+  runId: string;
+  runKey: Hex;
+  contractAddress: Address;
+  txHash: Hex;
+  payer: Address;
+  refundAmountAtomic: string;
+}
+
+type RawEscrowRead = {
+  state: BrowserEscrowRunState;
+  payer: Address;
+  creatorPayTo: Address;
+  unitPriceAtomic: string;
+  maxAmountAtomic: string;
+  expiresAtUnix: number;
+};
+
+export async function readBrowserEscrowState(
+  runId: string,
+  options?: {
+    rpcUrl?: string;
+    contractAddress?: Address;
+    readState?: (runKey: Hex) => Promise<RawEscrowRead>;
+  },
+): Promise<BrowserEscrowStateSnapshot> {
+  const trimmed = runId.trim();
+  if (!trimmed) {
+    throw new Error("Run ID is required to inspect an Avalanche escrow.");
+  }
+  const contractAddress = getAddress(
+    options?.contractAddress ?? FUJI_CONTRACTS.feeSplitAndEscrow,
+  );
+  const runKey = keccak256(stringToHex(trimmed));
+  let raw: RawEscrowRead;
+  if (options?.readState) {
+    raw = await options.readState(runKey);
+  } else {
+    const publicClient = createPublicClient({
+      chain: AVALANCHE_TESTNET_CHAIN,
+      transport: http(options?.rpcUrl ?? AVALANCHE_RPC_URL),
+    });
+    const [rawState, tuple] = await Promise.all([
+      publicClient.readContract({
+        address: contractAddress,
+        abi: ESCROW_V2_ABI,
+        functionName: "runState",
+        args: [runKey],
+      }),
+      publicClient.readContract({
+        address: contractAddress,
+        abi: ESCROW_V2_ABI,
+        functionName: "escrows",
+        args: [runKey],
+      }),
+    ]);
+    raw = {
+      state: RUN_STATE_NAMES[Number(rawState)] ?? "UNUSED",
+      payer: tuple[1],
+      creatorPayTo: tuple[2],
+      unitPriceAtomic: tuple[3].toString(),
+      maxAmountAtomic: tuple[4].toString(),
+      expiresAtUnix: Number(tuple[5]),
+    };
+  }
+  const nowUnix = Math.floor(Date.now() / 1000);
+  return {
+    runId: trimmed,
+    runKey,
+    contractAddress,
+    state: raw.state,
+    payer: raw.payer,
+    creatorPayTo: raw.creatorPayTo,
+    unitPriceAtomic: raw.unitPriceAtomic,
+    maxAmountAtomic: raw.maxAmountAtomic,
+    expiresAtUnix: raw.expiresAtUnix,
+    expiresAtIso:
+      raw.expiresAtUnix > 0
+        ? new Date(raw.expiresAtUnix * 1000).toISOString()
+        : "",
+    expired:
+      raw.state === "ESCROWED" &&
+      raw.expiresAtUnix > 0 &&
+      nowUnix >= raw.expiresAtUnix,
+  };
+}
+
+export async function reclaimExpiredEscrowInBrowser(params: {
+  ethereum?: Eip1193Provider;
+  address: Hex;
+  runId: string;
+  rpcUrl?: string;
+  contractAddress?: Address;
+  readState?: (runKey: Hex) => Promise<RawEscrowRead>;
+  submitRefund?: (runKey: Hex) => Promise<Hex>;
+}): Promise<BrowserEscrowReclaimResult> {
+  const provider = requireEthereum(params.ethereum);
+  await ensureAvalancheChain(provider);
+  const snapshot = await readBrowserEscrowState(params.runId, {
+    ...(params.rpcUrl ? { rpcUrl: params.rpcUrl } : {}),
+    ...(params.contractAddress
+      ? { contractAddress: params.contractAddress }
+      : {}),
+    ...(params.readState ? { readState: params.readState } : {}),
+  });
+  if (snapshot.state !== "ESCROWED") {
+    throw new Error(
+      `Escrow for run ${snapshot.runId} is not active (state: ${snapshot.state}).`,
+    );
+  }
+  if (!snapshot.expired) {
+    throw new Error(
+      `Escrow for run ${snapshot.runId} has not expired yet (expires at ${snapshot.expiresAtIso}).`,
+    );
+  }
+  let txHash: Hex;
+  if (params.submitRefund) {
+    txHash = await params.submitRefund(snapshot.runKey);
+  } else {
+    const account = getAddress(params.address);
+    const walletClient = createWalletClient({
+      account,
+      chain: AVALANCHE_TESTNET_CHAIN,
+      transport: custom(provider),
+    });
+    txHash = await walletClient.writeContract({
+      account,
+      chain: AVALANCHE_TESTNET_CHAIN,
+      address: snapshot.contractAddress,
+      abi: ESCROW_V2_ABI,
+      functionName: "refundEscrow",
+      args: [snapshot.runKey],
+    });
+  }
+  return {
+    runId: snapshot.runId,
+    runKey: snapshot.runKey,
+    contractAddress: snapshot.contractAddress,
+    txHash,
+    payer: snapshot.payer,
+    refundAmountAtomic: snapshot.maxAmountAtomic,
+  };
 }
